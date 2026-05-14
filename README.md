@@ -9,3 +9,8 @@ CS courses like CS I, data structures, and algorithms rely heavily on written ma
 ## Goal
 
 Explore how AI can transform existing course documents into dynamic video learning resources — not to replace instructors, but to help scale their reach and support student understanding.
+
+## Components
+
+- [web-app](web-app/README.md) — Next.js frontend for submitting course materials and browsing generated videos
+- [video-engine](video-engine/README.md) — AI pipeline that converts course content into instructional videos
