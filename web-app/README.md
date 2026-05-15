@@ -8,14 +8,16 @@ Allows instructors and students to interact with the EduVideo pipeline — submi
 
 ## Tech Stack (TBD)
 
-| Layer | Technology |
-|---|---|
-| Framework | Next.js 15 (App Router) |
-| Language | TypeScript |
-| Styling | Tailwind CSS v4 + shadcn/ui |
-| Database | SQLite + Prisma ORM |
-| Validation | Zod |
-| Dev Tools | ESLint, Prettier |
+| Layer | Technology | Notes|
+|---|---|---|
+| Framework | Next.js 15 (App Router) ||
+| Language | TypeScript ||
+| Styling | Tailwind CSS v4 + shadcn/ui |shadcn/ui for the pre-built accessible components (buttons, cards, dialogs)|
+| Database | PostgreSQL + Prisma ORM ||
+| Validation | Zod ||
+| Dev Tools | ESLint, Prettier ||
+
+
 
 ## Project Structure (TBD)
 
