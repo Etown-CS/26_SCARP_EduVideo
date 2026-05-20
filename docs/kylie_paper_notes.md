@@ -71,12 +71,35 @@ and Future Directions](https://www.mdpi.com/2673-6470/6/1/23)
         + Adding audio is largely uncharted territory since current system often generates silent videos.
 
 
-### ... 
-...
-- Design choice:
+### Mariam et al. 2026
+[PhyEduVideo: A Benchmark for Evaluating Text-to-Video Models for Physics Education](https://arxiv.org/abs/2601.00943)
+- Overview: This paper introduces a new evaluation framework for T2V system specifically for physics education
+
 - Implementation note:
-- Evaluation results
+    - Four areas of metrics
+        + Semantic Alignment(意味的整合性)
+        + Physics Commonsense
+            * Three sub-metirces
+            1. Key Physical Phenomena Detection:
+            Makes sure if the video successfully captures the essential behavior described in the prompt
+            2. Physics Order Verification
+            Evaluates the temporal coherence of physical events within the video
+            3. Overall Naturalness Evaluation
+            Checks whether objects or their movements appear physically natural
+        + Motion Smoothness
+        refers to the continuity and cogerence of object motion and background in the video
+        + Temporal Flickering
+        Checks the stability of drawings, like the consistency of colour, size, and shapes of objects across frames
+
+    - Other features
+        + Used an automatic evaluation pipeline leveraging the latest mutimodal AI model like InternVL3.5, LLaVA-Interleave, and InternVideo2 in order to increase effectivity and make sure objectivity of the evaluation metrics
+
+    - Evaluation Results
+        + With detailed points targeted to evaluate, this framework enables to more precisely evaluate the accuracy of the laws of physics which is very important in science education
+        + By manual evaluations by experts, the reliability is ensured through its higher correlation with the result of framework
+
 - My Notes: 
+    - Evaluating the quality by specifying topics/courses will work good to see how well models perform
 
 
 
