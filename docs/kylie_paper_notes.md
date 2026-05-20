@@ -33,8 +33,42 @@ and Future Directions](https://www.mdpi.com/2673-6470/6/1/23)
     - FVD + CLIPSIM together are the standard pair for evaluating both visual quality and semantic alignment
 
 - My Notes:
+    - Three main generative architectures
+        + Variational Autoencoder(VAEs):
+            * consists of an encoder and a decoder - compress -> reconstruct
+            * Instead of mapping an image to a coordinate as a standard autoencoder does, VAEs map an image to a probabilistic distribution
+            * ELBO: a key parameter to balance two things(ELBO = (a) - (b)) and let VAE learn wisely
+                1. Reconstruction Loss (how close the output is to the original)
+                2. KL Divergence (how far from the standardized distribution)
+        + Diffusion models (most popular)
+            * Adding noise to the image until it becomes pure noise -> reverse a noise procedure by parameterizing with transformer architectures
+            * Main weakness of standalone Diffusion Models: they do not have a direct way for humans to control the generated video, so they need extra tools to guess the right parameters
+        + Autoregressive models: generate an image one element at a time by referring to the previous element - like creating a story
+            * Cons: small mistakes can grow bigger over time (like a game of telephone)
+            * Pros: use much less memory, making them good for long videos
+    - Video understanding (essential to meet the gaps between texts and videos)
+        + SAMWISE
+            * tracks objects based on text
+            * SAM2(Segment Anything Model 2), an open-source AI foundation model designed to identify, select, and track objects across both images and videos
+        + VD-IT
+            * based on the idea of "a model that can create videos can also understand them."
+            * Reuse pretrained video generative AI to interpret the video (use the generative models for both video synthesis and understanding backbone)
 
+        + ShareGPT4Video
+            * aim to improve both generation & understanding through the video captioning
+            * focus on "differential captioning," allowing to annotate any videos of varying length and complexity by capturing detailed visuals and temporal evolution
+            * The quality is heavily dependent on how accurate the auto-generated captions are
+    - Video datasets
+        + VidProM - real user prompts
+            * contains 1.67 million of actual user prompts and 6.7 million videos generated from those prompts with four different models
+        + OpenVid-1M - high-resolution videos with clear descriptions
+            * 1 million videos with high resolution and detailed explanation
+        + MiraData - deal with the lack of long clips, and movement in short-video datasets
+            * average video length 72 seconds, and more than 200 words of detailed, structured caption for each
 
+    - Other takeaways
+        + modern T2V systems are built with hybrid architectures
+        + Adding audio is largely uncharted territory since current system often generates silent videos.
 
 
 ### ... 
