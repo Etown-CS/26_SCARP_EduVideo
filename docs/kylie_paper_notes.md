@@ -101,8 +101,84 @@ and Future Directions](https://www.mdpi.com/2673-6470/6/1/23)
 - My Notes: 
     - Evaluating the quality by specifying topics/courses will work good to see how well models perform
 
+### Chen et al. 2025
+[Code2Video: A Code-centric Paradigm for Educational Video Generation](https://arxiv.org/abs/2510.01174)
+
+- Issues being tackled
+    In generating educational videos which require professional knowledge, precise visual structures, and consistence in logics...
+    - Maintenance of Quality: 
+        1. Temporal consistency
+        2. Clear layout without overlapping of elements
+    - Evaluation
+        1. accuracy of content
+        2. effectiveness as educational content
+
+- Implementation Notes
+    - Code2Video with **3 agents** for different purposes
+        1. **Planner**: query to storyboard
+        Designed to decompose a topic into two stages.
+            * Outline generation
+            * Storyboard Construction
+        Also used an external database, which contains reference images aligned with the topic(to reduce hallucination), visual assets like logos(to easily generate from scratch)
+        2. **Coder**: storyboard to executable code
+            * Parallel Code Generation
+                + Address a central bottleneck in full-code synthesis - generation time by separating code generation, debugging, and refinement to get each section  done independently
+                + maintain the temporal consistency with shared assets
+            * Effective Debugging - Save time and token
+                + ScopeRefine(SR) - strategic refining
+                -> Line scope, Block scope, and Global scope
+        3. **Critic**: Effective Visual Refinement
+        Refined executable codes don't always provide visually satisfying result because it's hard for text to capture the spatial features
+            * Visual Anchor Prompt: manage arrangement with grids
+            Two ways by the element's size
+                + point-level: small elements taking a singlw anchor
+                + region-level: larger elements taking up multiple anchors
+            * VideoLLM for Code Feedback
+                + Make all assets indexable -> easier to trace a visual issue back to its source code
+                + Make available anchor visible -> enabling conflict-free reallocation
+
+- Evaluation (MMMC)
+    - TeachQuiz: measure how effectively generated videos tell information
+    - VLM-as-a-judge: approximate subjective judges by human
+        * Element Layout - clearity of element and arrangement
+        * Attractiveness
+        * Logic Flow - temporal consistency
+        * Visual Consistency - stability across frames and sections
+        * Accuracy & Depth - the quality of content
+    - Efficiency: token cost and generation time
+
+- Result
+    - Effectivity of agents: Achieved 40% increase in performance with TeachQuiz
+    - Manual evaluation: In studies with middle school and university students, the AI-generated videos showed learning effects (TeachQuiz scores) comparable to or even better than professional tutorials.
+    - Efficiency: 1/6 for generation time
+
+    The paper shows that Code2Video, using Claude Opus 4.1, achieved a higher score than professional 3B1B videos for middle school students (88.1 vs 86.3).
+
+- Remaining Issues
+    - Engagement and Consistency(from metrics)
+    - Gap in Storytelling: still behind human experts in storytelling, nuanced sequencing, and depth of explanation
+    - Perceptual Sensitivity: Humans are highly sensitive to even minor visual errors that models might miss (leading to lower human scores for layout quality compared to automated metrics)
+    - Abstract Topics: The model struggles with abstract concepts (like topology) that lack clear visual assets, and the automated asset collection can sometimes pick unusable items
+    - Spatial Reasoning Limits: Still limited spatial awareness in underlying LLMs and VLMs, leading to struggle to provide precise, actionable layout corrections
+    - Scalability: lighter and more scalable agent frameworks to handle a broader scope of video types
+
+- My note
+    * The code-centric paradime can be a very strong technique we can apply ours.
+        + High controllability by converting prompt to code ensures logical accuracy
+        + easier to trace for debugging and manual fixing
+    * ScopeRefine -> better efficiency
+    * Parallel generation pipeline -> Maintenance of consistency with shared assets
+    * TeachQuiz -> essential metric for educational video
+    
 
 
+### Zhu et al. 2025 
+[Paper2Video: Automatic Video Generation from Scientific Papers](https://arxiv.org/abs/2510.05096)
+
+- Overview
+- Implementation note
+- Evaluation Result
+- My note
 
 ---
 > Continue adding entries as you read papers each week.
