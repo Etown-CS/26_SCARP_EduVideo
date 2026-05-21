@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Link from "next/link";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -27,13 +28,13 @@ export default function RootLayout({
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">
-        <header> BluEdu
-          <p>
-              <a className ="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider" href="/gallery">Gallery</a>
+      <body>
+        <header className = "text-blue-700 bg-blue-200">
+              <a className ="font-mono text-lg font-bold" href="/">BluEdu</a>
+              <a className ="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider px-6" href="/gallery">Gallery</a>
               <a className ="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider" href="/documents">Documents</a>
-              <a className ="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider" href="/generate">Generate</a>
-          </p>
+              <a className ="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider px-6" href="/generate">Generate</a>
+              <a className ="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider" href="/sign-in">Sign In</a>
         </header>
         {children}
       </body>

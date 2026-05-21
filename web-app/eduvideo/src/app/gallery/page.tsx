@@ -1,3 +1,3 @@
 export default function Gallery(){
-    return <h1> Videos will be stored here! </h1>
+    return <h1 className = "text-center"> Videos will be stored here! </h1>
 }
