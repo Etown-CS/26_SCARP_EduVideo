@@ -150,14 +150,24 @@ and Future Directions](https://www.mdpi.com/2673-6470/6/1/23)
         * Stage 3: Asset Retrieval and Specification**
             * **Component:** `P_asset` (Asset Analyzer) and External Database $\mathcal{D}$.
             * **Process:** The Planner analyzes the storyboard to identify essential visual assets—such as icons, logos, or reference images—that are difficult to represent with simple geometric shapes.
-            * **Structuring Logic:** Retrieved assets are stored in a persistent cache ($D_{asset}$) and shared across sections to guarantee visual consistency throughout the entire video.
+            * **Structuring Logic:** Retrieved assets are stored in a persistent cache ($D_{asset}$) and shared across sections to guarantee visual consistency throughout the entire video.  
 
-    - The specific workflow within the Planner component is summarized as follows:
-        * **Topic Decomposition:** Converting broad learning topics into logical components (an outline) tailored to the audience's educational level.
-        * Hierarchical Planning:** Moving from a high-level plan to a detailed script (storyboard) where text and animations have a one-to-one correspondence.
-        * **Temporal Sequencing:** Structuring the logical order and timing for introducing, developing, and reinforcing concepts.
-        * **Multimodal Asset Preparation:** Gathering relevant reference images from external databases to anchor complex concepts and reduce "hallucination".
-        * **Consistency Management:** Building a shared library of assets to provide a uniform design foundation for the subsequent parallel generation by the Coder.
+
+* * * 
+- **The Logic For Determining What to Include or Discard** 
+    * Generate outline
+        + Target (Who watches the video?): Extract the concept each level of learners should understand
+        + Summarize the topics into 3-5 sentences (introduction, development, conclusion)
+    * Storyboard (pairing)
+        + Decompose each section from the outline into lecture line and animations (minimum units)
+            - abstract concepts -> simplified or converted into visual
+            - common knowledge -> often discarded
+    * Filtering for assets
+        + Discard: something abstract which is invisible, shapes like arrows
+        + Discard: something unrelated tot he topic (with CLIP score threshold)  
+* * *  
+
+
 
 - Evaluation (MMMC)
     - TeachQuiz: measure how effectively generated videos tell information
@@ -231,22 +241,49 @@ and Future Directions](https://www.mdpi.com/2673-6470/6/1/23)
             + Role: Responsible for the initial structural layout of the video
             + Mechanism: It uses the image embedding and temporal layers to generate the first coherent sequence of frames, establishing the basic "action" described in the text
 
-    - Summary of the Structural Workflow
-        * Semantic Planning: The Prior converts text into visual embeddings, defining the "what" of the video
-        * Temporal Structuring: Pseudo-3D layers integrate spatial knowledge with temporal dynamics to create a motion framework
-        * Temporal Density: The Frame Interpolation network refines the motion by filling in gaps between frames
-        * Coherent Detail Enhancement: Spatiotemporal Super-Resolution scales the video while ensuring that "hallucinated" details remain consistent over time to avoid artifacts
-
 - Evaluation Result
     - Significantly outperformed prior systems like GODIVA, NÜWA, and CogVideo
     - Still hard to learn phenomena that can only be inferred from videos
     - For future work -  the generation of longer videos with multiple scenes and more detailed storytelling
 
+>- My notes:
+>    - This Make-A-Video performs well at generating a short video like "A dog wearing a superhero outfit with red cape flying through the sky" based on paired text-image data. So I feel like saying this is good at creating a scene without story. 
+
 ### Zhu et al. 2025 
 [Paper2Video: Automatic Video Generation from Scientific Papers](https://arxiv.org/abs/2510.05096)
 
 - Overview:  
-Paper2Video: Automated Academic Presentation Video Generation
+Paper2Video: Automated Academic Presentation Video Generation  
+Input: Paper, author's portrait, author's voice sample  
+Output:　slides, subtitles, speech, talker, cursor  
+  
+* * * 
+- **The Logic For Determining What to Include or Discard** 
+    * Keys: 
+        + `structured prompting`
+        + `summarization constraints`
+        + `visual-driven refinement`
+        + `LLM`
+        + `VLM`
+    * Filtering via `Structured Prompting` (Slider Builder)
+        + Isolate essential info for academic presentation like Motivation, Related Work, Method, etc.
+        + Intentionally remove peripheral(周辺) discussion to keep it scholarly brief and professionally clear
+    * Retention of Core Information
+        + Summarization is allowed, but under a strict mandate:
+            - Ensure to have technical framework, experimental data, and primary conclusion
+        + Make sure to have essential part even the content needs to be compressed for a video format
+    * Control for Information Density
+        + Maintain a slide count of around 10
+        + Prioritize visuals over than text
+    * Subtitle Generation (Subtitle Builder)
+        + Use VLM to generate the narration
+        + keep strict alignment between the two channels
+    * Layout Optimization for overflow
+        + When the content exceeds the slides' capacity, the system applies the **Tree Search Visual Choice** to propose layout varients
+            - adjusts: font size, figure scaling
+            - VLM to optimize the layout maintaining visual integrity without losing info  
+* * *  
+
 - System Architecture & Step-by-Step Pipeline
     1. **Input Collection**: The system takes three primary inputs: the full **LaTeX project** of the research paper, an **author's portrait** image, and a short **voice sample**.
     2. **Slide Builder**: Generates LaTeX (Beamer) code from the paper content. It involves an iterative debugging process where the system compiles the code, receives error/warning feedback, and repairs the code to ensure a valid layout.
@@ -254,23 +291,5 @@ Paper2Video: Automated Academic Presentation Video Generation
     4. **Cursor Builder**: Uses the visual-focus prompts to determine screen coordinates. It synchronizes these coordinates with the narration using **WhisperX** for precise word-level timing.
     5. **Talker Builder**: Synthesizes personalized speech via Text-to-Speech (TTS) and generates a talking-head video that is lip-synced to the audio.
     6. **Integration & Output**: The five channels—slides, subtitles, speech, talker, and cursor—are combined into the final presentation video.
-
-- **Architecture for 'Planning' and 'Structuring'**  
-the **Slide Builder** and **Subtitle Builder** determine the structure and flow of the presentation
-
-    + **Slide Builder (Structural Planning)**
-        *  **Declarative Planning via Beamer**: Instead of manually placing elements, the system uses LaTeX Beamer's declarative syntax. This allows the system to plan content structure while letting LaTeX automatically handle complex typesetting and alignment.
-        * **Tree Search Visual Choice**: This is a key "refinement plan." If a slide has layout issues (like text overflow), the system proposes multiple parameter variations (e.g., font size, figure scales), renders them, and uses a VLM to "judge" and select the best layout.
-
-    + **B. Subtitle Builder (Event Sequencing)**
-        * **Scripting the Flow**: This component plans the narrative sequence by generating subtitles for each slide. It effectively decides the order of information delivery.
-        * **Attention Planning**: By creating "visual-focus prompts," it maps out the "attentional anchors" that the cursor will follow, essentially planning how the audience's eyes should move across the slide.
-
-- Summary of the Architectural Workflow
-    * **Content Extraction**: Decouples information from the long-context paper into slide-sized chunks using Beamer.
-    * **Iterative Layout Optimization**: Uses a "generate-compile-debug" loop to fix code errors and a "Tree Search" to fix visual overflows.
-    * **Cross-Modal Alignment**: Bridges linguistic units (subtitles) with visual anchors (slide coordinates) and acoustic signals (speech timing).
-    * **Slide-wise Parallelization**: A critical design choice where each slide is processed independently. This allows for **parallel generation**, speeding up the production time by over **6×**.
-    * **Identity Preservation**: Ensures the final output maintains the author's scholarly identity by synthesizing their specific face and voice.
 
 > Continue adding entries as you read papers each week.
