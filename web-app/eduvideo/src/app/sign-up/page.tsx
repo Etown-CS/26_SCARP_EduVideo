@@ -1,24 +1,21 @@
 "use client"
 import { useState } from "react";
-import { useSignInWithEmailAndPassword } from "react-firebase-hooks/auth";
+import {useCreateUserWithEmailAndPassword} from "react-firebase-hooks/auth";
 import {auth} from "@/app/firebase/config";
-import {useRouter} from 'next/navigation';
 
-export default function SignIn(){
-
+export default function SignUp(){
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
-    const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
-    const router = useRouter();
 
-      const handleSignUp = async (e: React.FormEvent) => {
+    const [createUserWithEmailAndPassword] = useCreateUserWithEmailAndPassword(auth);
+
+    const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
         try{
-            const res = await signInWithEmailAndPassword(email, password);
+            const res = await createUserWithEmailAndPassword(email, password);
             console.log({res});
             setEmail('');
             setPassword('');
-            router.push('/');
         }catch(e){
             console.error(e);
         }
@@ -34,28 +31,27 @@ export default function SignIn(){
                 </div>
                 <div className ="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 md:p-10 shadow-xl">
                     <div className ="mb-8">
-                        <h2 className ="font-display text-2xl font-bold text-on-surface mb-2">Welcome Back</h2>
-                        <p className ="text-sm text-on-surface-variant">Please sign in to start creating videos.</p>
+                        <h2 className ="font-display text-2xl font-bold text-on-surface mb-2">Welcome!</h2>
+                        <p className ="text-sm text-on-surface-variant">Please enter an email and password to sign up for BluEdu.</p>
                     </div>
-                    <form className ="space-y-6">
+                    <form className ="space-y-6" onSubmit={handleSignUp}>
                     <div>
                         <label className ="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2 ml-1" htmlFor="email">Email Address</label>
                             <div className ="relative group">
-                                <input className ="w-full bg-surface-container-low border border-outline-variant rounded-lg py-3 px-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none" id="email" placeholder="name@company.com" type="email"/>
+                                <input value={email} onChange={(e) => setEmail(e.target.value)} className ="w-full bg-surface-container-low border border-outline-variant rounded-lg py-3 px-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none" id="email" placeholder="name@company.com" type="email"/>
                             </div>
                     </div>
                     <div>
                         <label className ="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2 ml-1" htmlFor="password">Password</label>
                             <div className ="relative group">
-                                <input className ="w-full bg-surface-container-low border border-outline-variant rounded-lg py-3 px-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none" id="password" placeholder="••••••••" type="password"/>
+                                <input value={password} onChange={(e) => setPassword(e.target.value)} className ="w-full bg-surface-container-low border border-outline-variant rounded-lg py-3 px-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none" id = "password" placeholder="••••••••" type="password"/>
                             </div>
                             <div className ="flex justify-end mt-2">
                             </div>
                     </div>
-                    <button className ="w-full bg-primary text-on-primary font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all duration-200 mt-2 shadow-lg shadow-primary/20 hover:brightness-110" type="submit"> Sign In </button>
+                    <button className ="w-full bg-primary text-on-primary font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all duration-200 mt-2 shadow-lg shadow-primary/20 hover:brightness-110" type="submit"> Create account </button>
                     </form>
                     <div className ="mt-10 text-center">
-                        <p className="text-sm text-on-surface-variant font-medium"> Don't have an account? <a className="text-primary font-bold hover:underline ml-1" href="/sign-up">Sign Up</a></p>
             </div>
             </div>
             </div>

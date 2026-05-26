@@ -1,15 +1,21 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Manrope, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Link from "next/link";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+});
+
+const jetBrains = JetBrains_Mono({
+  variable: "--font-jetBrains",
   subsets: ["latin"],
 });
 
@@ -26,17 +32,25 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      suppressHydrationWarning
+      className={`${manrope.variable} ${inter.variable} ${jetBrains.variable} h-full antialiased`}
     >
-      <body>
-        <header className = "text-blue-700 bg-blue-200">
-              <a className ="font-mono text-lg font-bold" href="/">BluEdu</a>
-              <a className ="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider px-6" href="/gallery">Gallery</a>
-              <a className ="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider" href="/documents">Documents</a>
-              <a className ="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider px-6" href="/generate">Generate</a>
-              <a className ="text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider" href="/sign-in">Sign In</a>
+      <body suppressHydrationWarning className = "bg-surface font-body text-on-surface min-h-screen flex flex-col">
+        <header className = "docked full-width top-0 z-50 bg-surface">
+          <nav className ="flex justify-between items-center w-full px-6 md:px-16 py-6 max-w-7xl mx-auto">
+            <div className = "flex items-center gap-12">
+              <a className = "font-display text-2xl font-extrabold text-primary tracking-tight" href = "/">BluEdu</a>
+              <div className = "hidden md:flex items-center gap-8">
+                <a className = "text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider" href = "/documents">Documents</a>
+                <a className = "text-on-surface-variant font-medium hover:text-primary transition-colors duration-300 font-label text-sm uppercase tracking-wider" href ="/generate">Generate</a>
+              </div>
+            </div>
+            <div className = "flex items-center gap-4">
+            <Link href="/sign-in" className="px-6 py-2 text-on-surface font-semibold hover:text-primary transition-colors active:scale-95 transform duration-200"> Sign In </Link>
+            </div>
+          </nav>
         </header>
-        {children}
+          {children}
       </body>
     </html>
   );

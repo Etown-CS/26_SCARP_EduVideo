@@ -1,4 +1,18 @@
+/*
+"use client"
+import {useAuthState} from 'react-firebase-hooks/auth';
+import {auth} from "@/app/firebase/config";
+import {useRouter} from 'next/navigation';
+*/
 export default function Generate(){
+
+/*    const [user] = useAuthState(auth);
+    const router = useRouter();
+    
+    if(!user){
+        router.push('/sign-in');
+    }
+*/
     return(
         <div> 
             <h1 className = "text-center"> Videos will generate here! </h1>
