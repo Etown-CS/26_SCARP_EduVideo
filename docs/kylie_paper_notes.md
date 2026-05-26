@@ -153,21 +153,18 @@ and Future Directions](https://www.mdpi.com/2673-6470/6/1/23)
             * **Structuring Logic:** Retrieved assets are stored in a persistent cache ($D_{asset}$) and shared across sections to guarantee visual consistency throughout the entire video.  
 
 
-* * * 
-- **The Logic For Determining What to Include or Discard** 
-    * Generate outline
-        + Target (Who watches the video?): Extract the concept each level of learners should understand
-        + Summarize the topics into 3-5 sentences (introduction, development, conclusion)
-    * Storyboard (pairing)
-        + Decompose each section from the outline into lecture line and animations (minimum units)
-            - abstract concepts -> simplified or converted into visual
-            - common knowledge -> often discarded
-    * Filtering for assets
-        + Discard: something abstract which is invisible, shapes like arrows
-        + Discard: something unrelated tot he topic (with CLIP score threshold)  
-* * *  
 
-
+> - **The Logic For Determining What to Include or Discard** 
+>    * Generate outline
+>        + Target (Who watches the video?): Extract the concept each level of learners should understand
+>        + Summarize the topics into 3-5 sentences (introduction, development, conclusion)
+>    * Storyboard (pairing)
+>        + Decompose each section from the outline into lecture line and animations (minimum units)
+>            - abstract concepts -> simplified or converted into visual
+>            - common knowledge -> often discarded
+>    * Filtering for assets
+>        + Discard: something abstract which is invisible, shapes like arrows
+>        + Discard: something unrelated tot he topic (with CLIP score threshold)  
 
 - Evaluation (MMMC)
     - TeachQuiz: measure how effectively generated videos tell information
@@ -252,44 +249,76 @@ and Future Directions](https://www.mdpi.com/2673-6470/6/1/23)
 ### Zhu et al. 2025 
 [Paper2Video: Automatic Video Generation from Scientific Papers](https://arxiv.org/abs/2510.05096)
 
-- Overview:  
-Paper2Video: Automated Academic Presentation Video Generation  
+- Overview: Paper2Video: Automated Academic Presentation Video Generation  
 Input: Paper, author's portrait, author's voice sample  
-Output:　slides, subtitles, speech, talker, cursor  
+Output: slides, subtitles, speech, talker, cursor    
   
-* * * 
-- **The Logic For Determining What to Include or Discard** 
-    * Keys: 
-        + `structured prompting`
-        + `summarization constraints`
-        + `visual-driven refinement`
-        + `LLM`
-        + `VLM`
-    * Filtering via `Structured Prompting` (Slider Builder)
-        + Isolate essential info for academic presentation like Motivation, Related Work, Method, etc.
-        + Intentionally remove peripheral(周辺) discussion to keep it scholarly brief and professionally clear
-    * Retention of Core Information
-        + Summarization is allowed, but under a strict mandate:
-            - Ensure to have technical framework, experimental data, and primary conclusion
-        + Make sure to have essential part even the content needs to be compressed for a video format
-    * Control for Information Density
-        + Maintain a slide count of around 10
-        + Prioritize visuals over than text
-    * Subtitle Generation (Subtitle Builder)
-        + Use VLM to generate the narration
-        + keep strict alignment between the two channels
-    * Layout Optimization for overflow
-        + When the content exceeds the slides' capacity, the system applies the **Tree Search Visual Choice** to propose layout varients
-            - adjusts: font size, figure scaling
-            - VLM to optimize the layout maintaining visual integrity without losing info  
-* * *  
 
-- System Architecture & Step-by-Step Pipeline
+  
+>- **The Logic For Determining What to Include or Discard** 
+>    * Keys: 
+>        + `structured prompting`
+>        + `summarization constraints`
+>        + `visual-driven refinement`
+>        + `LLM`
+>        + `VLM`
+>    * Filtering via `Structured Prompting` (Slider Builder)
+>        + Isolate essential info for academic presentation like Motivation, Related Work, Method, etc.
+>        + Intentionally remove peripheral(周辺) discussion to keep it scholarly brief and professionally clear
+>    * Retention of Core Information
+>        + Summarization is allowed, but under a strict mandate:
+>            - Ensure to have technical framework, experimental data, and primary conclusion
+>        + Make sure to have essential part even the content needs to be compressed for a video format
+>    * Control for Information Density
+>        + Maintain a slide count of around 10
+>        + Prioritize visuals over than text
+>    * Subtitle Generation (Subtitle Builder)
+>        + Use VLM to generate the narration
+>        + keep strict alignment between the two channels
+>    * Layout Optimization for overflow
+>        + When the content exceeds the slides' capacity, the system applies the **Tree Search Visual Choice** to propose layout varients
+>            - adjusts: font size, figure scaling
+>            - VLM to optimize the layout maintaining visual integrity without losing info  
+
+
+- **System Architecture & Step-by-Step Pipeline**
     1. **Input Collection**: The system takes three primary inputs: the full **LaTeX project** of the research paper, an **author's portrait** image, and a short **voice sample**.
     2. **Slide Builder**: Generates LaTeX (Beamer) code from the paper content. It involves an iterative debugging process where the system compiles the code, receives error/warning feedback, and repairs the code to ensure a valid layout.
     3. **Subtitle Builder**: Rasterizes the finalized slides into images. A Vision-Language Model (VLM) then generates **sentence-level subtitles** and **visual-focus prompts** (intermediate markers for where to look).
     4. **Cursor Builder**: Uses the visual-focus prompts to determine screen coordinates. It synchronizes these coordinates with the narration using **WhisperX** for precise word-level timing.
     5. **Talker Builder**: Synthesizes personalized speech via Text-to-Speech (TTS) and generates a talking-head video that is lip-synced to the audio.
     6. **Integration & Output**: The five channels—slides, subtitles, speech, talker, and cursor—are combined into the final presentation video.
+
+## Week 2
+### Xu et al. 2019  
+[Lecture2Note: Automatic Generation of Lecture Notes from Slide-Based Educational Videos](https://www.researchgate.net/publication/334997213_Lecture2Note_Automatic_Generation_of_Lecture_Notes_from_Slide-Based_Educational_Videos).  
+
+- Overview: This paper introduces the VIDEO-TO-DOCUMENT system converting slide-based educational videos into lecture notes
+
+
+> - **Step-by-Step Pipeline & The Logic For Determining What to Include or Discard**
+>    * Visual entity extraction and recognition
+>        + Shot detection: The last frame of each shots of slides(SoS) is extracted
+>        + Region extraction | Binarize & **Run-Length Smoothing Algorithm(RLSA)**: By identifying the .bounding boxes, extract components on slides as a visual entity.
+>        + Elements Classification | **SVM**: Using aspect ratio and symbols, classify each box into fomula, text, or graph.
+>
+>    * Semantic Matching
+>        + Calculation of semantic simlarity | **Word Mover's Distance(WMD)**: Calculate the semantic similarity between visual entities on slides and speech(subtitles)
+>        + Optimization: Minimize total WMD by dividing subtitle sets to the corresponding visuals recursively.
+>
+>    * Layout & Structure
+>        + Weight based on the importance: With the function _I(V)_, decides the area of entity(=weight)
+>            - The weight is determined by the size of entity, length of explanation(speech), and type of entity(fomulas and graphs have higher importance)
+>        + Arrangement optimization
+>            - With the improved **Squarified Treemaps Algorithmn**, divide the slide page into rectangle blocks based on caculated weights
+>            - Improve readability and page usage by optimizing the aspect ratio of each block.
+>    
+>        + Highlight & Filling the content
+>            - Place the visual entity and the corresponding subtitles in each block
+>            - Identify keywords from both visual and audio information with **TF-IDF**, highlight the important term with read
+
+- My notes:  
+Although this paper introduces the Video-To-Document System, which is opposite from what we are going to do, there were still a lot of techniques/concepts which were very interesting. I would like to consider if we can apply any of them to our project.
+
 
 > Continue adding entries as you read papers each week.
