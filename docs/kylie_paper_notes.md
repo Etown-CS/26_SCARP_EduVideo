@@ -73,23 +73,18 @@ and Future Directions](https://www.mdpi.com/2673-6470/6/1/23)
 
 ### Mariam et al. 2026
 [PhyEduVideo: A Benchmark for Evaluating Text-to-Video Models for Physics Education](https://arxiv.org/abs/2601.00943)
-- Overview: This paper introduces a new evaluation framework for T2V system specifically for physics education
+- Overview: A new evaluation framework for T2V system specifically for physics education
 
 - Implementation note:
     - Four areas of metrics
         + Semantic Alignment(意味的整合性)
         + Physics Commonsense
             * Three sub-metirces
-            1. Key Physical Phenomena Detection:
-            Makes sure if the video successfully captures the essential behavior described in the prompt
-            2. Physics Order Verification
-            Evaluates the temporal coherence of physical events within the video
-            3. Overall Naturalness Evaluation
-            Checks whether objects or their movements appear physically natural
-        + Motion Smoothness
-        refers to the continuity and cogerence of object motion and background in the video
-        + Temporal Flickering
-        Checks the stability of drawings, like the consistency of colour, size, and shapes of objects across frames
+            1. Key Physical Phenomena Detection: makes sure if the video successfully captures the essential behavior described in the prompt
+            2. Physics Order Verification: evaluates the temporal coherence of physical events within the video
+            3. Overall Naturalness Evaluation: checks whether objects or their movements appear physically natural
+        + Motion Smoothness: refers to the continuity and cogerence of object motion and background in the video
+        + Temporal Flickering: checks the stability of drawings, like the consistency of colour, size, and shapes of objects across frames
 
     - Other features
         + Used an automatic evaluation pipeline leveraging the latest mutimodal AI model like InternVL3.5, LLaVA-Interleave, and InternVideo2 in order to increase effectivity and make sure objectivity of the evaluation metrics
@@ -104,8 +99,7 @@ and Future Directions](https://www.mdpi.com/2673-6470/6/1/23)
 ### Chen et al. 2025
 [Code2Video: A Code-centric Paradigm for Educational Video Generation](https://arxiv.org/abs/2510.01174)
 
-- Issues being tackled
-    In generating educational videos which require professional knowledge, precise visual structures, and consistence in logics...
+- Issues being tackled - In generating educational videos which require professional knowledge, precise visual structures, and consistence in logics...
     - Maintenance of Quality: 
         1. Temporal consistency
         2. Clear layout without overlapping of elements
@@ -136,6 +130,41 @@ and Future Directions](https://www.mdpi.com/2673-6470/6/1/23)
             * VideoLLM for Code Feedback
                 + Make all assets indexable -> easier to trace a visual issue back to its source code
                 + Make available anchor visible -> enabling conflict-free reallocation
+
+- **System Architecture: Planner**
+    - The primary objective: transform an abstract learning query into a temporally coherent, logical lecture flow known as a storyboard. This 
+    - Step-by-Step Pipeline
+        * Input Query
+            + The user provides a text-based learning topic they wish to teach (e.g., "What is a Support Vector Machine?").
+
+        * Stage 1: Outline Generation
+            + **Component:** `P_outline` (Outline Generator).
+            + **Process:** The Planner decomposes the topic into a logical set of sections. Each section includes a unique ID, title, content summary, and illustrative examples.
+            + **Structuring Logic:** identifies the **intended audience** (e.g., middle school vs. university students) to ensure the structure and difficulty level are appropriate. This outline serves as the **"temporal skeleton"** for the video, guiding pacing and sequencing.
+
+        * Stage 2: Storyboard Construction**
+            * **Component:** `P_storyboard` (Storyboard Constructor).
+            * **Process:** The outline is refined into detailed pairs consisting of "lecture lines" and their corresponding "animation instructions".
+            * **Planning Logic:** It determines the **precise sequence of events**, specifying exactly which animation triggers alongside which line of text to preserve logical flow.
+
+        * Stage 3: Asset Retrieval and Specification**
+            * **Component:** `P_asset` (Asset Analyzer) and External Database $\mathcal{D}$.
+            * **Process:** The Planner analyzes the storyboard to identify essential visual assets—such as icons, logos, or reference images—that are difficult to represent with simple geometric shapes.
+            * **Structuring Logic:** Retrieved assets are stored in a persistent cache ($D_{asset}$) and shared across sections to guarantee visual consistency throughout the entire video.  
+
+
+
+> - **The Logic For Determining What to Include or Discard** 
+>    * Generate outline
+>        + Target (Who watches the video?): Extract the concept each level of learners should understand
+>        + Summarize the topics into 3-5 sentences (introduction, development, conclusion)
+>    * Storyboard (pairing)
+>        + Decompose each section from the outline into lecture line and animations (minimum units)
+>            - abstract concepts -> simplified or converted into visual
+>            - common knowledge -> often discarded
+>    * Filtering for assets
+>        + Discard: something abstract which is invisible, shapes like arrows
+>        + Discard: something unrelated tot he topic (with CLIP score threshold)  
 
 - Evaluation (MMMC)
     - TeachQuiz: measure how effectively generated videos tell information
@@ -169,16 +198,127 @@ and Future Directions](https://www.mdpi.com/2673-6470/6/1/23)
     * ScopeRefine -> better efficiency
     * Parallel generation pipeline -> Maintenance of consistency with shared assets
     * TeachQuiz -> essential metric for educational video
-    
 
+### Singer et al. 2022 
+[Make-A-Video: Text-to-Video Generation Without Text-Video Data](https://arxiv.org/abs/2209.14792)
+- Overview
+    - Key Points
+        * Extend T2I techniques/improvement to T2V
+        * learn what the world looks like from paired text-image data and learn how the world moves from unsupervised video footage
+    - Advantages
+        * Accelerated training:
+            + no need to learn multimodal representation form scratch
+            + use pre-trained model for T2I
+        * Not require dataset which links text description and corresponding videos
+        * Diversity of representation
+            + enable to generate diverse representation from inherited image generation models
+
+- Implementation note
+    - 3 major components consisting Make-A-Video
+        1. T2I base model trained on paired text-image data
+        2. Spatialtemporal and Attention layers extending the base model to time dimension
+        3. Spatialtemporal network with frame interpolation network for high-frame rate
+
+    - System Pipeline: Step-by-Step Workflow
+        1. Text Encoding: The input text x is processed by a CLIP text encoder to create text embeddings and BPE-encoded tokens
+        2. Prior - Semantic Planning: The Prior network translates the text embeddings into an image embedding. This stage acts as the "semantic plan," determining the visual content that corresponds to the text
+        3. Spatiotemporal Decoder - Basic Structuring: Conditioned on the image embedding and a desired frame rate, the decoder generates 16 low-resolution frames (64x64 pixels). This is where the core sequence of events and motion is established
+        4. Frame Interpolation - Temporal Refinement: An interpolation network increases the frame rate by generating additional frames between the initial 16, resulting in smoother motion (e.g., upsampling to 76 frames)
+        5. Spatiotemporal Super-Resolution: This module increases the resolution to 256x256. It operates across both spatial and temporal dimensions to ensure that the added details are consistent across frames, preventing "flickering" artifacts
+        6. Spatial Super-Resolution - Final Enhancement: The final module scales the video to 768x768. Due to memory constraints, this step is purely spatial but uses fixed noise initialization across frames to maintain detail consistency.
+
+    - **Architecture for Planning and Structuring**  
+    The following components are specifically responsible for determining the order, consistency, and structure of the generated video:
+        * Prior Network (P):
+            + Role: Handles semantic planning by converting abstract text into a concrete visual representation (image embedding) that guides the entire generation process
+        * Pseudo-3D (P3D) Layers (Convolution and Attention):
+            + Role: These layers are the primary mechanism for temporal structuring
+            + Mechanism: By stacking 1D temporal layers after pre-trained 2D spatial layers, the model learns to share information between the spatial and temporal axes. This allows the model to structure motion while retaining the aesthetic knowledge inherited from image-based training
+        * Spatiotemporal Decoder:
+            + Role: Responsible for the initial structural layout of the video
+            + Mechanism: It uses the image embedding and temporal layers to generate the first coherent sequence of frames, establishing the basic "action" described in the text
+
+- Evaluation Result
+    - Significantly outperformed prior systems like GODIVA, NÜWA, and CogVideo
+    - Still hard to learn phenomena that can only be inferred from videos
+    - For future work -  the generation of longer videos with multiple scenes and more detailed storytelling
+
+>- My notes:
+>    - This Make-A-Video performs well at generating a short video like "A dog wearing a superhero outfit with red cape flying through the sky" based on paired text-image data. So I feel like saying this is good at creating a scene without story. 
 
 ### Zhu et al. 2025 
 [Paper2Video: Automatic Video Generation from Scientific Papers](https://arxiv.org/abs/2510.05096)
 
-- Overview
-- Implementation note
-- Evaluation Result
-- My note
+- Overview: Paper2Video: Automated Academic Presentation Video Generation  
+Input: Paper, author's portrait, author's voice sample  
+Output: slides, subtitles, speech, talker, cursor    
+  
 
----
+  
+>- **The Logic For Determining What to Include or Discard** 
+>    * Keys: 
+>        + `structured prompting`
+>        + `summarization constraints`
+>        + `visual-driven refinement`
+>        + `LLM`
+>        + `VLM`
+>    * Filtering via `Structured Prompting` (Slider Builder)
+>        + Isolate essential info for academic presentation like Motivation, Related Work, Method, etc.
+>        + Intentionally remove peripheral(周辺) discussion to keep it scholarly brief and professionally clear
+>    * Retention of Core Information
+>        + Summarization is allowed, but under a strict mandate:
+>            - Ensure to have technical framework, experimental data, and primary conclusion
+>        + Make sure to have essential part even the content needs to be compressed for a video format
+>    * Control for Information Density
+>        + Maintain a slide count of around 10
+>        + Prioritize visuals over than text
+>    * Subtitle Generation (Subtitle Builder)
+>        + Use VLM to generate the narration
+>        + keep strict alignment between the two channels
+>    * Layout Optimization for overflow
+>        + When the content exceeds the slides' capacity, the system applies the **Tree Search Visual Choice** to propose layout varients
+>            - adjusts: font size, figure scaling
+>            - VLM to optimize the layout maintaining visual integrity without losing info  
+
+
+- **System Architecture & Step-by-Step Pipeline**
+    1. **Input Collection**: The system takes three primary inputs: the full **LaTeX project** of the research paper, an **author's portrait** image, and a short **voice sample**.
+    2. **Slide Builder**: Generates LaTeX (Beamer) code from the paper content. It involves an iterative debugging process where the system compiles the code, receives error/warning feedback, and repairs the code to ensure a valid layout.
+    3. **Subtitle Builder**: Rasterizes the finalized slides into images. A Vision-Language Model (VLM) then generates **sentence-level subtitles** and **visual-focus prompts** (intermediate markers for where to look).
+    4. **Cursor Builder**: Uses the visual-focus prompts to determine screen coordinates. It synchronizes these coordinates with the narration using **WhisperX** for precise word-level timing.
+    5. **Talker Builder**: Synthesizes personalized speech via Text-to-Speech (TTS) and generates a talking-head video that is lip-synced to the audio.
+    6. **Integration & Output**: The five channels—slides, subtitles, speech, talker, and cursor—are combined into the final presentation video.
+
+## Week 2
+### Xu et al. 2019  
+[Lecture2Note: Automatic Generation of Lecture Notes from Slide-Based Educational Videos](https://www.researchgate.net/publication/334997213_Lecture2Note_Automatic_Generation_of_Lecture_Notes_from_Slide-Based_Educational_Videos).  
+
+- Overview: This paper introduces the VIDEO-TO-DOCUMENT system converting slide-based educational videos into lecture notes
+
+
+> - **Step-by-Step Pipeline & The Logic For Determining What to Include or Discard**
+>    * Visual entity extraction and recognition
+>        + Shot detection: The last frame of each shots of slides(SoS) is extracted
+>        + Region extraction | Binarize & **Run-Length Smoothing Algorithm(RLSA)**: By identifying the .bounding boxes, extract components on slides as a visual entity.
+>        + Elements Classification | **SVM**: Using aspect ratio and symbols, classify each box into fomula, text, or graph.
+>
+>    * Semantic Matching
+>        + Calculation of semantic simlarity | **Word Mover's Distance(WMD)**: Calculate the semantic similarity between visual entities on slides and speech(subtitles)
+>        + Optimization: Minimize total WMD by dividing subtitle sets to the corresponding visuals recursively.
+>
+>    * Layout & Structure
+>        + Weight based on the importance: With the function _I(V)_, decides the area of entity(=weight)
+>            - The weight is determined by the size of entity, length of explanation(speech), and type of entity(fomulas and graphs have higher importance)
+>        + Arrangement optimization
+>            - With the improved **Squarified Treemaps Algorithmn**, divide the slide page into rectangle blocks based on caculated weights
+>            - Improve readability and page usage by optimizing the aspect ratio of each block.
+>    
+>        + Highlight & Filling the content
+>            - Place the visual entity and the corresponding subtitles in each block
+>            - Identify keywords from both visual and audio information with **TF-IDF**, highlight the important term with read
+
+- My notes:  
+Although this paper introduces the Video-To-Document System, which is opposite from what we are going to do, there were still a lot of techniques/concepts which were very interesting. I would like to consider if we can apply any of them to our project.
+
+
 > Continue adding entries as you read papers each week.
