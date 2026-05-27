@@ -16,9 +16,10 @@ export default function SignIn(){
         try{
             const res = await signInWithEmailAndPassword(email, password);
             console.log({res});
+            if(!res) return;
             setEmail('');
             setPassword('');
-            router.push('/');
+            router.push('/generate');
         }catch(e){
             console.error(e);
         }
@@ -35,19 +36,23 @@ export default function SignIn(){
                 <div className ="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 md:p-10 shadow-xl">
                     <div className ="mb-8">
                         <h2 className ="font-display text-2xl font-bold text-on-surface mb-2">Welcome Back</h2>
-                        <p className ="text-sm text-on-surface-variant">Please sign in to start creating videos.</p>
+                        <p className ="text-sm text-on-surface-variant">Please sign in to start uploading documents and creating videos.</p>
                     </div>
-                    <form className ="space-y-6">
+                    <form className ="space-y-6" onSubmit={handleSignUp}>
                     <div>
                         <label className ="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2 ml-1" htmlFor="email">Email Address</label>
                             <div className ="relative group">
-                                <input className ="w-full bg-surface-container-low border border-outline-variant rounded-lg py-3 px-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none" id="email" placeholder="name@company.com" type="email"/>
+                                <input value = {email} 
+                                onChange={(e) => setEmail(e.target.value)}
+                                className ="w-full bg-surface-container-low border border-outline-variant rounded-lg py-3 px-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none" id="email" placeholder="name@company.com" type="email"/>
                             </div>
                     </div>
                     <div>
                         <label className ="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2 ml-1" htmlFor="password">Password</label>
                             <div className ="relative group">
-                                <input className ="w-full bg-surface-container-low border border-outline-variant rounded-lg py-3 px-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none" id="password" placeholder="••••••••" type="password"/>
+                                <input value = {password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className ="w-full bg-surface-container-low border border-outline-variant rounded-lg py-3 px-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none" id="password" placeholder="••••••••" type="password"/>
                             </div>
                             <div className ="flex justify-end mt-2">
                             </div>
