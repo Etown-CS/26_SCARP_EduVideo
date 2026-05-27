@@ -1,6 +1,7 @@
 "use client"
 import { useState } from "react";
 import { useSignInWithEmailAndPassword } from "react-firebase-hooks/auth";
+import { useSignInWithGoogle } from "react-firebase-hooks/auth";
 import {auth} from "@/app/firebase/config";
 import {useRouter} from 'next/navigation';
 
@@ -9,6 +10,7 @@ export default function SignIn(){
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [signInWithEmailAndPassword] = useSignInWithEmailAndPassword(auth);
+    const [signInWithGoogle] = useSignInWithGoogle(auth);
     const router = useRouter();
 
       const handleSignUp = async (e: React.FormEvent) => {
@@ -19,6 +21,16 @@ export default function SignIn(){
             if(!res) return;
             setEmail('');
             setPassword('');
+            router.push('/generate');
+        }catch(e){
+            console.error(e);
+        }
+    };
+
+    const handleGoogleSignIn = async () => {
+        try{
+            const res = await signInWithGoogle();
+            if (!res) return;
             router.push('/generate');
         }catch(e){
             console.error(e);
@@ -58,6 +70,7 @@ export default function SignIn(){
                             </div>
                     </div>
                     <button className ="w-full bg-primary text-on-primary font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all duration-200 mt-2 shadow-lg shadow-primary/20 hover:brightness-110" type="submit"> Sign In </button>
+                    <button className ="w-full bg-on-secondary-fixed-variant text-on-primary font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all duration-200 mt-2 shadow-lg shadow-primary/20 hover:brightness-110" type="button" onClick={handleGoogleSignIn}> Sign In With Google Account </button>
                     </form>
                     <div className ="mt-10 text-center">
                         <p className="text-sm text-on-surface-variant font-medium"> Don't have an account? <a className="text-primary font-bold hover:underline ml-1" href="/sign-up">Sign Up</a></p>

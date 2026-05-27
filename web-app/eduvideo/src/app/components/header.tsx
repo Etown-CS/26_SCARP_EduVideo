@@ -27,9 +27,9 @@ export default function Header(){
             <div className = "flex items-center gap-4">
                 {!loading && (user ? (
                     <button onClick={handleSignOut}
-                    className = "px-6 py-2 text-on-surface font-semibold hover:text-primary transition-colors active:scale-95 transform duration-200"> Sign Out </button>
+                    className = "inline-block rounded-lg bg-primary px-6 py-2 text-on-primary text-sm font-semibold hover:brightness-110 transition-colors active:scale-95 transform duration-200"> Sign Out </button>
                 ):(
-                    <Link href="/sign-in" className="px-2 py-2 text-on-surface font-semibold hover:text-primary transition-colors active:scale-95 transform duration-200"> Sign In </Link>
+                    <Link href="/sign-in" className="inline-block rounded-lg bg-primary px-6 py-2 text-on-primary text-sm font-semibold hover:brightness-110 transition-colors active:scale-95 transform duration-200"> Sign In </Link>
                 )
                 )
                 }

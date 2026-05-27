@@ -1,14 +1,16 @@
 "use client"
 import { useState } from "react";
-import {useCreateUserWithEmailAndPassword} from "react-firebase-hooks/auth";
-import {auth} from "@/app/firebase/config";
-import {useRouter} from "next/navigation";
+import { useCreateUserWithEmailAndPassword } from "react-firebase-hooks/auth";
+import { useSignInWithGoogle } from "react-firebase-hooks/auth";
+import { auth } from "@/app/firebase/config";
+import { useRouter } from "next/navigation";
 
 export default function SignUp(){
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [createUserWithEmailAndPassword] = useCreateUserWithEmailAndPassword(auth);
+    const [createUserWithGoogle] = useSignInWithGoogle(auth);
     const router = useRouter();
 
     const handleSignUp = async (e: React.FormEvent) => {
@@ -29,6 +31,16 @@ export default function SignUp(){
             setError('Something went wrong. Please try again.');
         }
     };
+
+    const handleGoogleSignUp = async () => {
+        try{
+            const res = await createUserWithGoogle();
+            if(!res) return;
+            router.push('/generate');
+        }catch(e){
+            console.error(e);
+        }
+    }
 
     return(
             <main className ="flex-grow flex flex-col items-center justify-center px-6 py-20 relative overflow-hidden">
@@ -60,6 +72,7 @@ export default function SignUp(){
                     </div>
                     {error && (<p className="text-red-500 text-sm text-center">{error}</p>)}
                     <button className ="w-full bg-primary text-on-primary font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all duration-200 mt-2 shadow-lg shadow-primary/20 hover:brightness-110" type="submit"> Create account </button>
+                    <button className ="w-full bg-on-secondary-fixed-variant text-on-primary font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all duration-200 mt-2 shadow-lg shadow-primary/20 hover:brightness-110" type="button" onClick={handleGoogleSignUp}> Create account with Google </button>
                     </form>
                     <div className ="mt-10 text-center">
             </div>
