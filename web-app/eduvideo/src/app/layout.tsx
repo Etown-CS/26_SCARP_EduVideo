@@ -38,6 +38,14 @@ export default function RootLayout({
       <body suppressHydrationWarning className = "bg-surface font-body text-on-surface min-h-screen flex flex-col">
         <Header />
           {children}
+        <footer className="full-width mt-auto bg-surface-container-low border-t border-outline-variant/10">
+        <div className="flex flex-col md:flex-row justify-between items-center w-full px-4 md:px-8 py-6 gap-8">
+          <div className="flex flex-col items-center md:items-start gap-4">
+            <span className="font-display text-2xl font-bold text-primary">BluEdu</span>
+            <p className="font-body text-sm text-on-secondary-container text-center md:text-left"> SCARP 2026 BluEdu Note to Video Project</p>
+          </div>
+        </div>
+      </footer>
       </body>
     </html>
   );

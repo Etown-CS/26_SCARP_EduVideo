@@ -1,8 +1,9 @@
 "use client"
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/app/firebase/config";
+import { auth, db } from "@/app/firebase/config";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function Docs(){
 
@@ -23,9 +24,21 @@ export default function Docs(){
 
     if(!user) return null;
 
+    const fetchDocuments = async () => {
+        const q = query(collection(db, 'documents'), where('userId', '==', user?.uid));
+        const snapshot = await getDocs(q);
+        const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        /*Need a way to set the documents*/
+    }
+
     return(
         <div>
-            <h1 className = "text-center"> Documents will be stored here! </h1>
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-6">
+                <div>
+                    <h1 className="font-headline text-3xl font-bold text-on-background px-4 md:px-8 py-6">My Documents</h1>
+                    <p className="text-on-surface-variant font-body px-4 md:px-8 py-6">You will be able to see the documents you have uploaded here.</p>
+                </div>
+            </div>
         </div>
     )
 }
