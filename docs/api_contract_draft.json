@@ -1,0 +1,22 @@
+{
+    "topic": "Recursion",
+    "segments": [
+        {
+            "id": "seg_001",
+            "type": "definition",
+            "ToBeDELETED_type_options": ["definition", "code", "userPrompt", "explanation"],
+            "content": "actual text extracted",
+            "importance": "high",
+            "ToBeDELETED_importance_options": ["high", "medium", "low", "orNumbers? "],
+            "order": 1
+        }
+    ],
+    "transcripts": [
+        {
+            "segment_id": "seg_001",
+            "order": 1,
+            "narration": "transcripts"
+        }
+    ]
+
+}
