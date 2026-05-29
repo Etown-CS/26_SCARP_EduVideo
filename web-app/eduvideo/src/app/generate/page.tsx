@@ -11,6 +11,7 @@ export default function Generate(){
 
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
+    const [isDragging, setIsDragging] = useState(false);
     const [files, setFiles] = useState<File[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
     const [prompt, setPrompt] = useState('');
@@ -34,6 +35,20 @@ export default function Generate(){
             const selected = Array.from(e.target.files);
             setFiles(prev => [...prev, ...selected]);
         }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = () => setIsDragging(false);
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const dropped = Array.from(e.dataTransfer.files);
+        setFiles(prev => [...prev, ...dropped]);
     };
 
     const removeFile = (index: number) => {
@@ -72,7 +87,11 @@ export default function Generate(){
                         <h1 className="font-headline text-3xl font-bold text-on-background">Generate</h1>
                     </div>
                     <div className="flex-1 text-center items-center flex-col pt-20">
-                    <div className="max-w-2xl w-full p-2 rounded-xl neomorph-raised bg-surface-container-low group cursor-pointer transition-all duration-300 hover:scale-[1.01]">
+                    <div
+                        onDragOver={handleDragOver}
+                        onDragLeave={handleDragLeave}
+                        onDrop={handleDrop} 
+                        className="max-w-2xl w-full p-2 rounded-xl neomorph-raised bg-surface-container-low group cursor-pointer transition-all duration-300 hover:scale-[1.01]">
                         <div className="border-2 border-dashed border-outline-variant rounded-lg p-12 neomorph-sunken flex flex-col items-center justify-center gap-4 bg-surface-bright">
                             <h3 className="font-headline text-xl font-bold text-on-surface">Upload your files here</h3>
                             <p className="text-on-surface-variant font-body">Support for (needs to be decided)</p>
@@ -94,10 +113,10 @@ export default function Generate(){
                     </div>
                     <div className="max-w-2xl neomorph-sunken bg-surface-container-low my-8 px-4 py-8 rounded-lg flex items-center gap-2">
                         <span className="material-symbols-outlined text-outline text-[40px]"></span>
-                        <input 
+                        <textarea 
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
-                        className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full h-8" placeholder="Input an additional prompt here" type="text"/>
+                        className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Input an additional prompt here" rows={3}/>
                     </div>
                 <div className="max-w-2xl flex flex-col items-center justify-center gap-4">
                     <button 
