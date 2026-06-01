@@ -1,37 +1,17 @@
 "use client"
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth, db } from "@/app/firebase/config";
+import { auth } from "@/app/firebase/config";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { collection, query, where, getDocs } from 'firebase/firestore';
-
-type Document = {
-    id: string;
-    name: string;
-    url: string;
-    prompt: string;
-    createdAt: any;
-};
 
 export default function Docs(){
 
     const[user, loading] = useAuthState(auth);
     const router = useRouter();
-    const [docs, setDocs] = useState<Document[]>([]);
-
-    const fetchDocuments = async () => {
-        const q = query(collection(db, 'documents'), where('userId', '==', user?.uid));
-        const snapshot = await getDocs(q);
-        const fetched = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Document));
-        setDocs(fetched);
-    };
 
     useEffect(() => {
         if(!user && !loading){
             router.push('/sign-in');
-        }
-        if(user){
-            fetchDocuments();
         }
     }, [user, router, loading]);
 
