@@ -1,3 +1,6 @@
+# Backend exclude testing output
+video-engine/output_sample
+
 # venv
 /venv
 
