@@ -4,15 +4,14 @@ import Aside from "@/app/components/aside";
 import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
 import AgentChat from "@/app/components/agentchat";
+import Loading from "@/app/components/loading";
 
 export default function Review() {
 
     const [user, loading] = useAuthState(auth);
 
     if (loading) return (
-        <div className="min-h-screen bg-surface flex items-center justify-center">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
+        <Loading />
     )
     return (
         <main className="flex-grow">

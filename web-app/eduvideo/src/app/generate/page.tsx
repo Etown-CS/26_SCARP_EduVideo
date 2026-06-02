@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import Aside from '@/app/components/aside';
 import AgentChat from '../components/agentchat';
+import Loading from "@/app/components/loading";
 
 export default function Generate() {
 
@@ -31,9 +32,7 @@ export default function Generate() {
     }, [prompt]);
 
     if (loading) return (
-        <div className="min-h-screen bg-surface flex items-center justify-center">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-        </div>
+        <Loading />
     );
 
     if (!user) return null;
@@ -67,8 +66,10 @@ export default function Generate() {
     };
 
     const handleSubmit = () => {
+        /*
         localStorage.removeItem('prompt');
         localStorage.removeItem('uploadedFiles');
+        */
         setPrompt('');
         setFiles([]);
         router.push('/documents');
