@@ -42,8 +42,10 @@ export default function Generate() {
             const selected = Array.from(e.target.files);
             setFiles(prev => [...prev, ...selected]);
 
-            const names = selected.map(f => f.name);
-            localStorage.setItem('uploadedFiles', JSON.stringify(names));
+            const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
+            const name = selected.map(f => f.name);
+            const merged = [...existing, ...name];
+            localStorage.setItem('uploadedFiles', JSON.stringify(merged));
         }
     };
 

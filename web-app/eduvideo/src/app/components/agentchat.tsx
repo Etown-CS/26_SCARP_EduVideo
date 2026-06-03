@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
+import { Agent, run } from '@openai/agents';
 
 export default function AgentChat() {
     const [messages, setMessages] = useState([{ sender: 'agent', text: 'How can I help you?' }]);
