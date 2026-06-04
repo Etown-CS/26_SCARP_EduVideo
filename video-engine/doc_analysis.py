@@ -5,6 +5,24 @@ import os
 from collections import Counter
 import re
 
+'''
+### Overview of Process ###
+
+Format checker
+↓
+Dominant color detection (grouping all the colour used in the pdf into a single dominant color and other minor colors)
+(require pdf)
+↓
+PDF-MD conversion (text extraction)
+↓
+Remove boilerplates
+↓
+weighting scoring system
+
+Note: if we want to remove boilerplates first, before doing color, there is a companion lib `markdown-pdf`
+
+'''
+
 # Get the type of input
 # inputFile = "topo_lec.pdf" # for test (single-page pdf)
 inputFile = "cs322_bfs.pdf" # for test (multiple-page pdf)
@@ -58,10 +76,10 @@ for page in doc:
                         minor_color.add(span["text"].strip())
 
 ############### PDF -> Markdown Conversion ###############
-# md_text = pymupdf4llm.to_markdown(pdf, write_images=True, image_path=f"output_sample/{output_name}") # for testing
-md = pymupdf4llm.to_markdown(pdf)
+md = pymupdf4llm.to_markdown(pdf, write_images=True, image_path=f"output_sample/{output_name}") # for testing
 
 ############### Remove boilerplates ###############
+from markdown_pdf import MarkdownPdf, Section
 
 def remove_boilerplates(md, threshold=2):
     # Removes some boilerplates repeated in md file (header, footer, date, course number etc.)
@@ -77,15 +95,14 @@ def remove_boilerplates(md, threshold=2):
         # the line contains ONLY 2-digit number (page #)
     cleaned_lines = [
         line for line in lines
-        if line_cnt.get(line, 0) < threshold 
+        if line_cnt.get(line, 0) < threshold
         and line.strip() != ""
         and not re.fullmatch(r'\d+', line.strip())
     ]
+
     return "\n".join(cleaned_lines)
-    # return cleaned_lines
 
 cleaned_md = remove_boilerplates(md, threshold = 2)
-# print(cleaned_md)
 
 ############### Weighting Score System ###############
 # Based on text color, underline, highlight information from PDF input,
@@ -94,29 +111,26 @@ cleaned_md = remove_boilerplates(md, threshold = 2)
 
 def score_by_line(line, minor_color):
     plain_text = line.strip()
-    score = 0.0
+    score = 0.1
 
     # heading
     if plain_text.startswith("# "):
-        score = 1.0
-    elif plain_text.startswith("## "):
-        score = 0.9
-    elif plain_text.startswith("### "):
-        score = 0.8
+        score += 1.0
+    if plain_text.startswith("## "):
+        score += 0.8
+    if plain_text.startswith("### "):
+        score += 0.6
     
     # bold
-    elif "**" in plain_text:
-        score = 0.7
+    if "**" in plain_text:
+        score += 0.3
     # italics
-    elif "_" in plain_text:
-        score = 0.6
-    # normal texts
-    elif plain_text:
-        score = 0.3
+    if "_" in plain_text:
+        score += 0.2
 
-    for word in minor_color: # take bigger score 
+    for word in minor_color:
         if word in plain_text:
-            score = max(score, 0.7)
+            score += 0.2
             break
 
     return score
