@@ -25,7 +25,7 @@ else:
     print("Error: Unable to proccess this format.")
     exit()
 
-############### Weighting Scoresystem ###############
+############### Helper Function 1 - Detect Text Color ###############
 doc = pymupdf.open(inputFile)
 
 # Define dominant color
@@ -40,23 +40,11 @@ def get_domColor(doc):
                         if span["text"].strip():
                             color_cnt[span["color"]] += 1 # add color
 
-    # return color_cnt.most_common(1)[0][0]
-    return color_cnt
+    return color_cnt.most_common(1)[0][0]
 
 dom_color = get_domColor(doc)
-# print("Dominant color: ", dom_color)
-print(dom_color)
+print("Dominant color: ", dom_color)
 
-for page in doc:
-    blocks = page.get_text("dict")["blocks"]
-    for block in blocks:
-        if block["type"] == 0:
-            for line in block["lines"]:
-                for span in line["spans"]:
-                    if span["text"].strip() and span["color"] != dom_color:
-                        print("Text :", span["text"])
-                        print("Color:", span["color"])
-                        print("---")
 
 # Store texts with minor colors(ones not dom_color) in a Set
 minor_color = set() # A set to store
@@ -69,11 +57,9 @@ for page in doc:
                     if span["text"].strip() and span["color"] != dom_color:
                         minor_color.add(span["text"].strip())
 
-############### Text Extraction (markdown-styled) ###############
+############### PDF -> Markdown Conversion ###############
 # md_text = pymupdf4llm.to_markdown(pdf, write_images=True, image_path=f"output_sample/{output_name}") # for testing
 md = pymupdf4llm.to_markdown(pdf)
-# print(f"extracted texts:\n{txt}\n\n\n")
-
 
 ############### Remove boilerplates ###############
 
@@ -101,6 +87,43 @@ def remove_boilerplates(md, threshold=2):
 cleaned_md = remove_boilerplates(md, threshold = 2)
 # print(cleaned_md)
 
+############### Weighting Score System ###############
+# Based on text color, underline, highlight information from PDF input,
+# and markdown symbols from md file,
+# Weight extracted text line by line
+
+def score_by_line(line, minor_color):
+    plain_text = line.strip()
+    score = 0.0
+
+    # heading
+    if plain_text.startswith("# "):
+        score = 1.0
+    elif plain_text.startswith("## "):
+        score = 0.9
+    elif plain_text.startswith("### "):
+        score = 0.8
+    
+    # bold
+    elif "**" in plain_text:
+        score = 0.7
+    # italics
+    elif "_" in plain_text:
+        score = 0.6
+    # normal texts
+    elif plain_text:
+        score = 0.3
+
+    for word in minor_color: # take bigger score 
+        if word in plain_text:
+            score = max(score, 0.7)
+            break
+
+    return score
+    
+for line in cleaned_md.split("\n"):
+    score = score_by_line(line, minor_color)
+    print(f"{score:.1f} | {line}")
 
 # ############### Write cleaned text in.md File ###############
 # with open(f"output_sample/{output_name}/{output_name}.txt", "w") as f:
