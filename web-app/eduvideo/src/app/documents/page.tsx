@@ -43,19 +43,24 @@ export default function Docs() {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
                         {fileNames.length > 0 ? (
                             fileNames.map((name) => (
-                                <div key={name} className="file-card bg-surface rounded-xl p-6 neomorph-raised border border-white/50 flex flex-col h-full">
+                                <div key={name} className="file-card bg-surface rounded-xl p-6 shadow-neomorph-raised border border-white/50 flex flex-col h-full">
                                     <div className="flex items-start justify-between mb-6">
                                         <span className="font-label text-[12px] text-outline bg-surface-container px-2 py-1 rounded">{name.split('.').pop()?.toUpperCase()}</span>
-                                        <button onClick={() => handleDelete(name)}
-                                            className="p-1 bg-error/10 text-on-surface-variant hover:text-error rounded-lg transition-all">
-                                            <span className="text-sm">Delete File</span>
-                                        </button>
                                     </div>
                                     <h3 className="font-headline text-lg font-semibold text-on-background mb-2">{name}</h3>
                                     <p className="text-on-surface-variant text-sm mb-6 flex items-center gap-2">
+                                        <span className="material-symbols-outlined text-[16px]">calendar_today</span>
                                         Uploaded {new Date().toLocaleDateString()}
                                     </p>
                                     <div className="mt-auto pt-6 border-t border-surface-variant flex gap-3">
+                                        <button className="flex-1 bg-primary-container text-on-primary-container py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer">
+                                            <span className="material-symbols-outlined text-[18px]">movie_edit</span>
+                                            Generate Video
+                                        </button>
+                                        <button onClick={() => handleDelete(name)}
+                                            className="p-1 bg-error/10 text-on-surface-variant hover:text-error rounded-lg transition-all cursor-pointer">
+                                            <span className="text-sm">Delete</span>
+                                        </button>
                                     </div>
                                 </div>
                             ))

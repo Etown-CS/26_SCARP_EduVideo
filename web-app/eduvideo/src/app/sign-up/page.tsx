@@ -71,8 +71,8 @@ export default function SignUp(){
                             </div>
                     </div>
                     {error && (<p className="text-red-500 text-sm text-center">{error}</p>)}
-                    <button className ="w-full bg-primary text-on-primary font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all duration-200 mt-2 shadow-lg shadow-primary/20 hover:brightness-110" type="submit"> Create account </button>
-                    <button className ="w-full bg-on-secondary-fixed-variant text-on-primary font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all duration-200 mt-2 shadow-lg shadow-primary/20 hover:brightness-110" type="button" onClick={handleGoogleSignUp}> Create account with Google </button>
+                    <button className ="w-full bg-primary text-on-primary font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all duration-200 mt-2 shadow-lg shadow-primary/20 hover:brightness-110 cursor-pointer" type="submit"> Create account </button>
+                    <button className ="w-full bg-on-secondary-fixed-variant text-on-primary font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all duration-200 mt-2 shadow-lg shadow-primary/20 hover:brightness-110 cursor-pointer" type="button" onClick={handleGoogleSignUp}> Create account with Google </button>
                     </form>
                     <div className ="mt-10 text-center">
             </div>

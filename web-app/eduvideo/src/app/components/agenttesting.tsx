@@ -1,4 +1,4 @@
-"use client"
+//This worked but it has to be run from the command line from the components folder for testing. 
 
 import { Agent, run } from "@openai/agents";
 
@@ -9,5 +9,9 @@ const agent = new Agent({
   model: "gpt-5.5",
 });
 
-const result = await run(agent, "When did the Roman Empire fall?");
-console.log(result.finalOutput);
+async function main(){
+  const result = await run(agent, "When did the Roman Empire fall?");
+  console.log(result.finalOutput);
+}
+
+main();
