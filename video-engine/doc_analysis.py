@@ -23,33 +23,23 @@ Note: if we want to remove boilerplates first, before doing color, there is a co
 
 '''
 
-# Get the type of input
-# inputFile = "topo_lec.pdf" # for test (single-page pdf)
-inputFile = "cs322_bfs.pdf" # for test (multiple-page pdf)
-fType = Path(inputFile).suffix # returns ".pdf", ".jpg", etc.
-
-# Create a new folder to store the output
-os.makedirs("output_sample", exist_ok=True)
-
 ############### Format Checker ###############
 # if pdf, return pdf
-if fType == '.pdf':
-    pdf = inputFile
-    # Create a subfolder for each input
-    output_name = os.path.splitext(os.path.basename(inputFile))[0]  # gets "topo_lec" from "topo_lec.pdf"
-    os.makedirs(f"output_sample/{output_name}", exist_ok=True)
-# else, show error msg (Image format needs OCR)
-else:
-    print("Error: Unable to proccess this format.")
-    exit()
+def format_checker(file):
+    f_type = Path(file).suffix
+    if f_type == '.pdf':
+        # Create a subfolder for each input
+        output_name = os.path.splitext(os.path.basename(file))[0]  # gets "topo_lec" from "topo_lec.pdf"
+        os.makedirs(f"output_sample/{output_name}", exist_ok=True)
+        pdf_doc = pymupdf.open(file)
+        return pdf_doc
 
 ############### Helper Function 1 - Detect Text Color ###############
-doc = pymupdf.open(inputFile)
 
 # Define dominant color
-def get_domColor(doc):
+def get_domColor(pdf_doc):
     color_cnt = Counter()
-    for page in doc: # for each page of input pdf file, get large blocks for content
+    for page in pdf_doc: # for each page of input pdf file, get large blocks for content
         blocks = page.get_text("dict")["blocks"]
         for block in blocks: # for each block within a page
             if block["type"] == 0: # block is text-based
@@ -60,26 +50,20 @@ def get_domColor(doc):
 
     return color_cnt.most_common(1)[0][0]
 
-dom_color = get_domColor(doc)
-print("Dominant color: ", dom_color)
-
-
+def text_in_minorColor(pdf_doc, dom_color):
 # Store texts with minor colors(ones not dom_color) in a Set
-minor_color = set() # A set to store
-for page in doc:
-    blocks = page.get_text("dict")["blocks"]
-    for block in blocks:
-        if block["type"] == 0:
-            for line in block["lines"]:
-                for span in line["spans"]:
-                    if span["text"].strip() and span["color"] != dom_color:
-                        minor_color.add(span["text"].strip())
-
-############### PDF -> Markdown Conversion ###############
-md = pymupdf4llm.to_markdown(pdf, write_images=True, image_path=f"output_sample/{output_name}") # for testing
+    minor_color_text = set() # A set to store
+    for page in pdf_doc:
+        blocks = page.get_text("dict")["blocks"]
+        for block in blocks:
+            if block["type"] == 0:
+                for line in block["lines"]:
+                    for span in line["spans"]:
+                        if span["text"].strip() and span["color"] != dom_color:
+                            minor_color_text.add(span["text"].strip())
+    return minor_color_text
 
 ############### Remove boilerplates ###############
-from markdown_pdf import MarkdownPdf, Section
 
 def remove_boilerplates(md, threshold=2):
     # Removes some boilerplates repeated in md file (header, footer, date, course number etc.)
@@ -98,54 +82,79 @@ def remove_boilerplates(md, threshold=2):
         if line_cnt.get(line, 0) < threshold
         and line.strip() != ""
         and not re.fullmatch(r'\d+', line.strip())
+        and not line.strip().startswith("![](")
+        and not re.fullmatch(r'\d{1,2}/\d{1,2}/\d{4}', line.strip())
     ]
 
     return "\n".join(cleaned_lines)
-
-cleaned_md = remove_boilerplates(md, threshold = 2)
 
 ############### Weighting Score System ###############
 # Based on text color, underline, highlight information from PDF input,
 # and markdown symbols from md file,
 # Weight extracted text line by line
 
-def score_by_line(line, minor_color):
-    plain_text = line.strip()
-    score = 0.1
+def get_scores(md, minor_color_text):
+    scores = {}
+    for line in md.split("\n"):
+        plain_text = line.strip()
+        score = 0.1
 
-    # heading
-    if plain_text.startswith("# "):
-        score += 1.0
-    if plain_text.startswith("## "):
-        score += 0.8
-    if plain_text.startswith("### "):
-        score += 0.6
-    
-    # bold
-    if "**" in plain_text:
-        score += 0.3
-    # italics
-    if "_" in plain_text:
-        score += 0.2
-
-    for word in minor_color:
-        if word in plain_text:
+        # heading
+        if plain_text.startswith("# "):
+            score += 1.0
+        if plain_text.startswith("## "):
+            score += 0.8
+        if plain_text.startswith("### "):
+            score += 0.6
+        
+        # bold
+        if "**" in plain_text:
+            score += 0.3
+        # italics
+        if "_" in plain_text:
             score += 0.2
-            break
 
-    return score
-    
-for line in cleaned_md.split("\n"):
-    score = score_by_line(line, minor_color)
-    print(f"{score:.1f} | {line}")
+        for word in minor_color_text:
+            if word in plain_text:
+                score += 0.2
+                break
 
-# ############### Write cleaned text in.md File ###############
-# with open(f"output_sample/{output_name}/{output_name}.txt", "w") as f:
-#     f.write(cleaned_txt)
+        scores[plain_text] = score
 
-############### Segmentation ###############
-# from dotenv import load_dotenv
-# import os
+    return scores
 
-# load_dotenv()
-# key = os.getenv("OPENAI_API_KEY")
+############### Main ###############
+####input
+file = "cs350_data.pdf"
+
+### Format Check
+pdf = format_checker(file)
+if pdf == None:
+    print("Error: Upload PDF file.")
+    exit()
+
+#### Get a file name for future use
+output_name = os.path.splitext(os.path.basename(file))[0]
+
+#### PDF -> Markdown
+md = pymupdf4llm.to_markdown(file, write_images=True, image_path=f"output_sample/{output_name}") # for testing
+
+### Clean the md file
+cleaned_md = remove_boilerplates(md, threshold=2) 
+
+### Write cleaned text in.md File 
+with open(f"output_sample/{output_name}/{output_name}.md", "w") as f:
+    f.write(cleaned_md)
+
+### Generate another md file to compare with cleaned one
+with open(f"output_sample/{output_name}/{output_name}-original.md", "w") as f: 
+    f.write(md)
+
+### Get dominant color and a set of texts in non-dominant color of the pdf
+dom_color = get_domColor(pdf)
+minor_colored_text = text_in_minorColor(pdf, dom_color)
+
+### Scoring
+scores = get_scores(cleaned_md, minor_colored_text)
+
+print(f"output_name: {output_name}\nDominant color: {dom_color}\nSet of texts in minor colors:\n{minor_colored_text}\nScores: \n{scores}")
