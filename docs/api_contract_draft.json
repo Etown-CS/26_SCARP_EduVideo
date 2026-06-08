@@ -4,10 +4,11 @@
         {
             "id": "seg_001",
             "type": "definition",
-            "ToBeDELETED_type_options": ["definition", "code", "userPrompt", "explanation"],
+            "Note4_type_options": ["definition", "code", "userPrompt", "explanation", "unrelated", "review", "agenda"],
+            "Note4_types" : "Still debating between setting rules for types or letting LLM do this",
             "content": "actual text extracted",
             "importance": "high",
-            "ToBeDELETED_importance_options": ["high", "medium", "low", "orNumbers? "],
+            "Note4_importance_options": ["high", "medium", "low", "orNumbers? "],
             "order": 1
         }
     ],
