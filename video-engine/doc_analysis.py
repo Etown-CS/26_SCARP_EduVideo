@@ -4,6 +4,7 @@ from pathlib import Path
 import os
 from collections import Counter
 import re
+import json
 
 '''
 ### Overview of Process ###
@@ -123,9 +124,63 @@ def get_scores(md, minor_color_text):
 
     return scores
 
+############### Weighting to importance ###############
+
+def score_to_importance(score):
+    if score >= 0.7:
+        return "High"
+    elif score < 0.4:
+        return "Low"
+    else:
+        return "Medium"
+    
+############### Segmentation ###############
+
+def segmentation_md(cleaned_md, score):
+    segments = [] # list to store segment
+    current_segment = None # segment currently being processed
+    order = 1 # segment no.
+
+    # Iterate each line
+    for line in cleaned_md.split("\n"):
+        stripped = line.strip()
+        if not stripped:
+            continue # skip when empty
+
+        # Start a new segment with heading (#, ##)
+        if stripped.startswith("# ") or stripped.startswith("## "):
+            if current_segment:
+                segments.append(current_segment)
+            current_segment = {
+                "id": f"seg_{order:03d}",
+                "type": "TBD",  # rule-based or LLM
+                "content": stripped,
+                "importance": score_to_importance(scores.get(stripped, 0.3)),
+                "order": order
+            }
+            order += 1
+        else:
+            # everything else is added to the current segment
+            if current_segment:
+                current_segment["content"] += "\n" + stripped
+
+    # After the last segment, add it to the list
+    if current_segment:
+        segments.append(current_segment)
+
+    # for segment in segments:
+    #     print(f"ID: {segment['id']}")
+    #     print(f"Type: {segment['type']}")
+    #     print(f"Importance: {segment['importance']}")
+    #     print(f"Content:\n{segment['content']}")
+    #     print("-" * 20)
+
+    return segments
+
 ############### Main ###############
 ####input
-file = "cs350_data.pdf"
+# file = "cs350_data.pdf" # single page
+file = "cs322_mst.pdf"
 
 ### Format Check
 pdf = format_checker(file)
@@ -142,13 +197,13 @@ md = pymupdf4llm.to_markdown(file, write_images=True, image_path=f"output_sample
 ### Clean the md file
 cleaned_md = remove_boilerplates(md, threshold=2) 
 
-### Write cleaned text in.md File 
-with open(f"output_sample/{output_name}/{output_name}.md", "w") as f:
-    f.write(cleaned_md)
+# ### Write cleaned text in.md File 
+# with open(f"output_sample/{output_name}/{output_name}.md", "w") as f:
+#     f.write(cleaned_md)
 
-### Generate another md file to compare with cleaned one
-with open(f"output_sample/{output_name}/{output_name}-original.md", "w") as f: 
-    f.write(md)
+# ### Generate another md file to compare with cleaned one
+# with open(f"output_sample/{output_name}/{output_name}-original.md", "w") as f: 
+#     f.write(md)
 
 ### Get dominant color and a set of texts in non-dominant color of the pdf
 dom_color = get_domColor(pdf)
@@ -157,4 +212,13 @@ minor_colored_text = text_in_minorColor(pdf, dom_color)
 ### Scoring
 scores = get_scores(cleaned_md, minor_colored_text)
 
-print(f"output_name: {output_name}\nDominant color: {dom_color}\nSet of texts in minor colors:\n{minor_colored_text}\nScores: \n{scores}")
+### Get segmentation & output it as json file
+segment_out = segmentation_md(cleaned_md, scores)
+
+result = {
+    "topic": output_name,
+    "segments": segment_out
+}
+with open(f"output_sample/{output_name}/{output_name}.json", "w") as f:
+    json.dump(result, f, indent=4, ensure_ascii=False)
+    print("Saved!")
