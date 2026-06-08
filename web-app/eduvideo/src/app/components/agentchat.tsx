@@ -4,12 +4,14 @@ import { useState } from "react";
 import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useChat } from '@/app/context/chatContext';
+import { useRouter } from "next/navigation";
 
 export default function AgentChat() {
     const {messages, setMessages} = useChat();
     const [input, setInput] = useState('');
     const [user] = useAuthState(auth);
     const [isLoading, setIsLoading] = useState(false);
+    const router = useRouter();
 
     if (!user) return;
 
@@ -29,6 +31,9 @@ export default function AgentChat() {
             });
             const data = await res.json();
             console.log(data);
+            if(data.navigation){
+                router.push(data.navigation.path);
+            }
             setMessages(prev => [...prev, { sender: 'agent', text: data.reply }]);
         } finally {
             setIsLoading(false);
@@ -51,7 +56,7 @@ export default function AgentChat() {
                             <span className="text-sm">Clear Messages</span>
                         </button>
                     </div>
-                    <div className="flex-1 space-y-4 pr-1">
+                    <div className="flex-1 space-y-4 pr-1 max-h-96 overflow-y-auto">
                         {messages.map((msg, index) => (
                             <div
                                 key={index}
@@ -90,7 +95,7 @@ export default function AgentChat() {
                                     }
                                 }}
                                 className="w-full shadow-neomorph-sunken bg-surface p-3 rounded-xl text-sm outline-none resize-none h-24 focus:ring-1 ring-primary"
-                                placeholder="Add timestamped feedback..."
+                                placeholder="Write your message here..."
                             />
                         </div>
                         <button

@@ -20,6 +20,7 @@ export default function Generate() {
         }
         return '';
     });
+    const [preloaded, setPreloaded] = useState<string | null>(null);
 
     useEffect(() => {
         if (!loading && !user) {
@@ -30,6 +31,19 @@ export default function Generate() {
     useEffect(() => {
         localStorage.setItem('prompt', prompt);
     }, [prompt]);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('selectedDocument');
+        if (saved) {
+            setPreloaded(JSON.parse(saved));
+            localStorage.removeItem('selectedDocument');
+        }
+        const savedPrompt = localStorage.getItem('selectedPrompt');
+        if(savedPrompt && savedPrompt !== 'N/A'){
+            setPrompt(savedPrompt);
+            localStorage.removeItem('selectedPrompt');
+        }
+    }, []);
 
     if (loading) return (
         <Loading />
@@ -43,7 +57,7 @@ export default function Generate() {
             setFiles(prev => [...prev, ...selected]);
 
             const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-            const name = selected.map(f => f.name);
+            const name = selected.map(f => ({name: f.name, prompt: 'N/A'}));
             const merged = [...existing, ...name];
             localStorage.setItem('uploadedFiles', JSON.stringify(merged));
         }
@@ -68,12 +82,22 @@ export default function Generate() {
     };
 
     const handleSubmit = () => {
-        /*
-        localStorage.removeItem('prompt');
-        localStorage.removeItem('uploadedFiles');
-        */
+        const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
+        const updated = existing.map((entry: {name: string; prompt?: string}) => {
+            if(entry.name === preloaded){
+                return {...entry, prompt: prompt || 'N/A'};
+            }
+            const matchedFile = files.find(f => f.name === entry.name);
+            if(matchedFile){
+                return {...entry, prompt: prompt || 'N/A'};
+            }
+            return entry;
+        });
+        localStorage.setItem('uploadedFiles', JSON.stringify(updated));
         setPrompt('');
         setFiles([]);
+        setPreloaded(null);
+        localStorage.removeItem('prompt');
         router.push('/documents');
     }
 
@@ -88,7 +112,8 @@ export default function Generate() {
                                 <h1 className="font-headline text-3xl font-bold text-on-background">Generate</h1>
                             </div>
                         </div>
-                        <div className="flex-1 text-center items-center flex-col pt-2">
+                        <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
+                            <div className="col-span-8 flex flex-col gap-2 min-h-0">
                             <div
                                 onDragOver={handleDragOver}
                                 onDragLeave={handleDragLeave}
@@ -107,12 +132,19 @@ export default function Generate() {
                                     </button>
                                     <input ref={inputRef} type="file" multiple className="hidden" onChange={handleBrowse} />
                                 </div>
-                                {files.length > 0 && (<div className="mt-4 space-y-2">
-                                    {files.map((file, index) => (<div key={index} className="flex items-center justify-between bg-surface-container rounded-lg px-4 py-2">
-                                        <span className="text-sm text-on-surface truncate">{file.name}</span>
-                                        <button type="button" onClick={() => removeFile(index)} className="text-on-surface-variant hover:text-error ml-4 text-xs">Remove</button>
-                                    </div>))
-                                    }
+                                {(files.length > 0 || preloaded) && (<div className="mt-4 space-y-2">
+                                    {preloaded && (
+                                        <div key={preloaded} className="flex items-center justify-between bg-surface-container rounded-lg px-4 py-2">
+                                            <span className="text-sm text-on-surface truncate">{preloaded}</span>
+                                            <button type="button" onClick={() => setPreloaded(null)} className="text-on-surface-variant hover:text-error ml-4 text-xs">Remove</button>
+                                        </div>
+                                    )}
+                                    {files.map((file, index) => (
+                                        <div key={index} className="flex items-center justify-between bg-surface-container rounded-lg px-4 py-2">
+                                            <span className="text-sm text-on-surface truncate">{file.name}</span>
+                                            <button type="button" onClick={() => removeFile(index)} className="text-on-surface-variant hover:text-error ml-4 text-xs">Remove</button>
+                                        </div>
+                                    ))}
                                 </div>)
                                 }
                             </div>
@@ -130,9 +162,10 @@ export default function Generate() {
                                     Submit
                                 </button>
                             </div>
+                            </div>
+                            <AgentChat />
                         </div>
                     </div>
-                    <AgentChat />
                 </div>
             </section>
         </main>
