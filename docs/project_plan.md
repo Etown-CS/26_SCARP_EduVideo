@@ -69,8 +69,8 @@
 
 ### Student A — Back-end
 - Implement APIs that return mock responses so front-end can be tested independently
-- (TBD) Implement the **Pedagogical Structuring Agent**: reorders extracted segments into a beginner-friendly teaching sequence
-- (TBD) Implement the **Script Generation Agent**: produces concise narration with constraints on length, tone, and reading level for undergraduates
+- Implement the **Pedagogical Structuring Agent**: reorders extracted segments into a beginner-friendly teaching sequence
+- Implement the **Script Generation Agent**: produces concise narration with constraints on length, tone, and reading level for undergraduates
 - Test both agents on 2-3 CS topics; manually review outputs for pedagogical soundness and factual accuracy
 - Set up the central Python orchestrator that chains Document Analysis → Pedagogical Structuring → Script Generation in sequence
 
@@ -88,9 +88,9 @@
 *Completing the full five-agent pipeline closes the artifact. The Quality Review Agent in particular is a research-relevant design decision — it is what makes the system self-correcting rather than a simple prompt chain, and warrants its own discussion in the paper.*
 
 ### Student A — Back-end
-- (TBD) Implement the **Visual Planning Agent**: determines on-screen elements for each narration segment (code highlights, diagrams, flowcharts, bullet points)
-- (TBD) Implement the **Quality Review Agent**: checks scripts and visual plans for clarity, redundancy, and potential inaccuracies; flags segments for revision before video assembly
-- Wire all five agents (TBD) into the orchestrator and run the full pipeline end-to-end on one complete CS topic document
+- Implement the **Visual Planning Agent**: determines on-screen elements for each narration segment (code highlights, diagrams, flowcharts, bullet points)
+- Implement the **Quality Review Agent**: checks scripts and visual plans for clarity, redundancy, and potential inaccuracies; flags segments for revision before video assembly
+- Wire all five agents into the orchestrator and run the full pipeline end-to-end on one complete CS topic document
 - Document each agent's input/output schema and add inline code comments throughout the codebase
 
 ### Student B — Front-end
