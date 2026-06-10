@@ -5,6 +5,12 @@ import os
 from collections import Counter
 import re
 import json
+from openai import OpenAI
+from dotenv import load_dotenv
+
+### LLM
+load_dotenv()
+client = OpenAI()
 
 '''
 ### Overview of Process ###
@@ -64,119 +70,130 @@ def text_in_minorColor(pdf_doc, dom_color):
                             minor_color_text.add(span["text"].strip())
     return minor_color_text
 
-############### Remove boilerplates ###############
 
-def remove_boilerplates(md, threshold=2):
-    # Removes some boilerplates repeated in md file (header, footer, date, course number etc.)
-    # threshold: how many times a file must appear to be removed.
-    # .strip() removes leading & trailing whitespaces, tabs, and new lines by default
-
-    lines = md.split("\n")
-    line_cnt = Counter(line for line in lines if line.strip())
-
-    # Add line to cleaned_lines if:
-        # the same line doesn't appear more than twice (for header & footer etc.)
-        # the line is not empty line
-        # the line contains ONLY 2-digit number (page #)
-    cleaned_lines = [
-        line for line in lines
-        if line_cnt.get(line, 0) < threshold
-        and line.strip() != ""
-        and not re.fullmatch(r'\d+', line.strip())
-        and not line.strip().startswith("![](")
-        and not re.fullmatch(r'\d{1,2}/\d{1,2}/\d{4}', line.strip())
-    ]
-
-    return "\n".join(cleaned_lines)
-
-############### Weighting Score System ###############
-# Based on text color, underline, highlight information from PDF input,
-# and markdown symbols from md file,
-# Weight extracted text line by line
-
-def get_scores(md, minor_color_text):
-    scores = {}
-    for line in md.split("\n"):
-        plain_text = line.strip()
-        score = 0.1
-
-        # heading
-        if plain_text.startswith("# "):
-            score += 1.0
-        if plain_text.startswith("## "):
-            score += 0.8
-        if plain_text.startswith("### "):
-            score += 0.6
-        
-        # bold
-        if "**" in plain_text:
-            score += 0.3
-        # italics
-        if "_" in plain_text:
-            score += 0.2
-
-        for word in minor_color_text:
-            if word in plain_text:
-                score += 0.2
-                break
-
-        scores[plain_text] = score
-
-    return scores
-
-############### Weighting to importance ###############
-
-def score_to_importance(score):
-    if score >= 0.7:
-        return "High"
-    elif score < 0.4:
-        return "Low"
-    else:
-        return "Medium"
-    
-############### Segmentation ###############
-
-def segmentation_md(cleaned_md, score):
-    segments = [] # list to store segment
-    current_segment = None # segment currently being processed
-    order = 1 # segment no.
-
-    # Iterate each line
-    for line in cleaned_md.split("\n"):
-        stripped = line.strip()
-        if not stripped:
-            continue # skip when empty
-
-        # Start a new segment with heading (#, ##)
-        if stripped.startswith("# ") or stripped.startswith("## "):
-            if current_segment:
-                segments.append(current_segment)
-            current_segment = {
-                "id": f"seg_{order:03d}",
-                "type": "TBD",  # rule-based or LLM
-                "content": stripped,
-                "importance": score_to_importance(scores.get(stripped, 0.3)),
-                "order": order
+############### LLM Filter ###############
+def llm_filter(md, client):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": """You are a lecture content filter.
+                Remove sections that are NOT actual lecture content, such as:
+                - Title, dates, name of the instructor
+                - Lecture agenda, lecture outline
+                - Review
+                - slides to ask if anyone has any questions in the middle of the class ("Questions?", "Any questions?", etc)
+                - any types of announcement, such as for the next class and for the assignment
+                - lecture date, course number as a combination of alphabets and numbers, page numbers,
+                Also, keep the path of the images extracted starting with "![](...", but remove text extracted from the picture (**----- Start of picture text -----**<br>X<br>**----- End of picture text -----**<br>).
+                Keep all actual lecture content (definitions, explanations, code, examples, exercise problems).
+                Return ONLY the filtered markdown, preserving the original formatting."""
+            },
+            {
+                "role": "user",
+                "content": md
             }
-            order += 1
-        else:
-            # everything else is added to the current segment
-            if current_segment:
-                current_segment["content"] += "\n" + stripped
+        ]
+    )
+    return response.choices[0].message.content
 
-    # After the last segment, add it to the list
-    if current_segment:
-        segments.append(current_segment)
 
-    # for segment in segments:
-    #     print(f"ID: {segment['id']}")
-    #     print(f"Type: {segment['type']}")
-    #     print(f"Importance: {segment['importance']}")
-    #     print(f"Content:\n{segment['content']}")
-    #     print("-" * 20)
+# ############### Weighting Score System ###############
+# # Based on text color, underline, highlight information from PDF input,
+# # and markdown symbols from md file,
+# # Weight extracted text line by line
 
-    return segments
+# def get_scores(md, minor_color_text):
+#     scores = {}
+#     for line in md.split("\n"):
+#         plain_text = line.strip()
+#         score = 0.1
 
+#         # heading
+#         if plain_text.startswith("# "):
+#             score += 1.0
+#         if plain_text.startswith("## "):
+#             score += 0.8
+#         if plain_text.startswith("### "):
+#             score += 0.6
+        
+#         # bold
+#         if "**" in plain_text:
+#             score += 0.3
+#         # italics
+#         if "_" in plain_text:
+#             score += 0.2
+
+#         for word in minor_color_text:
+#             if word in plain_text:
+#                 score += 0.2
+#                 break
+
+#         scores[plain_text] = score
+
+#     return scores
+
+# ############### Weighting to importance ###############
+
+# def score_to_importance(score):
+#     if score >= 0.7:
+#         return "High"
+#     elif score < 0.4:
+#         return "Low"
+#     else:
+#         return "Medium"
+    
+
+############### LLM Segmentation ###############
+def llm_segmentation(filtered_md, client):
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[
+            {
+                "role": "system",
+                "content": """You are a lecture content segmenter.
+                Given lecture content in markdown, group it into meaningful segments with parent-child relationships.
+                - Identify main topics and their subtopics based on meaning, not markdown symbols
+                - A main topic (parent) should be a core concept (e.g. "Prim's Algorithm")
+                - Subtopics (children) should be supporting content under that concept, such as:
+                    - How it works / analysis
+                    - Examples / applications  
+                    - Implementation / pseudocode
+                    - Exercise / practice
+                    - image path
+                - importance should be based on how essential it is to the main topic
+                - Return ONLY a valid JSON array, no explanation, no markdown formatting:
+                [
+                    {
+                    "id": "seg_001"
+                    "type": "core topic"
+                    "content": "actual text extracted"
+                    "order": 1
+                        "subsegments": [
+                            {
+                            "id": "seg_001_001",
+                            "type": pick one from ["sub-topic", "definition", "explanation", "example/application", "code_example", "exercise", "analysis", "image", "Others"],
+                            "content": "actual text extracted",
+                            "order": 1
+                            }
+                        ]
+                    }
+                ]"""
+            },
+            {
+                "role": "user",
+                "content": filtered_md
+            }
+        ]
+    )
+    try:
+        return json.loads(response.choices[0].message.content)
+    except json.JSONDecodeError:
+        print("Error: LLM output is not valid JSON")
+        print(response.choices[0].message.content)
+        return []
+    
 ############### Main ###############
 ####input
 # file = "cs350_data.pdf" # single page
@@ -188,36 +205,41 @@ if pdf == None:
     print("Error: Upload PDF file.")
     exit()
 
-#### Get a file name for future use
+### Get a file name for future use
 output_name = os.path.splitext(os.path.basename(file))[0]
 
 #### PDF -> Markdown
 md = pymupdf4llm.to_markdown(file, write_images=True, image_path=f"output_sample/{output_name}") # for testing
 
-### Clean the md file
-cleaned_md = remove_boilerplates(md, threshold=2) 
+### Apply LLM filter
+filtered_md = llm_filter(md, client)
 
 # ### Write cleaned text in.md File 
 # with open(f"output_sample/{output_name}/{output_name}.md", "w") as f:
 #     f.write(cleaned_md)
 
-# ### Generate another md file to compare with cleaned one
-# with open(f"output_sample/{output_name}/{output_name}-original.md", "w") as f: 
-#     f.write(md)
+### Generate another md file to compare with cleaned one
+with open(f"output_sample/{output_name}/{output_name}-filtered.md", "w") as f: 
+    f.write(filtered_md)
 
-### Get dominant color and a set of texts in non-dominant color of the pdf
-dom_color = get_domColor(pdf)
-minor_colored_text = text_in_minorColor(pdf, dom_color)
+with open(f"output_sample/{output_name}/{output_name}.md", "w") as f: 
+    f.write(md)
 
-### Scoring
-scores = get_scores(cleaned_md, minor_colored_text)
+### LLM Segmentation
+segments = llm_segmentation(filtered_md, client)
 
-### Get segmentation & output it as json file
-segment_out = segmentation_md(cleaned_md, scores)
+### Add id and order
+for i, seg in enumerate(segments):
+    seg["id"] = f"seg_{i+1:03d}"
+    seg["order"] = i + 1
+    for j, sub in enumerate(seg.get("subsegments", [])):
+        sub["id"] = f"seg_{i+1:03d}_{j+1:03d}"
+        sub["order"] = j + 1
 
+### JSON output
 result = {
     "topic": output_name,
-    "segments": segment_out
+    "segments": segments
 }
 with open(f"output_sample/{output_name}/{output_name}.json", "w") as f:
     json.dump(result, f, indent=4, ensure_ascii=False)
