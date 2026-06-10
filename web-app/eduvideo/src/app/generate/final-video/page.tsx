@@ -25,6 +25,7 @@ export default function FinalVideo() {
 
     const [newTag, setNewTag] = useState('');
     const [tags, setTags] = useState<string[]>([]);
+    const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
     useEffect(() => {
         localStorage.setItem('title', title);
@@ -33,6 +34,11 @@ export default function FinalVideo() {
     useEffect(() => {
         localStorage.setItem('desc', desc);
     }, [desc]);
+
+    useEffect(() => {
+        const url = localStorage.getItem('completedVideoUrl');
+        if (url) setVideoUrl(url);
+    }, []);
 
     const handleNewTag = () => {
         if (!newTag.trim()) return;
@@ -55,6 +61,7 @@ export default function FinalVideo() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-4 min-h-0">
+                                {/*
                                 <div className="shadow-neomorph-raised bg-surface rounded-3xl p-16 overflow-hidden">
                                     <div className="aspect-video bg-inverse-surface rounded-2xl overflow-hidden shadow-inner">
                                         <iframe width="560" height="315" src="https://www.youtube.com/embed/OnYSjEehxH0?si=gECZ-dlfw6SXL68j" title="YouTube video player" allowFullScreen className="w-full h-full"></iframe>
@@ -65,8 +72,11 @@ export default function FinalVideo() {
                                         </div>
                                     </div>
                                 </div>
+                                */}
+                                {videoUrl && (
+                                    <video src={videoUrl} controls className="w-full rounded-xl mt-4"/>
+                                )}
                             </div>
-
                             <div className="col-span-4 flex flex-col gap-6 min-h-0">
                                 <div className="shadow-neomorph-raised bg-surface rounded-3xl p-6 h-fit sticky top-24">
                                     <h2 className="font-headline text-xl font-bold text-on-surface">Set video information</h2>                                    <div className="space-y-6">

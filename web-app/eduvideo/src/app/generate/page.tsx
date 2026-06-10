@@ -22,6 +22,17 @@ export default function Generate() {
     });
     const [preloaded, setPreloaded] = useState<string | null>(null);
 
+    const handleGenerate = async () => {
+        const {jobId} = await fetch('/api/generate', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({document: preloaded || files[0]?.name, prompt}),
+        }).then(r => r.json());
+
+        localStorage.setItem('currentJobId', jobId);
+        router.push('/generate/working');
+    };
+
     useEffect(() => {
         if (!loading && !user) {
             router.push('/sign-in');
@@ -35,7 +46,7 @@ export default function Generate() {
     useEffect(() => {
         const saved = localStorage.getItem('selectedDocument');
         if (saved) {
-            setPreloaded(JSON.parse(saved));
+            setPreloaded(saved);
             localStorage.removeItem('selectedDocument');
         }
         const savedPrompt = localStorage.getItem('selectedPrompt');
@@ -82,6 +93,26 @@ export default function Generate() {
     };
 
     const handleSubmit = () => {
+        const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
+        const updated = existing.map((entry: {name: string; prompt?: string}) => {
+            if(entry.name === preloaded){
+                return {...entry, prompt: prompt || 'N/A'};
+            }
+            const matchedFile = files.find(f => f.name === entry.name);
+            if(matchedFile){
+                return {...entry, prompt: prompt || 'N/A'};
+            }
+            return entry;
+        });
+        localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        handleGenerate();
+        setPrompt('');
+        setFiles([]);
+        setPreloaded(null);
+        localStorage.removeItem('prompt');
+    }
+
+    const handleSave = () => {
         const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
         const updated = existing.map((entry: {name: string; prompt?: string}) => {
             if(entry.name === preloaded){
@@ -157,9 +188,14 @@ export default function Generate() {
                             </div>
                             <div className="max-w-2xl flex flex-col items-center justify-center gap-4">
                                 <button
+                                    onClick={handleSave}
+                                    className="mt-4 px-8 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-white shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
+                                        Save
+                                </button>
+                                <button
                                     onClick={handleSubmit}
                                     className="mt-4 px-8 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-white shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
-                                    Submit
+                                        Generate Video
                                 </button>
                             </div>
                             </div>

@@ -41,8 +41,8 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
       </head>
       <body suppressHydrationWarning className="bg-surface font-body text-on-surface min-h-screen flex flex-col">
-        <Header />
         <ChatProvider>
+          <Header />
           {children}
         </ChatProvider>
         <footer className="full-width mt-auto bg-surface-container-low border-t border-outline-variant/10">

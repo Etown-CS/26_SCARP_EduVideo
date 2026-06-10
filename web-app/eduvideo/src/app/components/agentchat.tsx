@@ -1,21 +1,26 @@
 "use client"
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useChat } from '@/app/context/chatContext';
 import { useRouter } from "next/navigation";
 
 export default function AgentChat() {
-    const {messages, setMessages} = useChat();
+    const { messages, setMessages } = useChat();
     const [input, setInput] = useState('');
-    const [user] = useAuthState(auth);
+    const [user, loading] = useAuthState(auth);
     const [isLoading, setIsLoading] = useState(false);
     const router = useRouter();
 
-    if (!user) return;
-
     const username = user?.email ? user.email.split('@')[0] : 'User';
+
+    console.log('messages from context:', messages);
+    console.log('user:', user);
+    console.log('loading:', loading);
+
+    if (loading) return null;
+    if (!user) return;
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
@@ -30,11 +35,10 @@ export default function AgentChat() {
                 body: JSON.stringify({ message: input }),
             });
             const data = await res.json();
-            console.log(data);
-            if(data.navigation){
+            setMessages(prev => [...prev, { sender: 'agent', text: data.reply }]);
+            if (data.navigation) {
                 router.push(data.navigation.path);
             }
-            setMessages(prev => [...prev, { sender: 'agent', text: data.reply }]);
         } finally {
             setIsLoading(false);
         }
@@ -45,7 +49,7 @@ export default function AgentChat() {
     }
 
     return (
-        <div>
+        <div className="self-start">
             <div className="w-96 flex flex-col gap-6 shrink-0">
                 <div className="shadow-neomorph-raised bg-surface-container rounded-3xl p-6 h-fit sticky top-24">
                     <div className="flex items-center justify-between mb-6">

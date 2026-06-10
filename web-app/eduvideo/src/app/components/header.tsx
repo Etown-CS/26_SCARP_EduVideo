@@ -4,13 +4,16 @@ import { signOut } from "firebase/auth";
 import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
+import { useChat } from "../context/chatContext";
 
 export default function Header(){
     const router = useRouter();
     const [user, loading] = useAuthState(auth);
+    const { setMessages } = useChat();
     
     const handleSignOut = () => {
         signOut(auth);
+        setMessages ([{sender: 'agent', text: 'How can I help?'}]);
         router.push("/sign-in");
     };
     

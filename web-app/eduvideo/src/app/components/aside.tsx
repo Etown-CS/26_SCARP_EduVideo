@@ -3,7 +3,7 @@ import { usePathname } from "next/navigation";
 
     const navLinks = [
         {href:"/generate", label: "Upload"},
-        {href:"/generate/edit", label: "Edit"},
+        //{href:"/generate/edit", label: "Edit"},
         {href:"/generate/review", label: "Review"},
         {href:"/generate/final-video", label: "Final Video"}
     ]
