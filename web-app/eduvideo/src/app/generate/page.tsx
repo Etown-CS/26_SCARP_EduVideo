@@ -21,14 +21,15 @@ export default function Generate() {
         return '';
     });
     const [preloaded, setPreloaded] = useState<string | null>(null);
+    const [preloadedId, setPreloadedId] = useState<string | null>(null);
 
     const handleGenerate = async () => {
-        const {jobId} = await fetch('/api/generate', {
+        const { jobId } = await fetch('/api/generate', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({document: preloaded || files[0]?.name, prompt}),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ document: preloaded || files[0]?.name, prompt }),
         }).then(r => r.json());
-
+        localStorage.setItem('selectedDocument', preloaded || files[0]?.name || '');
         localStorage.setItem('currentJobId', jobId);
         router.push('/generate/working');
     };
@@ -50,7 +51,7 @@ export default function Generate() {
             localStorage.removeItem('selectedDocument');
         }
         const savedPrompt = localStorage.getItem('selectedPrompt');
-        if(savedPrompt && savedPrompt !== 'N/A'){
+        if (savedPrompt && savedPrompt !== 'N/A') {
             setPrompt(savedPrompt);
             localStorage.removeItem('selectedPrompt');
         }
@@ -68,7 +69,12 @@ export default function Generate() {
             setFiles(prev => [...prev, ...selected]);
 
             const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-            const name = selected.map(f => ({name: f.name, prompt: 'N/A'}));
+            const name = selected.map(f => ({
+                id: `${f.name}-${Date.now()}-${Math.random()}`,  // ← unique id
+                name: f.name,
+                prompt: 'N/A',
+                date: new Date().toLocaleDateString()
+            }));
             const merged = [...existing, ...name];
             localStorage.setItem('uploadedFiles', JSON.stringify(merged));
         }
@@ -94,33 +100,33 @@ export default function Generate() {
 
     const handleSubmit = () => {
         const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-        const updated = existing.map((entry: {name: string; prompt?: string}) => {
-            if(entry.name === preloaded){
-                return {...entry, prompt: prompt || 'N/A'};
+        const updated = existing.map((entry: { id: string; name: string; prompt?: string }) => {
+            if (entry.id === preloadedId) {
+                return { ...entry, prompt: prompt || 'N/A' };
             }
             const matchedFile = files.find(f => f.name === entry.name);
-            if(matchedFile){
-                return {...entry, prompt: prompt || 'N/A'};
+            if (matchedFile) {
+                return { ...entry, prompt: prompt || 'N/A' };
             }
             return entry;
         });
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
         handleGenerate();
-        setPrompt('');
-        setFiles([]);
-        setPreloaded(null);
-        localStorage.removeItem('prompt');
+        //setPrompt('');
+        //setFiles([]);
+        //setPreloaded(null);
+        //localStorage.removeItem('prompt');
     }
 
     const handleSave = () => {
         const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-        const updated = existing.map((entry: {name: string; prompt?: string}) => {
-            if(entry.name === preloaded){
-                return {...entry, prompt: prompt || 'N/A'};
+        const updated = existing.map((entry: { name: string; prompt?: string }) => {
+            if (entry.name === preloaded) {
+                return { ...entry, prompt: prompt || 'N/A' };
             }
             const matchedFile = files.find(f => f.name === entry.name);
-            if(matchedFile){
-                return {...entry, prompt: prompt || 'N/A'};
+            if (matchedFile) {
+                return { ...entry, prompt: prompt || 'N/A' };
             }
             return entry;
         });
@@ -145,59 +151,61 @@ export default function Generate() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-2 min-h-0">
-                            <div
-                                onDragOver={handleDragOver}
-                                onDragLeave={handleDragLeave}
-                                onDrop={handleDrop}
-                                className="max-w-2xl w-full p-2 rounded-xl shadow-neomorph-raised bg-surface-container-low group cursor-pointer transition-all duration-300 hover:scale-[1.01]">
-                                <div className="border-2 border-dashed border-outline-variant rounded-lg p-12 shadow-neomorph-sunken flex flex-col items-center justify-center gap-4 bg-surface-bright">
-                                    <div className="w-16 h-16 rounded-full bg-primary-container/10 flex items-center justify-center mb-2">
-                                        <span className="material-symbols-outlined text-primary text-4xl">cloud_upload</span>
+                                <div
+                                    onDragOver={handleDragOver}
+                                    onDragLeave={handleDragLeave}
+                                    onDrop={handleDrop}
+                                    className="max-w-2xl w-full p-2 rounded-xl shadow-neomorph-raised bg-surface-container-low group cursor-pointer transition-all duration-300 hover:scale-[1.01]">
+                                    <div className="border-2 border-dashed border-outline-variant rounded-lg p-12 shadow-neomorph-sunken flex flex-col items-center justify-center gap-4 bg-surface-bright">
+                                        <div className="w-16 h-16 rounded-full bg-primary-container/10 flex items-center justify-center mb-2">
+                                            <span className="material-symbols-outlined text-primary text-4xl">cloud_upload</span>
+                                        </div>
+                                        <h3 className="font-headline text-xl font-bold text-on-surface">Upload your files here</h3>
+                                        <p className="text-on-surface-variant font-body">Support for (needs to be decided)</p>
+                                        <button type="button"
+                                            onClick={() => inputRef.current?.click()}
+                                            className="mt-4 px-8 py-3 bg-white border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
+                                            Browse Files
+                                        </button>
+                                        <input ref={inputRef} type="file" multiple className="hidden" onChange={handleBrowse} />
                                     </div>
-                                    <h3 className="font-headline text-xl font-bold text-on-surface">Upload your files here</h3>
-                                    <p className="text-on-surface-variant font-body">Support for (needs to be decided)</p>
-                                    <button type="button"
-                                        onClick={() => inputRef.current?.click()}
-                                        className="mt-4 px-8 py-3 bg-white border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
-                                        Browse Files
-                                    </button>
-                                    <input ref={inputRef} type="file" multiple className="hidden" onChange={handleBrowse} />
+                                    {(files.length > 0 || preloaded) && (<div className="mt-4 space-y-2">
+                                        {preloaded && (
+                                            <div key={preloaded} className="flex items-center justify-between bg-surface-container rounded-lg px-4 py-2">
+                                                <span className="text-sm text-on-surface truncate">{preloaded}</span>
+                                                <button type="button" onClick={() => setPreloaded(null)} className="text-on-surface-variant hover:text-error ml-4 text-xs">Remove</button>
+                                            </div>
+                                        )}
+                                        {files.map((file, index) => (
+                                            <div key={index} className="flex items-center justify-between bg-surface-container rounded-lg px-4 py-2">
+                                                <span className="text-sm text-on-surface truncate">{file.name}</span>
+                                                <button type="button" onClick={() => removeFile(index)} className="text-on-surface-variant hover:text-error ml-4 text-xs">Remove</button>
+                                            </div>
+                                        ))}
+                                    </div>)
+                                    }
                                 </div>
-                                {(files.length > 0 || preloaded) && (<div className="mt-4 space-y-2">
-                                    {preloaded && (
-                                        <div key={preloaded} className="flex items-center justify-between bg-surface-container rounded-lg px-4 py-2">
-                                            <span className="text-sm text-on-surface truncate">{preloaded}</span>
-                                            <button type="button" onClick={() => setPreloaded(null)} className="text-on-surface-variant hover:text-error ml-4 text-xs">Remove</button>
-                                        </div>
-                                    )}
-                                    {files.map((file, index) => (
-                                        <div key={index} className="flex items-center justify-between bg-surface-container rounded-lg px-4 py-2">
-                                            <span className="text-sm text-on-surface truncate">{file.name}</span>
-                                            <button type="button" onClick={() => removeFile(index)} className="text-on-surface-variant hover:text-error ml-4 text-xs">Remove</button>
-                                        </div>
-                                    ))}
-                                </div>)
-                                }
-                            </div>
-                            <div className="max-w-2xl shadow-neomorph-sunken bg-surface-container-low my-8 px-4 py-8 rounded-lg flex items-center gap-2">
-                                <span className="material-symbols-outlined text-outline text-[40px]"></span>
-                                <textarea
-                                    value={prompt}
-                                    onChange={(e) => setPrompt(e.target.value)}
-                                    className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Input an additional prompt here" rows={3} />
-                            </div>
-                            <div className="max-w-2xl flex flex-col items-center justify-center gap-4">
+                                <div className="max-w-2xl shadow-neomorph-sunken bg-surface-container-low my-8 px-4 py-8 rounded-lg flex items-center gap-2">
+                                    <span className="material-symbols-outlined text-outline text-[40px]"></span>
+                                    <textarea
+                                        value={prompt}
+                                        onChange={(e) => setPrompt(e.target.value)}
+                                        className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Input an additional prompt here" rows={3} />
+                                </div>
+                                <div className="max-w-2xl flex items-center justify-center mt-4">
+                                    {/*
                                 <button
                                     onClick={handleSave}
-                                    className="mt-4 px-8 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-white shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
+                                    className="w-40 px-4 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-white shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
                                         Save
                                 </button>
-                                <button
-                                    onClick={handleSubmit}
-                                    className="mt-4 px-8 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-white shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
+                                */}
+                                    <button
+                                        onClick={handleSubmit}
+                                        className="w-40 px-4 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-white shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
                                         Generate Video
-                                </button>
-                            </div>
+                                    </button>
+                                </div>
                             </div>
                             <AgentChat />
                         </div>

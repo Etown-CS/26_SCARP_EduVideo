@@ -10,7 +10,7 @@ export default function Docs() {
 
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
-    const [fileNames, setFileNames] = useState<{ name: string, prompt: string }[]>([]);
+    const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string }[]>([]);
 
 
     useEffect(() => {
@@ -24,15 +24,17 @@ export default function Docs() {
         console.log('raw:', raw);
         const stored = JSON.parse(raw || '[]');
         console.log('stored:', stored);
-        const normalized = stored.map((entry: string | { name: string; prompt: string }) =>
-            typeof entry === 'string' ? { name: entry, prompt: 'N/A' } : entry
+        const normalized = stored.map((entry: any) =>
+            typeof entry === 'string'
+                ? { id: `${entry}-${Date.now()}`, name: entry, prompt: 'N/A', date: 'Unknown' }
+                : entry
         );
         console.log('normalized:', normalized);
         setFileNames(normalized);
     }, []);
 
-    const handleDelete = (name: string) => {
-        const updated = fileNames.filter(f => f.name !== name);
+    const handleDelete = (id: string) => {
+        const updated = fileNames.filter(f => f.id !== id);
         setFileNames(updated);
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
     }
@@ -52,7 +54,7 @@ export default function Docs() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {fileNames.length > 0 ? (
                                 fileNames.map((file, index) => (
-                                    <div key={`${file.name}-${index}`} className="file-card bg-surface rounded-xl p-6 shadow-neomorph-raised border border-white/50 flex flex-col h-full">
+                                    <div key={file.id} className="file-card bg-surface rounded-xl p-6 shadow-neomorph-raised border border-white/50 flex flex-col h-full">
                                         <div className="flex items-start justify-between mb-6">
                                             <span className="font-label text-[12px] text-outline bg-surface-container px-2 py-1 rounded">{file.name?.split('.').pop()?.toUpperCase()}</span>
                                         </div>
@@ -60,7 +62,7 @@ export default function Docs() {
                                         <p className="text-on-surface-variant text-md mb-6 flex items-center gap-2">Prompt: {file.prompt}</p>
                                         <p className="text-on-surface-variant text-sm mb-6 flex items-center gap-2">
                                             <span className="material-symbols-outlined text-[16px]">calendar_today</span>
-                                            Uploaded {new Date().toLocaleDateString()}
+                                            Uploaded: {file.date || 'Unknown'}
                                         </p>
                                         <div className="mt-auto pt-6 border-t border-surface-variant flex gap-3">
                                             <button onClick={() => {
@@ -72,7 +74,7 @@ export default function Docs() {
                                                 <span className="material-symbols-outlined text-[18px]">movie_edit</span>
                                                 Generate Video
                                             </button>
-                                            <button onClick={() => handleDelete(file.name)}
+                                            <button onClick={() => handleDelete(file.id)}
                                                 className="p-1 bg-error/10 text-on-surface-variant hover:text-error rounded-lg transition-all cursor-pointer">
                                                 <span className="text-sm">Delete</span>
                                             </button>

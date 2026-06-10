@@ -56,8 +56,8 @@ export default function AgentChat() {
                         <h2 className="font-headline text-xl font-bold text-on-surface">Chat</h2>
                         <button
                             onClick={handleClear}
-                            className="p-2 bg-primary text-white rounded-lg flex items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer">
-                            <span className="text-sm">Clear Messages</span>
+                            className="p-2 bg-primary text-white rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer">
+                            Clear<span className="material-symbols-outlined text-sm">cancel</span>
                         </button>
                     </div>
                     <div className="flex-1 space-y-4 pr-1 max-h-96 overflow-y-auto">
@@ -102,13 +102,15 @@ export default function AgentChat() {
                                 placeholder="Write your message here..."
                             />
                         </div>
+                        <div className="flex justify-end">
                         <button
                             onClick={handleSend}
                             disabled={isLoading}
-                            className=" bottom-3 right-3 w-16 h-8 bg-primary text-white rounded-lg flex items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100 cursor-pointer"
+                            className="p-2 bg-primary text-white rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer"
                         >
-                            <span className="material-symbols-outlined text-sm">Send</span>
+                            Send<span className="material-symbols-outlined text-sm">Send</span>
                         </button>
+                        </div>
                     </div>
                 </div>
             </div>

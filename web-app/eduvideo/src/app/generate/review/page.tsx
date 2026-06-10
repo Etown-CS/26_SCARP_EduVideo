@@ -13,6 +13,23 @@ export default function Review() {
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
+    const [files, setFiles] = useState<File[]>([]);
+    const [preloaded, setPreloaded] = useState<string | null>(null);
+    const [prompt, setPrompt] = useState(() => {
+        if(typeof window !== 'undefined'){
+            return localStorage.getItem('prompt') || '';
+        }
+        return '';
+    })
+
+    const handleApprove = () => {
+        setPrompt('');
+        setFiles([]);
+        setPreloaded(null);
+        localStorage.removeItem('prompt');
+        localStorage.removeItem('selectedDocument');
+        router.push("/generate/final-video")
+    }
 
     useEffect(() => {
         const url = localStorage.getItem('completedVideoUrl');
@@ -40,7 +57,7 @@ export default function Review() {
                                     Return to Edit
                                 </button>
                                 <button
-                                    onClick={() => router.push("/generate/final-video")}
+                                    onClick={handleApprove}
                                     className="shadow-neomorph-raised bg-primary text-on-primary px-6 py-2 rounded-lg flex items-center gap-2 font-semibold hover:brightness-110 transition-all cursor-pointer">
                                     <span className="material-symbols-outlined">publish</span>
                                     Approve
