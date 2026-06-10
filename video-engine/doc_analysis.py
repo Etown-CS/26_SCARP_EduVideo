@@ -17,16 +17,11 @@ client = OpenAI()
 
 Format checker
 ↓
-Dominant color detection (grouping all the colour used in the pdf into a single dominant color and other minor colors)
-(require pdf)
-↓
 PDF-MD conversion (text extraction)
 ↓
-Remove boilerplates
+LLM filter to remove unrelated content
 ↓
-weighting scoring system
-
-Note: if we want to remove boilerplates first, before doing color, there is a companion lib `markdown-pdf`
+LLM segmentation
 
 '''
 
