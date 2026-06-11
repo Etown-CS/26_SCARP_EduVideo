@@ -29,8 +29,20 @@ export default function Generate() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ document: preloaded || files[0]?.name, prompt }),
         }).then(r => r.json());
+
+        const metadata = {
+            title: preloaded || files[0]?.name || 'Untitled',
+            topic: 'Unknown',
+            prompt: prompt,
+            description: 'None',
+            length: 'Unknown',
+            date: new Date().toISOString(),
+            document: preloaded || files[0]?.name || 'N/A'
+        };
+
         localStorage.setItem('selectedDocument', preloaded || files[0]?.name || '');
         localStorage.setItem('currentJobId', jobId);
+        localStorage.setItem('videoMetadata', JSON.stringify(metadata));
         router.push('/generate/working');
     };
 
@@ -118,6 +130,40 @@ export default function Generate() {
         //localStorage.removeItem('prompt');
     }
 
+    const handleSend = async () => {
+        const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
+        const fileContentMap: Record<string, string> = {};
+        await Promise.all(
+            files.map(
+                (file) =>
+                    new Promise<void>((resolve) => {
+                        const reader = new FileReader();
+                        reader.onload = (e) => {
+                            fileContentMap[file.name] = e.target?.result as string;
+                            resolve();
+                        };
+                        reader.readAsDataURL(file);
+                    })
+            )
+        );
+        const updated = existing.map((entry: { id: string; name: string; prompt?: string; content?: string}) => {
+            if(entry.id === preloadedId){
+                return {...entry, prompt: prompt || 'N/A'};
+            }
+            const matchedFile = files.find(f => f.name === entry.name);
+            if(matchedFile){
+                return{
+                    ...entry,
+                    prompt: prompt || 'N/A',
+                    content: fileContentMap[matchedFile.name] ?? entry.content,
+                };
+            }
+            return entry;
+        });
+        localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        handleGenerate();
+    };
+
     const handleSave = () => {
         const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
         const updated = existing.map((entry: { name: string; prompt?: string }) => {
@@ -164,7 +210,7 @@ export default function Generate() {
                                         <p className="text-on-surface-variant font-body">Support for (needs to be decided)</p>
                                         <button type="button"
                                             onClick={() => inputRef.current?.click()}
-                                            className="mt-4 px-8 py-3 bg-white border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
+                                            className="mt-4 px-8 py-3 bg-surface border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
                                             Browse Files
                                         </button>
                                         <input ref={inputRef} type="file" multiple className="hidden" onChange={handleBrowse} />
@@ -202,7 +248,7 @@ export default function Generate() {
                                 */}
                                     <button
                                         onClick={handleSubmit}
-                                        className="w-40 px-4 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-white shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
+                                        className="w-40 px-4 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-surface shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
                                         Generate Video
                                     </button>
                                 </div>

@@ -54,7 +54,7 @@ export default function Docs() {
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {fileNames.length > 0 ? (
                                 fileNames.map((file, index) => (
-                                    <div key={file.id} className="file-card bg-surface rounded-xl p-6 shadow-neomorph-raised border border-white/50 flex flex-col h-full">
+                                    <div key={file.id} className="file-card bg-surface rounded-xl p-6 shadow-neomorph-raised border border-outline-variant/30 flex flex-col h-full">
                                         <div className="flex items-start justify-between mb-6">
                                             <span className="font-label text-[12px] text-outline bg-surface-container px-2 py-1 rounded">{file.name?.split('.').pop()?.toUpperCase()}</span>
                                         </div>

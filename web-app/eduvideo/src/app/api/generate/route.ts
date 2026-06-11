@@ -9,7 +9,7 @@ export async function POST(req: NextRequest){
     const {document, prompt, keywords} = await req.json();
 
     if(STUB_MODE){
-        const jobId = 'mock-job-${Date.now()}';
+        const jobId = `mock-job-${Date.now()}`;
         mockJobs[jobId] = { status: 'processing', progress: 0};
 
         let progress = 0;

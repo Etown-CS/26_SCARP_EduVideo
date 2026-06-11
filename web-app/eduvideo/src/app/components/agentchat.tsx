@@ -57,7 +57,7 @@ export default function AgentChat() {
                         <button
                             onClick={handleClear}
                             className="p-2 bg-primary text-white rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer">
-                            Clear<span className="material-symbols-outlined text-sm">cancel</span>
+                            Clear
                         </button>
                     </div>
                     <div className="flex-1 space-y-4 pr-1 max-h-96 overflow-y-auto">

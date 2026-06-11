@@ -92,7 +92,7 @@ export default function Edit() {
                                     <h3 className="font-headline text-xl font-bold text-on-surface">Check or change your files here.</h3>
                                     <button type="button"
                                         onClick={() => inputRef.current?.click()}
-                                        className="mt-4 px-8 py-3 bg-white border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
+                                        className="mt-4 px-8 py-3 bg-outline-variant border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
                                         Browse Files
                                     </button>
                                     <input ref={inputRef} type="file" multiple className="hidden" onChange={handleBrowse} />
@@ -123,7 +123,7 @@ export default function Edit() {
                                     </div>
                                 </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                    <div className="shadow-neomorph-raised bg-surface rounded-2xl p-5 border border-white transition-all hover:scale-[1.02] cursor-pointer group">
+                                    <div className="shadow-neomorph-raised bg-surface rounded-2xl p-5 border border-outline-variant transition-all hover:scale-[1.02] cursor-pointer group">
                                         <div className="flex justify-between items-start mb-4">
                                             <input className="w-5 h-5 rounded text-primary border-outline-variant focus:ring-primary" type="checkbox"></input>
                                             <button className="text-on-surface-variant hover:text-error transition-colors">
@@ -135,7 +135,7 @@ export default function Edit() {
                                         </div>
                                     </div>
                                     {keyword.map((key, index) => (
-                                        <div key={index} className="shadow-neomorph-raised bg-surface rounded-2xl p-5 border border-white transition-all hover:scale-[1.02] cursor-pointer group">
+                                        <div key={index} className="shadow-neomorph-raised bg-surface rounded-2xl p-5 border border-outline-variant transition-all hover:scale-[1.02] cursor-pointer group">
                                             <div className="flex justify-between items-start mb-4">
                                                 <input className="w-5 h-5 rounded text-primary border-outline-variant focus:ring-primary" type="checkbox" checked></input>
                                                 <button

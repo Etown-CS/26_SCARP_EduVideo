@@ -28,7 +28,7 @@ export default function Home() {
                 <span className="material-symbols-outlined text-3xl text-primary">upload_file</span>
               </div>
               <h3 className="font-display text-xl font-bold text-on-surface mb-3">Upload Your Documents</h3>
-              <p className="text-on-surface-variant text-sm leading-relaxed">Upload PDFs, Documents, Markdown file computer science notes. Select keywords and add addition prompts for your video.</p>
+              <p className="text-on-surface-variant text-sm leading-relaxed">Upload PDFs, Documents, or Markdown file computer science notes. Select keywords and add prompts to help generate your video.</p>
             </div>
             <div className="p-8 rounded-3xl bg-surface-container-high shadow-neomorph-raised flex flex-col items-center text-center group hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl bg-primary-container/20 flex items-center justify-center mb-6">
@@ -53,7 +53,7 @@ export default function Home() {
                 <span className="material-symbols-outlined text-4xl fill-current">play_arrow</span>
               </div>
             </div>
-            <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-on-surface/40 to-transparent">
+            <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-on-surface/10 to-transparent">
               <div className="flex items-center gap-3">
                 <div className="w-2 h-2 rounded-full bg-error animate-pulse"></div>
                 <span className="text-white font-label text-xs uppercase tracking-widest">Demo video can go here</span>
@@ -70,12 +70,12 @@ export default function Home() {
       <section className="px-6 flex justify-center pt-12 pb-32">
         <div className="max-w-4xl w-full text-center p-16 rounded-3xl shadow-neomorph-raised bg-surface-container overflow-hidden relative">
           <div className="relative z-10">
-            <h2 className="font-display text-4xl md:text-5xl font-extrabold text-on-surface mb-8">
+            <h2 className="font-display text-4xl md:text-3xl font-extrabold text-on-surface mb-8">
               Ready to get started?
             </h2>
             <button 
               onClick={() => router.push("/generate")}
-              className="inline-flex items-center gap-3 px-10 py-5 bg-primary text-on-primary rounded-xl font-bold text-lg shadow-xl hover:scale-105 transition-all duration-300 active:scale-95">
+              className="inline-flex items-center gap-3 px-8 py-3 bg-primary text-on-primary rounded-xl font-bold text-lg shadow-xl hover:scale-105 transition-all duration-300 active:scale-95">
               Start Generating
               <span className="material-symbols-outlined">arrow_forward</span>
             </button>

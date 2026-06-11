@@ -6,6 +6,7 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { useEffect, useState } from "react";
 import Loading from "@/app/components/loading";
 import AgentChat from "@/app/components/agentchat";
+import { useRouter } from "next/navigation";
 
 export default function FinalVideo() {
 
@@ -23,17 +24,19 @@ export default function FinalVideo() {
         return '';
     });
 
+    const router = useRouter();
     const [newTag, setNewTag] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
-
-    useEffect(() => {
-        localStorage.setItem('title', title);
-    }, [title]);
-
-    useEffect(() => {
-        localStorage.setItem('desc', desc);
-    }, [desc]);
+    const [videoMetadata, setVideoMetadata] = useState<{
+        title: '',
+        topic: '',
+        prompt: string,
+        description: '',
+        length: string,
+        date: string,
+        document: string
+    } | null>(null);
 
     useEffect(() => {
         const url = localStorage.getItem('completedVideoUrl');
@@ -45,6 +48,37 @@ export default function FinalVideo() {
         setTags(prev => [...prev, newTag.trim()]);
         setNewTag('');
     };
+
+    const handleSave = () => {
+        const metadata = {
+            title, 
+            description: desc,
+            date: new Date().toISOString(),
+            document: localStorage.getItem('selectedDocument') || 'N/A',
+            prompt: localStorage.getItem('prompt') || 'N/A',
+        };
+        localStorage.setItem('videoMetadata', JSON.stringify(metadata));
+    };
+
+    const handleReset = () => {
+        localStorage.removeItem('videoMetadata');
+        localStorage.removeItem('completedVideoUrl');
+        localStorage.removeItem('prompt');
+        localStorage.removeItem('selectedDocument');
+        localStorage.removeItem('title');
+        localStorage.removeItem('desc');
+        router.push('/documents');
+    }
+
+    useEffect(() => {
+        const saved = localStorage.getItem('videoMetadata');
+        if(saved){
+            const meta = JSON.parse(saved);
+            if(meta.title) setTitle(meta.title);
+            if(meta.description) setDesc(meta.description);
+            if(meta.tags) setTags(meta.tags);
+        }
+    }, []);
 
     if (loading) return (
         <Loading />
@@ -131,7 +165,10 @@ export default function FinalVideo() {
                                             </div>
                                         </div>
                                         <div className="pt-6 border-t border-outline-variant/30 space-y-4">
-                                            <button className="bg-primary text-on-primary mt-4 px-5 py-1 rounded-full text-md neomorph-raised hover:brightness-110 transition-all active:scale-95">Save</button>
+                                            <button onClick={handleSave} className="bg-primary text-on-primary mt-4 px-5 py-1 rounded-full text-md neomorph-raised hover:brightness-110 transition-all active:scale-95">Save</button>
+                                        </div>
+                                        <div className="pt-6 border-t border-outline-variant/30 space-y-4">
+                                            <button onClick={handleReset} className="bg-primary text-on-primary mt-4 px-5 py-1 rounded-full text-md neomorph-raised hover:brightness-110 transition-all active:scale-95">Reset</button>
                                         </div>
                                     </div>
                                 </div>

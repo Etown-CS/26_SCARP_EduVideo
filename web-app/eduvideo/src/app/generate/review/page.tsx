@@ -26,8 +26,6 @@ export default function Review() {
         setPrompt('');
         setFiles([]);
         setPreloaded(null);
-        localStorage.removeItem('prompt');
-        localStorage.removeItem('selectedDocument');
         router.push("/generate/final-video")
     }
 
@@ -58,7 +56,7 @@ export default function Review() {
                                 </button>
                                 <button
                                     onClick={handleApprove}
-                                    className="shadow-neomorph-raised bg-primary text-on-primary px-6 py-2 rounded-lg flex items-center gap-2 font-semibold hover:brightness-110 transition-all cursor-pointer">
+                                    className="shadow-neomorph-raised bg-primary text-on-primary px-6 py-2 rounded-lg flex items-center gap-2 font-medium hover:translate-y-[-1px] transition-all cursor-pointer">
                                     <span className="material-symbols-outlined">publish</span>
                                     Approve
                                 </button>

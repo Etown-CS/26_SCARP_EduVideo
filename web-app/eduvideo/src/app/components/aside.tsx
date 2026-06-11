@@ -13,7 +13,7 @@ export default function Aside(){
     const pathName = usePathname();
 
     return(
-        <aside className="bg-surface-container-low w-56 h-128 flex flex-col p-4 gap-2 shadow-[4px_0_24px_-4px_rgba(218,226,253,0.5)] z-40">
+        <aside className="bg-surface-container-low w-56 h-128 flex flex-col p-4 gap-2 shadow-neomorph-raised rounded-2xl z-40">
             <div className="flex items-center gap-3 px-2 py-2 mb-4">
                 <div>
                     <h2 className="font-headline text-lg font-bold text-on-surface leading-tight">Video Workspace</h2>
@@ -27,7 +27,7 @@ export default function Aside(){
                             <a href={href} key={href}>
                                 <div className={
                                     isActive
-                                    ? "ems-center gap-3 p-3 bg-primary-container text-on-primary-container rounded-lg shadow-[inset_2px_2px_4px_rgba(0,0,0,0.05)] cursor-pointer active:scale-[0.98]"
+                                    ? "ems-center gap-3 p-3 bg-primary-container text-on-primary-container rounded-lg shadow-neomorph-raised cursor-pointer active:scale-[0.98]"
                                     : "text-on-surface-variant hover:bg-surface-container-high transition-all flex items-center gap-3 px-3 py-3 rounded-lg cursor-pointer hover:translate-x-1 duration-200"
                                 }
                                 >
