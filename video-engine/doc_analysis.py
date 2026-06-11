@@ -74,16 +74,20 @@ def llm_filter(md, client):
             {
                 "role": "system",
                 "content": """You are a lecture content filter.
-                Remove sections that are NOT actual lecture content, such as:
-                - Title, dates, name of the instructor
-                - Lecture agenda, lecture outline
-                - Review
-                - slides to ask if anyone has any questions in the middle of the class ("Questions?", "Any questions?", etc)
-                - any types of announcement, such as for the next class and for the assignment
-                - lecture date, course number as a combination of alphabets and numbers, page numbers,
-                Also, keep the path of the images extracted starting with "![](...", but remove text extracted from the picture (**----- Start of picture text -----**<br>X<br>**----- End of picture text -----**<br>).
-                Keep all actual lecture content (definitions, explanations, code, examples, exercise problems).
-                Return ONLY the filtered markdown, preserving the original formatting."""
+                IMPORTANT: You must preserve ALL of the following:
+                - Image paths starting with "![](" — NEVER remove these
+                - All actual lecture content (definitions, explanations, code, examples, problems)
+                - Code blocks and struct definitions
+
+                ONLY remove these:
+                - Title slides (instructor name, course title)
+                - Lecture agenda / outline slides
+                - Review sections from previous lectures (starting with "Review:")
+                - "Questions?" slides
+                - Announcements
+                - Page numbers, dates, course numbers
+
+                Return ONLY the filtered markdown, preserving original formatting exactly."""
             },
             {
                 "role": "user",
@@ -142,6 +146,19 @@ def llm_filter(md, client):
 
 ############### LLM Segmentation ###############
 def llm_segmentation(filtered_md, client):
+    # give the image path to a placeholder
+    img = {}
+    counter = [0]
+
+    def replace_img(match):
+        k = f"IMAGE_PLACEHOLDER_{counter[0]}"
+        img[k] = match.group(0)
+        counter[0] += 1
+        return k
+    
+    md_no_imgs = re.sub(r'!\[.*?\]\(.*?\)', replace_img, filtered_md)
+
+    # Give LLM the md file put in a placeholder
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -156,21 +173,25 @@ def llm_segmentation(filtered_md, client):
                     - Examples / applications  
                     - Implementation / pseudocode
                     - Exercise / practice
-                    - image path
-                - importance should be based on how essential it is to the main topic
+                - Each segment is classified into one from ["sub-topic", "definition", "explanation", "example/application", "pseudocode/implementation", "exercise", "analysis", "visual", "others"]
+                - If content is an image path (starting with "![]("), you MUST infer its type from surrounding context:
+                    - If surrounding content contains code, pseudocode, implementation, struct, int, void, while, for, or any programming keywords → set type as "pseudocode/implementation"
+                    - If surrounding content is about a graph, tree, diagram, or visual explanation → set type as "visual"
+                    - If surrounding content is about an example or application → set type as "example/application"
+                    - Only use "visual" as a last resort when no other type fits
                 - Return ONLY a valid JSON array, no explanation, no markdown formatting:
                 [
                     {
-                    "id": "seg_001"
-                    "type": "core topic"
-                    "content": "actual text extracted"
-                    "order": 1
+                        "id": "seg_001",
+                        "type": "core topic",
+                        "content": "actual text extracted",
+                        "order": 1,
                         "subsegments": [
                             {
-                            "id": "seg_001_001",
-                            "type": pick one from ["sub-topic", "definition", "explanation", "example/application", "code_example", "exercise", "analysis", "image", "Others"],
-                            "content": "actual text extracted",
-                            "order": 1
+                                "id": "seg_001_001",
+                                "type": "definition",
+                                "content": "actual text extracted",
+                                "order": 1
                             }
                         ]
                     }
@@ -178,12 +199,24 @@ def llm_segmentation(filtered_md, client):
             },
             {
                 "role": "user",
-                "content": filtered_md
+                "content": md_no_imgs
             }
         ]
     )
     try:
-        return json.loads(response.choices[0].message.content)
+        result = json.loads(response.choices[0].message.content)
+
+        # function to convert back the placeholder to the image path
+        def restore_img(segments):
+            for s in segments:
+                for k, path in img.items():
+                    s["content"] = s["content"].replace(k, path)
+                if "subsegments" in s:
+                    restore_img(s["subsegments"])
+
+        restore_img(result)
+        return result
+    
     except json.JSONDecodeError:
         print("Error: LLM output is not valid JSON")
         print(response.choices[0].message.content)
@@ -192,7 +225,7 @@ def llm_segmentation(filtered_md, client):
 ############### Main ###############
 ####input
 # file = "cs350_data.pdf" # single page
-file = "cs322_mst.pdf"
+file = "cs322_mst_9.pdf"
 
 ### Format Check
 pdf = format_checker(file)
@@ -208,10 +241,6 @@ md = pymupdf4llm.to_markdown(file, write_images=True, image_path=f"output_sample
 
 ### Apply LLM filter
 filtered_md = llm_filter(md, client)
-
-# ### Write cleaned text in.md File 
-# with open(f"output_sample/{output_name}/{output_name}.md", "w") as f:
-#     f.write(cleaned_md)
 
 ### Generate another md file to compare with cleaned one
 with open(f"output_sample/{output_name}/{output_name}-filtered.md", "w") as f: 
