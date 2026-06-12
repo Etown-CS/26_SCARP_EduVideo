@@ -173,7 +173,7 @@ def llm_segmentation(filtered_md, client):
                     - Examples / applications  
                     - Implementation / pseudocode
                     - Exercise / practice
-                - Each segment is classified into one from ["sub-topic", "definition", "explanation", "example/application", "pseudocode/implementation", "exercise", "analysis", "visual", "others"]
+                - Each segment is classified into one from ["definition", "explanation", "example/application", "pseudocode/implementation", "exercise", "analysis", "visual", "others"]
                 - If content is an image path (starting with "![]("), you MUST infer its type from surrounding context:
                     - If surrounding content contains code, pseudocode, implementation, struct, int, void, while, for, or any programming keywords → set type as "pseudocode/implementation"
                     - If surrounding content is about a graph, tree, diagram, or visual explanation → set type as "visual"
