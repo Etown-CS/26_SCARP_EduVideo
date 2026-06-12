@@ -32,14 +32,14 @@ export default function Home() {
             </div>
             <div className="p-8 rounded-3xl bg-surface-container-high shadow-neomorph-raised flex flex-col items-center text-center group hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl bg-primary-container/20 flex items-center justify-center mb-6">
-                <span className="material-symbols-outlined text-sm">psychology</span>
+                <span className="material-symbols-outlined text-sm text-primary">psychology</span>
               </div>
               <h3 className="font-display text-xl font-bold text-on-surface mb-3">AI Video Generation</h3>
               <p className="text-on-surface-variant text-sm leading-relaxed">Our system will read through your document, prompts, and keywords to generate a short educational video tailored to your needs.</p>
             </div>
             <div className="p-8 rounded-3xl bg-surface-container-high shadow-neomorph-raised flex flex-col items-center text-center group hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl bg-primary-container/20 flex items-center justify-center mb-6">
-                <span className="material-symbols-outlined text-sm">download_done</span>
+                <span className="material-symbols-outlined text-sm text-primary">download_done</span>
               </div>
               <h3 className="font-display text-xl font-bold text-on-surface mb-3">Review & Export</h3>
               <p className="text-on-surface-variant text-sm leading-relaxed">Make edits, review accuracy score, and view your final video.</p>

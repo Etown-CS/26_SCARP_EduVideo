@@ -108,7 +108,7 @@ export default function AgentChat() {
                             disabled={isLoading}
                             className="p-2 bg-primary text-white rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer"
                         >
-                            Send<span className="material-symbols-outlined text-sm">Send</span>
+                            Send
                         </button>
                         </div>
                     </div>

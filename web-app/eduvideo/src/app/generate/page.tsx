@@ -22,6 +22,7 @@ export default function Generate() {
     });
     const [preloaded, setPreloaded] = useState<string | null>(null);
     const [preloadedId, setPreloadedId] = useState<string | null>(null);
+    const [fileIds, setFileIds] = useState<string[]>([]);
 
     const handleGenerate = async () => {
         const { jobId } = await fetch('/api/generate', {
@@ -80,14 +81,17 @@ export default function Generate() {
             const selected = Array.from(e.target.files);
             setFiles(prev => [...prev, ...selected]);
 
-            const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-            const name = selected.map(f => ({
-                id: `${f.name}-${Date.now()}-${Math.random()}`,  // ← unique id
+            const raw = localStorage.getItem('uploadedFiles');
+            const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
+
+            const entry = selected.map(f => ({
+                id: `${f.name}-${Date.now()}-${Math.random()}`,
                 name: f.name,
                 prompt: 'N/A',
                 date: new Date().toLocaleDateString()
             }));
-            const merged = [...existing, ...name];
+            setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
+            const merged = [...existing, ...entry];
             localStorage.setItem('uploadedFiles', JSON.stringify(merged));
         }
     };
@@ -111,17 +115,30 @@ export default function Generate() {
     };
 
     const handleSubmit = () => {
-        const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-        const updated = existing.map((entry: { id: string; name: string; prompt?: string }) => {
-            if (entry.id === preloadedId) {
-                return { ...entry, prompt: prompt || 'N/A' };
-            }
-            const matchedFile = files.find(f => f.name === entry.name);
-            if (matchedFile) {
-                return { ...entry, prompt: prompt || 'N/A' };
-            }
-            return entry;
-        });
+        const raw = localStorage.getItem('uploadedFiles');
+        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
+        const hasFile = !!(preloaded || files[0]);
+
+        let updated;
+        if (hasFile) {
+            updated = existing.map((entry: { id: string; name: string; prompt?: string }) => {
+                if (entry.id === preloadedId) {
+                    return { ...entry, prompt: prompt || 'N/A' };
+                }
+                if (fileIds.includes(entry.id)) {
+                    return { ...entry, prompt: prompt || 'N/A' };
+                }
+                return entry;
+            });
+        } else {
+            const newEntry = {
+                id: `prompt-only-${Date.now()}`,
+                name: 'N/A',
+                prompt: prompt,
+                date: new Date().toLocaleDateString(),
+            };
+            updated = [...existing, newEntry];
+        }
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
         handleGenerate();
         //setPrompt('');
@@ -130,6 +147,8 @@ export default function Generate() {
         //localStorage.removeItem('prompt');
     }
 
+    /*
+    //In theory will send the document's content along with the document name. I don't want to take up all of the storage yet, so were are going to keep using the other function for now.
     const handleSend = async () => {
         const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
         const fileContentMap: Record<string, string> = {};
@@ -146,36 +165,45 @@ export default function Generate() {
                     })
             )
         );
-        const updated = existing.map((entry: { id: string; name: string; prompt?: string; content?: string}) => {
-            if(entry.id === preloadedId){
-                return {...entry, prompt: prompt || 'N/A'};
+        const updated = existing.map((entry: { id: string; name: string; prompt?: string; content?: string }) => {
+            if (entry.id === preloadedId) {
+                return { ...entry, prompt: prompt || 'N/A' };
             }
-            const matchedFile = files.find(f => f.name === entry.name);
-            if(matchedFile){
-                return{
-                    ...entry,
-                    prompt: prompt || 'N/A',
-                    content: fileContentMap[matchedFile.name] ?? entry.content,
-                };
+            if (fileIds.includes(entry.id)) {
+                return { ...entry, prompt: prompt || 'N/A' };
             }
             return entry;
         });
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
         handleGenerate();
     };
+    */
 
     const handleSave = () => {
-        const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-        const updated = existing.map((entry: { name: string; prompt?: string }) => {
-            if (entry.name === preloaded) {
-                return { ...entry, prompt: prompt || 'N/A' };
-            }
-            const matchedFile = files.find(f => f.name === entry.name);
-            if (matchedFile) {
-                return { ...entry, prompt: prompt || 'N/A' };
-            }
-            return entry;
-        });
+        const raw = localStorage.getItem('uploadedFiles');
+        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
+        const hasFile = !!(preloaded || files[0]);
+
+        let updated;
+        if (hasFile) {
+            updated = existing.map((entry: { id: string; name: string; prompt?: string }) => {
+                if (entry.id === preloadedId) {
+                    return { ...entry, prompt: prompt || 'N/A' };
+                }
+                if (fileIds.includes(entry.id)) {
+                    return { ...entry, prompt: prompt || 'N/A' };
+                }
+                return entry;
+            });
+        } else {
+            const newEntry = {
+                id: `prompt-only-${Date.now()}`,
+                name: 'N/A',
+                prompt: prompt,
+                date: new Date().toLocaleDateString(),
+            };
+            updated = [...existing, newEntry];
+        }
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
         setPrompt('');
         setFiles([]);
@@ -238,18 +266,16 @@ export default function Generate() {
                                         onChange={(e) => setPrompt(e.target.value)}
                                         className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Input an additional prompt here" rows={3} />
                                 </div>
-                                <div className="max-w-2xl flex items-center justify-center mt-4">
-                                    {/*
-                                <button
-                                    onClick={handleSave}
-                                    className="w-40 px-4 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-white shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
-                                        Save
-                                </button>
-                                */}
+                                <div className="max-w-2xl flex items-center gap-4 justify-center mt-4">
                                     <button
                                         onClick={handleSubmit}
                                         className="w-40 px-4 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-surface shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
-                                        Generate Video
+                                        Generate
+                                    </button>
+                                    <button
+                                        onClick={handleSave}
+                                        className="w-40 px-4 py-3 bg-secondary border border-outline-variant rounded-lg font-semibold text-white shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
+                                        Save
                                     </button>
                                 </div>
                             </div>

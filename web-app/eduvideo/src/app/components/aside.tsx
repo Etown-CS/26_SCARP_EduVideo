@@ -2,10 +2,10 @@
 import { usePathname } from "next/navigation";
 
     const navLinks = [
-        {href:"/generate", label: "Upload"},
-        //{href:"/generate/edit", label: "Edit"},
-        {href:"/generate/review", label: "Review"},
-        {href:"/generate/final-video", label: "Final Video"}
+        {href:"/generate", label: "Upload", span: "upload"},
+        {href:"/generate/edit", label: "Edit", span: "edit_square"},
+        {href:"/generate/review", label: "Review", span: "rate_review"},
+        {href:"/generate/final-video", label: "Final Video", span: "movie_filter"}
     ]
 
 export default function Aside(){
@@ -21,16 +21,17 @@ export default function Aside(){
             </div>
             <nav className="flex-1 space-y-1">
                 {
-                    navLinks.map(({href, label}) => {
+                    navLinks.map(({href, label, span}) => {
                         const isActive = pathName === href;
                         return(
                             <a href={href} key={href}>
                                 <div className={
                                     isActive
-                                    ? "ems-center gap-3 p-3 bg-primary-container text-on-primary-container rounded-lg shadow-neomorph-raised cursor-pointer active:scale-[0.98]"
+                                    ? "ems-center gap-3 px-3 py-3 flex items-center bg-primary-container text-on-primary-container rounded-lg cursor-pointer active:scale-[0.98]"
                                     : "text-on-surface-variant hover:bg-surface-container-high transition-all flex items-center gap-3 px-3 py-3 rounded-lg cursor-pointer hover:translate-x-1 duration-200"
                                 }
                                 >
+                                    <span className="material-symbols-outlined text-sm">{span}</span>
                                     <span className="font-body text-body-md tracking-wide">{label}</span>
                                 </div>
                             </a>

@@ -51,7 +51,7 @@ export default function FinalVideo() {
 
     const handleSave = () => {
         const metadata = {
-            title, 
+            title,
             description: desc,
             date: new Date().toISOString(),
             document: localStorage.getItem('selectedDocument') || 'N/A',
@@ -72,11 +72,11 @@ export default function FinalVideo() {
 
     useEffect(() => {
         const saved = localStorage.getItem('videoMetadata');
-        if(saved){
+        if (saved) {
             const meta = JSON.parse(saved);
-            if(meta.title) setTitle(meta.title);
-            if(meta.description) setDesc(meta.description);
-            if(meta.tags) setTags(meta.tags);
+            if (meta.title) setTitle(meta.title?.split('.')[0]);
+            if (meta.description) setDesc(meta.description);
+            if (meta.tags) setTags(meta.tags);
         }
     }, []);
 
@@ -108,16 +108,17 @@ export default function FinalVideo() {
                                 </div>
                                 */}
                                 {videoUrl && (
-                                    <video src={videoUrl} controls className="w-full rounded-xl mt-4"/>
+                                    <video src={videoUrl} controls className="w-full h-115 rounded-xl mt-4" />
                                 )}
                             </div>
                             <div className="col-span-4 flex flex-col gap-6 min-h-0">
                                 <div className="shadow-neomorph-raised bg-surface rounded-3xl p-6 h-fit sticky top-24">
-                                    <h2 className="font-headline text-xl font-bold text-on-surface">Set video information</h2>                                    <div className="space-y-6">
+                                    <h2 className="font-headline text-xl font-bold text-on-surface">Set video information</h2>
+                                    <div className="space-y-6">
                                         <div className="space-y-6">
                                             <div>
                                                 <label className="text-[10px] text-on-surface-variant uppercase tracking-widest block mb-2">Title</label>
-                                                <div className="neomorph-inset bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
+                                                <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
                                                     <textarea
                                                         value={title}
                                                         onChange={(e) => setTitle(e.target.value)}
@@ -126,7 +127,7 @@ export default function FinalVideo() {
                                             </div>
                                             <div>
                                                 <label className="text-[10px] text-on-surface-variant uppercase tracking-widest block mb-2">Description</label>
-                                                <div className="neomorph-inset bg-surface-container-low p-4 rounded-xl">
+                                                <div className="shadow-neomorph-sunken bg-surface-container-low p-4 rounded-xl">
                                                     <textarea
                                                         value={desc}
                                                         onChange={(e) => setDesc(e.target.value)}
@@ -158,17 +159,15 @@ export default function FinalVideo() {
                                                     />
                                                     <button
                                                         onClick={handleNewTag}
-                                                        className="bg-primary text-on-primary px-3 py-1 rounded-full text-xs neomorph-raised hover:brightness-110 transition-all active:scale-95">
+                                                        className="bg-primary text-on-primary px-3 py-1 rounded-full text-xs shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">
                                                         Add tag
                                                     </button>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="pt-6 border-t border-outline-variant/30 space-y-4">
-                                            <button onClick={handleSave} className="bg-primary text-on-primary mt-4 px-5 py-1 rounded-full text-md neomorph-raised hover:brightness-110 transition-all active:scale-95">Save</button>
-                                        </div>
-                                        <div className="pt-6 border-t border-outline-variant/30 space-y-4">
-                                            <button onClick={handleReset} className="bg-primary text-on-primary mt-4 px-5 py-1 rounded-full text-md neomorph-raised hover:brightness-110 transition-all active:scale-95">Reset</button>
+                                        <div className="pt-6 border-t border-outline-variant/30 max-w-2xl flex items-center gap-40 justify-center">
+                                            <button onClick={handleReset} className="bg-secondary text-on-primary px-5 py-1 rounded-full text-md shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">Reset</button>
+                                            <button onClick={handleSave} className="bg-primary text-on-primary px-5 py-1 rounded-full text-md shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">Save</button>
                                         </div>
                                     </div>
                                 </div>

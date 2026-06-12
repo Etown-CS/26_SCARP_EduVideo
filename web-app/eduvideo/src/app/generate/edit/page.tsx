@@ -92,7 +92,7 @@ export default function Edit() {
                                     <h3 className="font-headline text-xl font-bold text-on-surface">Check or change your files here.</h3>
                                     <button type="button"
                                         onClick={() => inputRef.current?.click()}
-                                        className="mt-4 px-8 py-3 bg-outline-variant border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
+                                        className="mt-4 px-8 py-3 border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
                                         Browse Files
                                     </button>
                                     <input ref={inputRef} type="file" multiple className="hidden" onChange={handleBrowse} />

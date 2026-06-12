@@ -68,7 +68,7 @@ export default function WorkingPage() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-4 min-h-0">
-                                <div className="shadow-neomorphic-raised bg-surface-container rounded-2xl p-5 border border-outline-variant/30">
+                                <div className="shadow-neomorph-raised bg-surface-container rounded-2xl p-5 border border-outline-variant/30">
                                     <div className="flex justify-between items-center mb-4">
                                         <h3 className="font-headline font-bold text-on-surface">Generation Status</h3>
                                         <span className="font-label text-primary font-bold">{progress}%</span>

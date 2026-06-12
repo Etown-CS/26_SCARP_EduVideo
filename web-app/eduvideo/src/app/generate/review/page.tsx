@@ -89,7 +89,7 @@ export default function Review() {
                                 </div>
                                 */}
                                 {videoUrl && (
-                                    <video src={videoUrl} controls className="w-full rounded-xl mt-4" />
+                                    <video src={videoUrl} controls className="w-full h-115 rounded-xl mt-4" />
                                 )}
                                 <div className="h-48 bg-surface-container-low rounded-2xl p-4 shadow-neomorph-sunken overflow-hidden flex flex-col">
                                     <div className="flex justify-between items-center mb-3">

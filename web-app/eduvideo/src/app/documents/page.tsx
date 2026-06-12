@@ -39,6 +39,22 @@ export default function Docs() {
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
     }
 
+    const getIcon = (filename: string) => {
+        const ex = filename?.split('.').pop()?.toLowerCase();
+
+        switch(ex){
+            case 'pdf':
+                return {icon: 'picture_as_pdf'};
+            case 'docx':
+                return {icon: 'description'};
+            case 'md':
+            case 'markdown':
+                return {icon: 'markdown'};
+            default:
+                return {icon: 'insert_drive_file'};
+        }
+    };
+
     if (loading) return (
         <Loading />
     );
@@ -56,6 +72,7 @@ export default function Docs() {
                                 fileNames.map((file, index) => (
                                     <div key={file.id} className="file-card bg-surface rounded-xl p-6 shadow-neomorph-raised border border-outline-variant/30 flex flex-col h-full">
                                         <div className="flex items-start justify-between mb-6">
+                                            <span className="material-symbols-outlined text-[20px]">{getIcon(file.name).icon}</span>
                                             <span className="font-label text-[12px] text-outline bg-surface-container px-2 py-1 rounded">{file.name?.split('.').pop()?.toUpperCase()}</span>
                                         </div>
                                         <h3 className="font-headline text-lg font-semibold text-on-background mb-2">{file.name}</h3>
