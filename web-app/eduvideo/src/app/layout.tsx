@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { Manrope, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import Header from "@/app/components/header";
+import { ChatProvider } from "./context/chatContext";
+import { ThemeProvider } from 'next-themes';
 
 
 const manrope = Manrope({
@@ -35,17 +37,25 @@ export default function RootLayout({
       suppressHydrationWarning
       className={`${manrope.variable} ${inter.variable} ${jetBrains.variable} h-full antialiased`}
     >
-      <body suppressHydrationWarning className = "bg-surface font-body text-on-surface min-h-screen flex flex-col">
-        <Header />
-          {children}
-        <footer className="full-width mt-auto bg-surface-container-low border-t border-outline-variant/10">
-        <div className="flex flex-col md:flex-row justify-between items-center w-full px-4 md:px-8 py-6 gap-8">
-          <div className="flex flex-col items-center md:items-start gap-4">
-            <span className="font-display text-2xl font-bold text-primary">BluEdu</span>
-            <p className="font-body text-sm text-on-secondary-container text-center md:text-left"> SCARP 2026 BluEdu Note to Video Project</p>
-          </div>
-        </div>
-      </footer>
+      <head>
+        <link rel="stylesheet"
+          href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+      </head>
+      <body suppressHydrationWarning className="bg-surface font-body text-on-surface min-h-screen flex flex-col">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <ChatProvider>
+            <Header />
+            {children}
+          </ChatProvider>
+          <footer className="full-width mt-auto bg-surface-container-low border-t border-outline-variant/10">
+            <div className="flex flex-col md:flex-row justify-between items-center w-full px-4 md:px-8 py-6 gap-8">
+              <div className="flex flex-col items-center md:items-start gap-4">
+                <span className="font-display text-2xl font-bold text-primary">BluEdu</span>
+                <p className="font-body text-sm text-on-secondary-container text-center md:text-left"> SCARP 2026 BluEdu Note to Video Project</p>
+              </div>
+            </div>
+          </footer>
+        </ThemeProvider>
       </body>
     </html>
   );
