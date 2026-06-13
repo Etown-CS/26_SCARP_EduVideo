@@ -29,6 +29,7 @@ def format_topic4prompt(topic):
 # Label importance
 # Create a summary by subsegments
 def reorder_summarize_topic(topic):
+    # Convert a core topic in md file into plain text
     formatted = format_topic4prompt(topic)
 
     prompt = f"""You are a Pedagogical Agent helping reorder lecture segments for beginner undergraduate students.
@@ -61,6 +62,7 @@ Return ONLY a JSON list like this, no explanation:
         messages=[{"role": "user", "content": prompt}]
     )
 
+    # Remove markdown code fences
     raw = response.choices[0].message.content
     clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     result = json.loads(clean)
@@ -69,6 +71,7 @@ Return ONLY a JSON list like this, no explanation:
 
 
 ############### Rebuild the output JSON file ###############
+# Construct the JSON file with importance label and summary of each subsegment as output
 def build_output(data, results):
     output = {
         "topic": data["topic"],
