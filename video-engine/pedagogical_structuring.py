@@ -28,23 +28,25 @@ def format_topic4prompt(topic):
 # a new order of core topic for beginner friendly
 # Label importance
 # Create a summary by subsegments
-def reorder_summarize_topic(topic):
+def finetune_reorder_topic(topic, user_prompt):
     # Convert a core topic in md file into plain text
     formatted = format_topic4prompt(topic)
 
-    prompt = f"""You are a Pedagogical Agent helping reorder lecture segments for beginner undergraduate students.
-
+    prompt = f"""You are a Pedagogical Agent helping fine-tune and reorder the segments based on the user prompt for a beginner undergraduate student.
+The user has the following request for this video: "{user_prompt}"
 Here are the subsegments for the topic "{topic['content']}":
 
 {formatted}
 
 Do three things:
-1. Reorder these subsegments into the best teaching sequence for a beginner.
-2. Rate each subsegment's importance using exactly one of these labels:
-    - essential: core concept, must be included
-    - supplementary: helps understanding but not critical
+1.Rate each subsegment's importance using exactly one of these labels:
+    - essential: core concept the user is asking about, must be included
+    - supplementary: helps understanding but not directly what the user asked for
     - advanced: beyond undergrad level, include only if user requests
     - optional: not necessary, can be skipped
+    When rating importance, prioritize content that directly relates to the user's request above.
+    Foundational definitions needed to understand the user's requested topic should still be rated essential.
+2. Reorder these subsegments into the best teaching sequence for a beginner. 
 3. Write a short, simplified summary of each subsegment for beginner students.
 
 Return ONLY a JSON list like this, no explanation:
@@ -69,12 +71,62 @@ Return ONLY a JSON list like this, no explanation:
 
     return result
 
+############### LLM Video Outline Generator ###############
+def video_outline_maker(all_subsegments, user_prompt, client):
+    # Format the flat list to put in LLM
+    formatted = "\n".join([
+        f"{sub['id']} [{sub['importance']}] ({sub['topic']}): {sub['content'][:100]}"
+        for sub in all_subsegments
+    ])
+
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "system",
+                "content": """You are a Video Outline Maker for an educational video pipeline.
+                Given a list of lecture subsegments and a user's request, create a coherent video outline.
+                
+                Rules:
+                - Group subsegments into logical sections that flows naturally
+                - Each section should have a clear role: "introduction", "foundation", "main focus", "supporting", "conclusion"
+                - Prioritize subsegments that match the user's request as "main focus"
+                - Keep foundational definitions as "foundation" even if not directly requested
+                - The outline should tell one coherent story, not separate topic summaries
+                - Return ONLY valid JSON, no explanation, no markdown formatting:
+                {
+                    "title": "video title based on user's request",
+                    "sections': [
+                        {
+                            "section": 1,
+                            "title": "section title",
+                            "role": "foundation",
+                            "subsegment_ids": ["seg_001_001", "seg_001_002"]
+                        }
+                    ]
+                }"""
+            },
+            {
+                "role": "user",
+                "content": f"User request: {user_prompt}\n\nSubsegments:\n{formatted}"
+            }
+        ]
+    )
+
+    raw = response.choices[0].message.content
+    clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    outline = json.loads(clean)
+
+    return outline
+
 
 ############### Rebuild the output JSON file ###############
 # Construct the JSON file with importance label and summary of each subsegment as output
-def build_output(data, results):
+def build_output(data, results, outline):
     output = {
         "topic": data["topic"],
+        "user prompt": user_prompt,
+        "video outline": outline,
         "segments": []
     }
 
@@ -94,22 +146,45 @@ load_dotenv()
 client = OpenAI()
 
 ### Get a file name for future use
-file = "output_sample/cs322_mst_9/cs322_mst_9.json"
+file = "output_sample/cs350_llm/cs350_llm.json"
 output_dir = os.path.dirname(file)
 
 with open(file, "r") as f:
     data = json.load(f)
 
+user_prompt = data.get("user_prompt", "") # empty string by default
+
 # Run all topics and collect their importance & summary of subsegments
 all_results = []
 for topic in data["segments"]:
-    result = reorder_summarize_topic(topic)
+    result = finetune_reorder_topic(topic, user_prompt)
     all_results.append(result)
 
-# Build and save output
-output = build_output(data, all_results)
+# Flatten all subsegments across all topics
+all_subsegments = []
+for topic, result in zip(data["segments"], all_results):
+    for sub in result:
+        all_subsegments.append({
+            "id": sub["id"],
+            "topic": topic["content"],
+            "content": sub["content"],
+            "importance": sub["importance"]
+        })
 
-with open(output_dir, "pedagogical_output.json", "w") as f:
+outline = video_outline_maker(all_subsegments, user_prompt, client)
+
+### Check outline and content inn each section
+outline = video_outline_maker(all_subsegments, user_prompt, client)
+print(f"\nVideo Title: {outline['title']}")
+for section in outline["sections"]:
+    print(f"\n  Section {section['section']}: {section['title']} [{section['role']}]")
+    for sid in section["subsegment_ids"]:
+        print(f"    {sid}")
+
+# Build and save output
+output = build_output(data, all_results, outline)
+
+with open(os.path.join(output_dir, "pedagogical_output.json"), "w") as f:
     json.dump(output, f, indent=4)
 
 print(f"\n✅ pedagogical_output.json saved to {output_dir}!")
