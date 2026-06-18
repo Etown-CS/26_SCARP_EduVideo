@@ -5,14 +5,12 @@ import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useRouter } from "next/navigation";
 import { useChat } from "../context/chatContext";
-import { useTheme } from "next-themes";
 import ThemeToggle from "./themetoggle";
 
 export default function Header() {
   const router = useRouter();
   const [user, loading] = useAuthState(auth);
   const { setMessages } = useChat();
-  const { theme, setTheme } = useTheme();
 
   const handleSignOut = () => {
     signOut(auth);
@@ -39,7 +37,7 @@ export default function Header() {
           )
           )
           }
-          <ThemeToggle/>
+          <ThemeToggle />
         </div>
       </nav>
     </header>

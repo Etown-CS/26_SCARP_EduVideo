@@ -15,10 +15,6 @@ export default function AgentChat() {
 
     const username = user?.email ? user.email.split('@')[0] : 'User';
 
-    console.log('messages from context:', messages);
-    console.log('user:', user);
-    console.log('loading:', loading);
-
     if (loading) return null;
     if (!user) return;
 
@@ -29,12 +25,33 @@ export default function AgentChat() {
         setIsLoading(true);
 
         try {
+            const prompt = localStorage.getItem('selectedPrompt') || '';
             const res = await fetch('/api/agent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: input }),
+                body: JSON.stringify({ message: input, prompt }),
             });
             const data = await res.json();
+            try {
+                const parsed = JSON.parse(data.reply);
+                if (parsed.action === 'update_prompt') {
+                    localStorage.setItem('selectedPrompt', parsed.newPrompt);
+                    window.dispatchEvent(new Event('storage'));
+                    const activeFileId = localStorage.getItem('activeFileId');
+                    if (activeFileId) {
+                        const raw = localStorage.getItem('uploadedFiles');
+                        const existing = raw ? JSON.parse(raw) : [];
+                        const updated = existing.map((f: any) =>
+                            f.id === activeFileId ? { ...f, prompt: parsed.newPrompt } : f
+                        );
+                        localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+                    }
+                    setMessages(prev => [...prev, { sender: 'agent', text: parsed.message }]);
+                    return;
+                }
+            } catch {
+
+            }
             setMessages(prev => [...prev, { sender: 'agent', text: data.reply }]);
             if (data.navigation) {
                 router.push(data.navigation.path);
@@ -103,13 +120,13 @@ export default function AgentChat() {
                             />
                         </div>
                         <div className="flex justify-end">
-                        <button
-                            onClick={handleSend}
-                            disabled={isLoading}
-                            className="p-2 bg-primary text-white rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer"
-                        >
-                            Send
-                        </button>
+                            <button
+                                onClick={handleSend}
+                                disabled={isLoading}
+                                className="p-2 bg-primary text-white rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                            >
+                                Send
+                            </button>
                         </div>
                     </div>
                 </div>

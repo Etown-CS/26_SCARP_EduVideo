@@ -14,12 +14,7 @@ export default function Generate() {
     const [isDragging, setIsDragging] = useState(false);
     const [files, setFiles] = useState<File[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
-    const [prompt, setPrompt] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('prompt') || '';
-        }
-        return '';
-    });
+    const [prompt, setPrompt] = useState('');
     const [preloaded, setPreloaded] = useState<string | null>(null);
     const [preloadedId, setPreloadedId] = useState<string | null>(null);
     const [fileIds, setFileIds] = useState<string[]>([]);
@@ -54,10 +49,6 @@ export default function Generate() {
     }, [user, router, loading]);
 
     useEffect(() => {
-        localStorage.setItem('prompt', prompt);
-    }, [prompt]);
-
-    useEffect(() => {
         const saved = localStorage.getItem('selectedDocument');
         if (saved) {
             setPreloaded(saved);
@@ -68,6 +59,34 @@ export default function Generate() {
             setPrompt(savedPrompt);
             localStorage.removeItem('selectedPrompt');
         }
+        const activeFileId = localStorage.getItem('activeFileId');
+        if (activeFileId) {
+            setPreloadedId(activeFileId);
+        }
+
+    }, []);
+
+    useEffect(() => {
+        localStorage.setItem('selectedPrompt', prompt);
+        const activeFileId = localStorage.getItem('activeFileId');
+        if (activeFileId) {
+            const raw = localStorage.getItem('uploadedFiles');
+            const existing = raw ? JSON.parse(raw) : [];
+            const updated = existing.map((f: any) => f.id === activeFileId ? { ...f, prompt } : f);
+            localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        }
+    }, [prompt]);
+
+    useEffect(() => {
+        const handleStorageChange = () => {
+            const updated = localStorage.getItem('selectedPrompt');
+            if (updated && updated !== 'N/A') {
+                setPrompt(updated);
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
 
     if (loading) return (
@@ -205,10 +224,8 @@ export default function Generate() {
             updated = [...existing, newEntry];
         }
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
-        setPrompt('');
-        setFiles([]);
-        setPreloaded(null);
-        localStorage.removeItem('prompt');
+        localStorage.removeItem('activeFileId');
+        localStorage.removeItem('selectedPrompt');
         router.push('/documents');
     }
 
@@ -225,6 +242,7 @@ export default function Generate() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-2 min-h-0">
+                                <p className="mt-6 max-w-2xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">Use the box below to upload your notes, powerpoints, coding samples, etc. You can drag and drop or use the browse files button.</p>
                                 <div
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
@@ -259,6 +277,7 @@ export default function Generate() {
                                     </div>)
                                     }
                                 </div>
+                                <p className="mt-6 max-w-2xl text-sm text-on-surface-variant font-body leading-relaxed">If you would like to have your video be more specific to a certain concept, consider entering a prompt into the box below. If you are unsure how to word your prompt, ask the chat and it will generate a prompt for you.</p>
                                 <div className="max-w-2xl shadow-neomorph-sunken bg-surface-container-low my-8 px-4 py-8 rounded-lg flex items-center gap-2">
                                     <span className="material-symbols-outlined text-outline text-[40px]"></span>
                                     <textarea

@@ -11,8 +11,6 @@ export default function Docs() {
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
     const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string }[]>([]);
-
-
     useEffect(() => {
         if (!user && !loading) {
             router.push('/sign-in');
@@ -21,15 +19,11 @@ export default function Docs() {
 
     useEffect(() => {
         const raw = localStorage.getItem('uploadedFiles');
-        console.log('raw:', raw);
         const stored = JSON.parse(raw || '[]');
-        console.log('stored:', stored);
-        const normalized = stored.map((entry: any) =>
+        const normalized = stored.map((entry: any) => 
             typeof entry === 'string'
-                ? { id: `${entry}-${Date.now()}`, name: entry, prompt: 'N/A', date: 'Unknown' }
-                : entry
-        );
-        console.log('normalized:', normalized);
+                ? {id: `${entry}-${Date.now()}`, name: entry, prompt: 'N/A', date:'Unknown'}
+                : entry );
         setFileNames(normalized);
     }, []);
 
@@ -42,16 +36,16 @@ export default function Docs() {
     const getIcon = (filename: string) => {
         const ex = filename?.split('.').pop()?.toLowerCase();
 
-        switch(ex){
+        switch (ex) {
             case 'pdf':
-                return {icon: 'picture_as_pdf'};
+                return { icon: 'picture_as_pdf' };
             case 'docx':
-                return {icon: 'description'};
+                return { icon: 'description' };
             case 'md':
             case 'markdown':
-                return {icon: 'markdown'};
+                return { icon: 'markdown' };
             default:
-                return {icon: 'insert_drive_file'};
+                return { icon: 'insert_drive_file' };
         }
     };
 
@@ -76,13 +70,14 @@ export default function Docs() {
                                             <span className="font-label text-[12px] text-outline bg-surface-container px-2 py-1 rounded">{file.name?.split('.').pop()?.toUpperCase()}</span>
                                         </div>
                                         <h3 className="font-headline text-lg font-semibold text-on-background mb-2">{file.name}</h3>
-                                        <p className="text-on-surface-variant text-md mb-6 flex items-center gap-2">Prompt: {file.prompt}</p>
+                                        <p className="text-on-surface-variant text-md mb-6 gap-2 overflow-y-auto max-h-50"> Prompt: {file.prompt} </p>
                                         <p className="text-on-surface-variant text-sm mb-6 flex items-center gap-2">
                                             <span className="material-symbols-outlined text-[16px]">calendar_today</span>
                                             Uploaded: {file.date || 'Unknown'}
                                         </p>
                                         <div className="mt-auto pt-6 border-t border-surface-variant flex gap-3">
                                             <button onClick={() => {
+                                                localStorage.setItem('activeFileId', file.id);
                                                 localStorage.setItem('selectedDocument', file.name);
                                                 localStorage.setItem('selectedPrompt', file.prompt);
                                                 router.push('/generate');

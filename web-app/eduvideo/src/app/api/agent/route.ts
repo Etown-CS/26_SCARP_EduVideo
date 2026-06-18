@@ -7,7 +7,7 @@ const routes = [
     { path: "/generate/edit", description: "Edit and modify features of video generation process" },
     { path: "/generate/review", description: "Review and evaluate the generated video" },
     { path: "/generate/final-video", description: "Watch and share the final video" },
-    { path: "/documents", description: "Here is where the documents are stored"}
+    { path: "/documents", description: "Here is where the documents are stored" }
 ];
 
 const navigateTool = tool({
@@ -16,17 +16,22 @@ const navigateTool = tool({
         .map(r => `- ${r.path}: ${r.description}`)
         .join("\n")}`,
     parameters: z.object({
-        path: z.enum(["/generate", "/generate/edit", "/generate/final-video", "/generate/review","/documents"]),
+        path: z.enum(["/generate", "/generate/edit", "/generate/final-video", "/generate/review", "/documents"]),
         reason: z.string().describe("Why we're navigating there"),
     }),
-    execute: async ({path, reason}) => {
-        return JSON.stringify({navigate: true, path, reason});
+    execute: async ({ path, reason }) => {
+        return JSON.stringify({ navigate: true, path, reason });
     },
 });
 
+export async function POST(req: NextRequest) {
+    const { message, prompt } = await req.json();
     const agent = new Agent({
         name: "Helper agent",
-        instructions: `You are a helper agent for a document to video app. Help the user navigate through the video generation process and answer questions. Use navigate_to_page to take the user to the relevant page when they want to use certain features or perform certain tasks. Be consise and friendly to our users. If there is something that you do not know, tell the user explicitly. Do not guess and risk giving them false information.
+        instructions: `You are a helper agent for a document to video app. Help the user navigate through the video generation process and answer questions. Use navigate_to_page to take the user to the relevant page when they want to use certain features or perform certain tasks. You also have the ability to help users create and edit their video prompts. The current prompt is: "${prompt}". 
+        If the user asks you to change or update the prompt, respond with a JSON object in this format:
+        { "action": "update_prompt", "newPrompt": "the new prompt here", "message": "your friendly confirmation message" }
+        Otherwise respond normally as plain text. Be consise and friendly to our users. If there is something that you do not know, tell the user explicitly. Do not guess and risk giving them false information.
             App overview:
                 BluEdu allows users to upload their computer science notes or write prompts and generates a short educational video from those materials.
             Pages and their purposes:
@@ -41,22 +46,19 @@ const navigateTool = tool({
                 How do I know if I already uploaded a document? Go to the /documents page. From here you can see all of you previously uploaded documents. If you don't see the one you are looking for, then it hasn't been uploaded yet or you deleted the document.
                 How long will it take to generate the video? Video generation takes time, so it will likely take a few minutes to see your video. As your video is generating, we will show you a progress bar with an estimate of how much time is remaining in the generation process.
                 Can I download the finished video? At this current time we do not support video downloads, however we hope to add that feature soon.`,
-        model: "gpt-5.5",
+        model: "gpt-5.4-nano",
         tools: [navigateTool]
     });
-
-    export async function POST(req: NextRequest){
-    const { message } = await req.json();
     const chat = await run(agent, message);
     const toolCall = chat.rawResponses
-    ?.flatMap((r: any) => r.output ?? [])
-    .find((item:any) => item.type === "function_call" && item.name === "navigate_to_page");
+        ?.flatMap((r: any) => r.output ?? [])
+        .find((item: any) => item.type === "function_call" && item.name === "navigate_to_page");
 
-    if(toolCall){
+    if (toolCall) {
         const { path, reason } = JSON.parse(toolCall.arguments);
         return NextResponse.json({
             reply: chat.finalOutput,
-            navigation: {path, reason},
+            navigation: { path, reason },
         });
     }
     return NextResponse.json({ reply: chat.finalOutput });

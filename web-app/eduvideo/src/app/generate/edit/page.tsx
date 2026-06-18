@@ -14,16 +14,10 @@ export default function Edit() {
     const [newKeyword, setNewKeyword] = useState('');
     const [keyword, setKeyword] = useState<string[]>([]);
     const router = useRouter();
-    const [prompt, setPrompt] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('prompt') || '';
-        }
-        return '';
-    });
+    const [prompt, setPrompt] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
     const [files, setFiles] = useState<File[]>([]);
     const [preloaded, setPreloaded] = useState<string | null>(null);
-
 
 
     const handleKeyword = () => {
@@ -49,16 +43,17 @@ export default function Edit() {
     };
 
     const handleSubmit = async () => {
-        const {jobId} = await fetch('/api/generate', {
+        const { jobId } = await fetch('/api/generate', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({document:preloaded || files[0]?.name, prompt}),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ document: preloaded || files[0]?.name, prompt }),
         }).then(r => r.json());
 
         localStorage.setItem('currentJobId', jobId);
         router.push('/generate/working');
     }
 
+    {/*
     useEffect(() => {
         const saved = localStorage.getItem('selectedDocument');
         if(saved){
@@ -66,7 +61,37 @@ export default function Edit() {
             localStorage.removeItem('selectedDocument');
         }
     }, []);
-    
+    */}
+    useEffect(() => {
+        localStorage.setItem('selectedPrompt', prompt);
+        const activeFileId = localStorage.getItem('activeFileId');
+        if (activeFileId) {
+            const raw = localStorage.getItem('uploadedFiles');
+            const existing = raw ? JSON.parse(raw) : [];
+            const updated = existing.map((f: any) => f.id === activeFileId ? { ...f, prompt } : f);
+            localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        }
+    }, [prompt]);
+
+    useEffect(() => {
+        const savedPrompt = localStorage.getItem('selectedPrompt');
+        if (savedPrompt && savedPrompt !== 'N/A') {
+            setPrompt(savedPrompt);
+        }
+    }, []);
+
+    useEffect(() => {
+        const handleStorageChange = () =>{
+            const updated = localStorage.getItem('selectedPrompt');
+            if(updated && updated !== 'N/A'){
+                setPrompt(updated);
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
+
     if (loading) return (
         <Loading />
     )
@@ -81,7 +106,8 @@ export default function Edit() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-2 min-h-0">
                             <div className="col-span-8 flex flex-col gap-4 min-h-0">
-                                <div className="max-w-2xl shadow-neomorph-sunken bg-surface-container-low my-8 px-4 py-8 rounded-lg flex items-center gap-2">
+                                <p className="mt-2 max-w-2xl text-sm text-on-surface-variant font-body leading-relaxed">If you would like your video to include something it didn't or remove a topic, consider adding or changing the prompt.</p>
+                                <div className="max-w-2xl shadow-neomorph-sunken bg-surface-container-low my-4 px-4 py-8 rounded-lg flex items-center gap-2">
                                     <span className="material-symbols-outlined text-outline text-[40px]"></span>
                                     <textarea
                                         value={prompt}

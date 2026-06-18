@@ -12,6 +12,7 @@ export default function SignUp() {
     const [createUserWithEmailAndPassword] = useCreateUserWithEmailAndPassword(auth);
     const [createUserWithGoogle] = useSignInWithGoogle(auth);
     const router = useRouter();
+    const [showPass, setPass] = useState(false);
 
     const handleSignUp = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -19,16 +20,27 @@ export default function SignUp() {
         try {
             const res = await createUserWithEmailAndPassword(email, password);
             if (!res) {
-                setError('Failed to create account');
+                setError('Failed to create account.');
                 return;
             }
             console.log({ res });
             setEmail('');
             setPassword('');
             router.push('/generate');
-        } catch (e) {
-            console.error(e);
-            setError('Something went wrong. Please try again.');
+        } catch (e: any) {
+            switch (e?.code) {
+                case 'auth/email-already-in-use':
+                    setError('There is already an account with this email. If you would like to sign in, please navigate to the sign in page.');
+                    break;
+                case 'auth/weak-password':
+                    setError('Password must be at least 6 characters.');
+                    break;
+                case 'auth/invalid-email':
+                    setError('Please enter a valid email.');
+                    break;
+                default:
+                    setError('Something went wrong. Please try again.')
+            }
         }
     };
 
@@ -65,10 +77,20 @@ export default function SignUp() {
                         <div>
                             <label className="block text-xs font-bold text-on-surface-variant uppercase tracking-wider mb-2 ml-1" htmlFor="password">Password</label>
                             <div className="relative group">
-                                <input value={password} onChange={(e) => setPassword(e.target.value)} className="w-full bg-surface-container-low border border-outline-variant rounded-lg py-3 px-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none" id="password" placeholder="••••••••" type="password" />
+                                <input value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    type={showPass ? 'text' : 'password'}
+                                    className="w-full bg-surface-container-low border border-outline-variant rounded-lg py-3 px-4 text-on-surface placeholder:text-outline focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-200 outline-none" id="password" placeholder="••••••••" />
+                                <button
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-primary transition-colors cursor-pointer"
+                                    onClick={() => setPass(prev => !prev)}
+                                    type="button">
+                                    <span className="material-symbols-outlined">
+                                        {showPass ? 'visibility' : 'visibility_off'}
+                                    </span>
+                                </button>
                             </div>
-                            <div className="flex justify-end mt-2">
-                            </div>
+                            <div className="flex justify-end mt-2"></div>
                         </div>
                         {error && (<p className="text-red-500 text-sm text-center">{error}</p>)}
                         <button className="w-full bg-primary text-on-primary font-bold py-3.5 rounded-lg active:scale-[0.98] transition-all duration-200 mt-2 shadow-lg shadow-primary/20 hover:brightness-110 cursor-pointer" type="submit"> Create account </button>
