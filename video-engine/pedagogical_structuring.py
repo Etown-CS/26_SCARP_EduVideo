@@ -109,7 +109,7 @@ for topic in data["segments"]:
 # Build and save output
 output = build_output(data, all_results)
 
-with open(output_dir, "pedagogical_output.json", "w") as f:
+with open(os.path.join(output_dir, "pedagogical_output.json"), "w") as f:
     json.dump(output, f, indent=4)
 
 print(f"\n✅ pedagogical_output.json saved to {output_dir}!")

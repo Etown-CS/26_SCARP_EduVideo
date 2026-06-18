@@ -1,3 +1,16 @@
+'''
+### Overview of Process ###
+
+Format checker
+↓
+PDF-MD conversion (text extraction)
+↓
+LLM filter to remove unrelated content
+↓
+LLM segmentation
+
+'''
+
 import pymupdf
 import pymupdf4llm
 from pathlib import Path
@@ -11,19 +24,6 @@ from dotenv import load_dotenv
 ### LLM
 load_dotenv()
 client = OpenAI()
-
-'''
-### Overview of Process ###
-
-Format checker
-↓
-PDF-MD conversion (text extraction)
-↓
-LLM filter to remove unrelated content
-↓
-LLM segmentation
-
-'''
 
 ############### Format Checker ###############
 # if pdf, return pdf
@@ -171,14 +171,11 @@ def llm_segmentation(filtered_md, client):
                 - Subtopics (children) should be supporting content under that concept, such as:
                     - How it works / analysis
                     - Examples / applications  
-                    - Implementation / pseudocode
+                    - Pseudocode
                     - Exercise / practice
-                - Each segment is classified into one from ["definition", "explanation", "example/application", "pseudocode/implementation", "exercise", "analysis", "visual", "others"]
-                - If content is an image path (starting with "![]("), you MUST infer its type from surrounding context:
-                    - If surrounding content contains code, pseudocode, implementation, struct, int, void, while, for, or any programming keywords → set type as "pseudocode/implementation"
-                    - If surrounding content is about a graph, tree, diagram, or visual explanation → set type as "visual"
-                    - If surrounding content is about an example or application → set type as "example/application"
-                    - Only use "visual" as a last resort when no other type fits
+                - Each segment is classified into one from ["definition", "explanation", "example/application", "pseudocode", "exercise problems", "analysis", "visual"]
+                - If the subsegment looks imcomplete, such as cut-off pseudocode, delete the subsegment.
+                - You MUST keep the image path with a label of "visuals" as type.
                 - Return ONLY a valid JSON array, no explanation, no markdown formatting:
                 [
                     {
@@ -222,10 +219,42 @@ def llm_segmentation(filtered_md, client):
         print(response.choices[0].message.content)
         return []
     
+
+############### LLM Topic Filter with User Prompt ###############
+def llm_topic_filter(segments, user_prompt, client):
+    # Create a simple list of topic id + name (not the entire content!!)
+    topics = "\n".join([f"{seg["id"]}: {seg["content"]}" for seg in segments])
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages = [
+            {
+                "role": "system",
+                "content": """You are a topic selector for an educational video pipeline.
+                Given a list of topics and a user's request, decide which topics are relevant to keep.
+                Return ONLY a JSON list of topic ids to KEEP, like:
+                ["seg_001", "seg_003"]
+                No explanation, no markdown formatting."""
+            },
+            {
+                "role": "user",
+                "content": f"User request: {user_prompt}\n\nTopics:\n{topics}"
+            }
+        ]
+    )
+
+    raw = response.choices[0].message.content
+    ### json fences handling
+    clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+    keep_ids = json.loads(clean)
+
+    return keep_ids
+
+
 ############### Main ###############
 ####input
 # file = "cs350_data.pdf" # single page
-file = "cs322_mst_9.pdf"
+file = "cs322_mst_all.pdf"
 
 ### Format Check
 pdf = format_checker(file)
@@ -260,9 +289,18 @@ for i, seg in enumerate(segments):
         sub["id"] = f"seg_{i+1:03d}_{j+1:03d}"
         sub["order"] = j + 1
 
+### User prompt - temporal, for testing
+user_prompt = "Create a short video with a focus on minimum spanning tree"
+
+keep_ids = llm_topic_filter(segments, user_prompt, client)
+
+### Filter segments based on keep_ids
+segments = [seg for seg in segments if seg["id"] in keep_ids]
+
 ### JSON output
 result = {
     "topic": output_name,
+    "user_prompt": user_prompt,
     "segments": segments
 }
 with open(f"output_sample/{output_name}/{output_name}.json", "w") as f:
