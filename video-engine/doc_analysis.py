@@ -67,7 +67,7 @@ def text_in_minorColor(pdf_doc, dom_color):
 
 
 ############### LLM Filter ###############
-def llm_filter(md, client):
+def llm_cleaner(md, client):
     response = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[
@@ -254,7 +254,11 @@ def llm_topic_filter(segments, user_prompt, client):
 ############### Main ###############
 ####input
 # file = "cs350_data.pdf" # single page
-file = "cs322_mst_all.pdf"
+file = "cs350_llm.pdf"
+
+### User prompt - temporal, for testing
+user_prompt = "Create a short video focusing on Large Language Model(LLM)"
+# user_prompt = "Create a short video with a focus on Prim's algorithm and Kruskal's algorithm"
 
 ### Format Check
 pdf = format_checker(file)
@@ -269,17 +273,17 @@ output_name = os.path.splitext(os.path.basename(file))[0]
 md = pymupdf4llm.to_markdown(file, write_images=True, image_path=f"output_sample/{output_name}") # for testing
 
 ### Apply LLM filter
-filtered_md = llm_filter(md, client)
+cleaned_md = llm_cleaner(md, client)
 
 ### Generate another md file to compare with cleaned one
-with open(f"output_sample/{output_name}/{output_name}-filtered.md", "w") as f: 
-    f.write(filtered_md)
+with open(f"output_sample/{output_name}/{output_name}-cleaned.md", "w") as f: 
+    f.write(cleaned_md)
 
 with open(f"output_sample/{output_name}/{output_name}.md", "w") as f: 
     f.write(md)
 
 ### LLM Segmentation
-segments = llm_segmentation(filtered_md, client)
+segments = llm_segmentation(cleaned_md, client)
 
 ### Add id and order
 for i, seg in enumerate(segments):
@@ -297,9 +301,6 @@ result = {
 with open(f"output_sample/{output_name}/{output_name}-all-topics.json", "w") as f:
     json.dump(result, f, indent=4, ensure_ascii=False)
     print("Saved! - All Segments")
-
-### User prompt - temporal, for testing
-user_prompt = "Create a short video with a focus on Prim's algorithm and Kruskal's algorithm"
 
 keep_ids = llm_topic_filter(segments, user_prompt, client)
 

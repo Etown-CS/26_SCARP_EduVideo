@@ -146,7 +146,7 @@ load_dotenv()
 client = OpenAI()
 
 ### Get a file name for future use
-file = "output_sample/cs322_mst_all/cs322_mst_all.json"
+file = "output_sample/cs350_llm/cs350_llm.json"
 output_dir = os.path.dirname(file)
 
 with open(file, "r") as f:
@@ -172,6 +172,14 @@ for topic, result in zip(data["segments"], all_results):
         })
 
 outline = video_outline_maker(all_subsegments, user_prompt, client)
+
+### Check outline and content inn each section
+outline = video_outline_maker(all_subsegments, user_prompt, client)
+print(f"\nVideo Title: {outline['title']}")
+for section in outline["sections"]:
+    print(f"\n  Section {section['section']}: {section['title']} [{section['role']}]")
+    for sid in section["subsegment_ids"]:
+        print(f"    {sid}")
 
 # Build and save output
 output = build_output(data, all_results, outline)
