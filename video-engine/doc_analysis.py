@@ -289,15 +289,24 @@ for i, seg in enumerate(segments):
         sub["id"] = f"seg_{i+1:03d}_{j+1:03d}"
         sub["order"] = j + 1
 
+### JSON output - before filtering
+result = {
+    "topic": output_name,
+    "segments": segments
+}
+with open(f"output_sample/{output_name}/{output_name}-all-topics.json", "w") as f:
+    json.dump(result, f, indent=4, ensure_ascii=False)
+    print("Saved! - All Segments")
+
 ### User prompt - temporal, for testing
-user_prompt = "Create a short video with a focus on minimum spanning tree"
+user_prompt = "Create a short video with a focus on Prim's algorithm and Kruskal's algorithm"
 
 keep_ids = llm_topic_filter(segments, user_prompt, client)
 
 ### Filter segments based on keep_ids
 segments = [seg for seg in segments if seg["id"] in keep_ids]
 
-### JSON output
+### JSON output - after filtering
 result = {
     "topic": output_name,
     "user_prompt": user_prompt,
@@ -305,4 +314,4 @@ result = {
 }
 with open(f"output_sample/{output_name}/{output_name}.json", "w") as f:
     json.dump(result, f, indent=4, ensure_ascii=False)
-    print("Saved!")
+    print("Saved! - Filtered segments")
