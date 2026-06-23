@@ -293,18 +293,17 @@ for i, seg in enumerate(segments):
         sub["id"] = f"seg_{i+1:03d}_{j+1:03d}"
         sub["order"] = j + 1
 
-### JSON output - before filtering
-result = {
-    "topic": output_name,
-    "segments": segments
-}
-with open(f"output_sample/{output_name}/{output_name}-all-topics.json", "w") as f:
-    json.dump(result, f, indent=4, ensure_ascii=False)
-    print("Saved! - All Segments")
-
-keep_ids = llm_topic_filter(segments, user_prompt, client)
+# ### JSON output - before filtering
+# result = {
+#     "topic": output_name,
+#     "segments": segments
+# }
+# with open(f"output_sample/{output_name}/{output_name}-all-topics.json", "w") as f:
+#     json.dump(result, f, indent=4, ensure_ascii=False)
+#     print("Saved! - All Segments")
 
 ### Filter segments based on keep_ids
+keep_ids = llm_topic_filter(segments, user_prompt, client)
 segments = [seg for seg in segments if seg["id"] in keep_ids]
 
 ### JSON output - after filtering
@@ -313,6 +312,6 @@ result = {
     "user_prompt": user_prompt,
     "segments": segments
 }
-with open(f"output_sample/{output_name}/{output_name}.json", "w") as f:
+with open(f"output_sample/{output_name}/segmented.json", "w") as f:
     json.dump(result, f, indent=4, ensure_ascii=False)
-    print("Saved! - Filtered segments")
+    print("Saved!")

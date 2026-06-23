@@ -70,7 +70,7 @@ Return only the transcript text, no labels or explanation."""
 load_dotenv()
 client = OpenAI()
 
-file = "output_sample/cs322_mst_all/pedagogical_output.json"
+file = "output_sample/cs350_llm/pedagogical_output.json"
 
 with open(file, "r") as f:
     data = json.load(f)
@@ -109,7 +109,7 @@ for section in data["video outline"]["sections"]:
 ### Save
 output = {
     "topic": data["topic"],
-    "user_prompt": data.get("user_prompt", ""),
+    "user_prompt": data["user_prompt"],
     "video_title": data["video outline"]["title"],
     "sections": sections_output
 }
