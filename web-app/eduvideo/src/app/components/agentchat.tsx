@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useChat } from '@/app/context/chatContext';
@@ -14,6 +14,18 @@ export default function AgentChat() {
     const router = useRouter();
 
     const username = user?.email ? user.email.split('@')[0] : 'User';
+
+    const messageEnd = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!user && !loading) {
+            setMessages([{ sender: 'agent', text: 'How can I help you?' }]);
+        }
+    }, [user, loading]);
+
+    useEffect(() => {
+        messageEnd.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, [messages]);
 
     if (loading) return null;
     if (!user) return;
@@ -47,6 +59,26 @@ export default function AgentChat() {
                         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
                     }
                     setMessages(prev => [...prev, { sender: 'agent', text: parsed.message }]);
+                    if (data.navigation) {
+                        router.push(data.navigation.path);
+                    }
+                    return;
+                }
+                if (parsed.action === 'regenerate_video') {
+                    const activeFileId = localStorage.getItem('activeFileId');
+                    const raw = localStorage.getItem('uploadedFiles');
+                    const files = raw ? JSON.parse(raw) : [];
+                    const activeFile = files.find((f: any) => f.id === activeFileId);
+                    const genRes = await fetch('/api/generate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: parsed.prompt, document: activeFile, }),
+                    });
+                    const {jobId} = await genRes.json();
+                    localStorage.setItem('currentJobId', jobId);
+
+                    setMessages(prev => [...prev, { sender: 'agent', text: parsed.message }]);
+                    router.push('/generate/working');
                     return;
                 }
             } catch {
@@ -77,7 +109,7 @@ export default function AgentChat() {
                             Clear
                         </button>
                     </div>
-                    <div className="flex-1 space-y-4 pr-1 max-h-96 overflow-y-auto">
+                    <div className="flex-1 space-y-4 pr-1 max-h-96 overflow-y-auto scroll-smooth">
                         {messages.map((msg, index) => (
                             <div
                                 key={index}
@@ -102,6 +134,7 @@ export default function AgentChat() {
                                 </div>
                             </div>
                         )}
+                        <div ref={messageEnd} />
                     </div>
 
                     <div className="mt-4 pt-4 border-t border-outline-variant/30">

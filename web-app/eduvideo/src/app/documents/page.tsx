@@ -5,12 +5,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Loading from "@/app/components/loading";
 import AgentChat from "../components/agentchat";
+import { usePathname } from "next/navigation";
+import path from "path";
 
 export default function Docs() {
 
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
     const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string }[]>([]);
+    const pathname = usePathname();
+
     useEffect(() => {
         if (!user && !loading) {
             router.push('/sign-in');
@@ -25,7 +29,7 @@ export default function Docs() {
                 ? {id: `${entry}-${Date.now()}`, name: entry, prompt: 'N/A', date:'Unknown'}
                 : entry );
         setFileNames(normalized);
-    }, []);
+    }, [pathname]);
 
     const handleDelete = (id: string) => {
         const updated = fileNames.filter(f => f.id !== id);
@@ -60,6 +64,7 @@ export default function Docs() {
             <section className="relative pt-5 pb-32 px-6 overflow-hidden">
                 <div className="px-4 md:px-8 py-6">
                     <h1 className="font-headline text-3xl font-bold text-on-background">My Documents</h1>
+                    <p className="mt-3 max-w-3xl text-md text-on-surface-variant font-body leading-relaxed">Here is where your uploaded documents and prompts are stored.</p>
                     <div className="flex flex-row items-start gap-8 mt-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                             {fileNames.length > 0 ? (

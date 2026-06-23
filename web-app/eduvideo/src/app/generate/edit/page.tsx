@@ -18,7 +18,8 @@ export default function Edit() {
     const inputRef = useRef<HTMLInputElement>(null);
     const [files, setFiles] = useState<File[]>([]);
     const [preloaded, setPreloaded] = useState<string | null>(null);
-
+    const [preloadedId, setPreloadedId] = useState<string | null>(null);
+    const [fileIds, setFileIds] = useState<string[]>([]);
 
     const handleKeyword = () => {
         if (!newKeyword.trim()) return;
@@ -27,6 +28,7 @@ export default function Edit() {
     };
 
     const handleBrowse = (e: React.ChangeEvent<HTMLInputElement>) => {
+        {/*
         if (e.target.files) {
             const selected = Array.from(e.target.files);
             setFiles(prev => [...prev, ...selected]);
@@ -34,6 +36,23 @@ export default function Edit() {
             const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
             const name = selected.map(f => ({ name: f.name, prompt: 'N/A' }));
             const merged = [...existing, ...name];
+            localStorage.setItem('uploadedFiles', JSON.stringify(merged));
+        }
+            */}
+        if (e.target.files) {
+            const selected = Array.from(e.target.files);
+            setFiles(prev => [...prev, ...selected]);
+            const raw = localStorage.getItem('uploadedFiles');
+            const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
+
+            const entry = selected.map(f => ({
+                id: `${f.name}-${Date.now()}-${Math.random()}`,
+                name: f.name,
+                prompt: 'N/A',
+                date: new Date().toLocaleDateString()
+            }));
+            setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
+            const merged = [...existing, ...entry];
             localStorage.setItem('uploadedFiles', JSON.stringify(merged));
         }
     };
@@ -48,7 +67,6 @@ export default function Edit() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ document: preloaded || files[0]?.name, prompt }),
         }).then(r => r.json());
-
         localStorage.setItem('currentJobId', jobId);
         router.push('/generate/working');
     }
@@ -62,9 +80,36 @@ export default function Edit() {
         }
     }, []);
     */}
+
+    {/*}
     useEffect(() => {
-        localStorage.setItem('selectedPrompt', prompt);
+        const savedPrompt = localStorage.getItem('selectedPrompt');
+        if (savedPrompt && savedPrompt !== 'N/A') {
+            setPrompt(savedPrompt);
+        }
+    }, []);
+    */}
+    useEffect(() => {
+        const saved = localStorage.getItem('selectedDocument');
+        if (saved) {
+            setPreloaded(saved);
+            localStorage.removeItem('selectedDocument');
+        }
+        const savedPrompt = localStorage.getItem('selectedPrompt');
+        if (savedPrompt && savedPrompt !== 'N/A') {
+            setPrompt(savedPrompt);
+        }
         const activeFileId = localStorage.getItem('activeFileId');
+        if (activeFileId) {
+            setPreloadedId(activeFileId);
+        }
+
+    }, []);
+
+    useEffect(() => {
+        if (!prompt) return;
+        const activeFileId = localStorage.getItem('activeFileId');
+        localStorage.setItem('selectedPrompt', prompt);
         if (activeFileId) {
             const raw = localStorage.getItem('uploadedFiles');
             const existing = raw ? JSON.parse(raw) : [];
@@ -74,16 +119,9 @@ export default function Edit() {
     }, [prompt]);
 
     useEffect(() => {
-        const savedPrompt = localStorage.getItem('selectedPrompt');
-        if (savedPrompt && savedPrompt !== 'N/A') {
-            setPrompt(savedPrompt);
-        }
-    }, []);
-
-    useEffect(() => {
-        const handleStorageChange = () =>{
+        const handleStorageChange = () => {
             const updated = localStorage.getItem('selectedPrompt');
-            if(updated && updated !== 'N/A'){
+            if (updated && updated !== 'N/A') {
                 setPrompt(updated);
             }
         };
@@ -106,13 +144,13 @@ export default function Edit() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-2 min-h-0">
                             <div className="col-span-8 flex flex-col gap-4 min-h-0">
-                                <p className="mt-2 max-w-2xl text-sm text-on-surface-variant font-body leading-relaxed">If you would like your video to include something it didn't or remove a topic, consider adding or changing the prompt.</p>
+                                <p className="mt-2 max-w-2xl text-sm text-on-surface-variant font-body leading-relaxed">If you would like your video to include something it didn't or remove a topic, consider adding or changing the prompt. If you ask the chat to generate a new prompt, make sure to add a space at the end so it saves, otherwise the new prompt will not work.</p>
                                 <div className="max-w-2xl shadow-neomorph-sunken bg-surface-container-low my-4 px-4 py-8 rounded-lg flex items-center gap-2">
                                     <span className="material-symbols-outlined text-outline text-[40px]"></span>
                                     <textarea
                                         value={prompt}
                                         onChange={(e) => setPrompt(e.target.value)}
-                                        className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Change your prompt here..." rows={3} />
+                                        className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Change your prompt here..." rows={5} />
                                 </div>
                                 <div className="max-w-2xl max-h-35 border-2 border-dashed border-outline-variant rounded-lg p-12 shadow-neomorph-sunken flex flex-col items-center justify-center gap-4 bg-surface-bright">
                                     <h3 className="font-headline text-xl font-bold text-on-surface">Check or change your files here.</h3>

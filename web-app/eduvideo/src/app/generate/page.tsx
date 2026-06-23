@@ -63,7 +63,6 @@ export default function Generate() {
         if (activeFileId) {
             setPreloadedId(activeFileId);
         }
-
     }, []);
 
     useEffect(() => {
@@ -109,6 +108,7 @@ export default function Generate() {
                 prompt: 'N/A',
                 date: new Date().toLocaleDateString()
             }));
+            localStorage.setItem("activeFileId", entry[0].id);
             setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
             const merged = [...existing, ...entry];
             localStorage.setItem('uploadedFiles', JSON.stringify(merged));
@@ -242,18 +242,18 @@ export default function Generate() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-2 min-h-0">
-                                <p className="mt-6 max-w-2xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">Use the box below to upload your notes, powerpoints, coding samples, etc. You can drag and drop or use the browse files button.</p>
+                                <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">Use the box below to upload your notes, powerpoints, coding samples, etc. You can drag and drop or use the browse files button.</p>
                                 <div
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleDrop}
-                                    className="max-w-2xl w-full p-2 rounded-xl shadow-neomorph-raised bg-surface-container-low group cursor-pointer transition-all duration-300 hover:scale-[1.01]">
+                                    className="max-w-3xl w-full p-2 rounded-xl shadow-neomorph-raised bg-surface-container-low group cursor-pointer transition-all duration-300 hover:scale-[1.01]">
                                     <div className="border-2 border-dashed border-outline-variant rounded-lg p-12 shadow-neomorph-sunken flex flex-col items-center justify-center gap-4 bg-surface-bright">
                                         <div className="w-16 h-16 rounded-full bg-primary-container/10 flex items-center justify-center mb-2">
                                             <span className="material-symbols-outlined text-primary text-4xl">cloud_upload</span>
                                         </div>
                                         <h3 className="font-headline text-xl font-bold text-on-surface">Upload your files here</h3>
-                                        <p className="text-on-surface-variant font-body">Support for (needs to be decided)</p>
+                                        <p className="text-on-surface-variant font-body">Support for docx, pdf, and md</p>
                                         <button type="button"
                                             onClick={() => inputRef.current?.click()}
                                             className="mt-4 px-8 py-3 bg-surface border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
@@ -277,15 +277,15 @@ export default function Generate() {
                                     </div>)
                                     }
                                 </div>
-                                <p className="mt-6 max-w-2xl text-sm text-on-surface-variant font-body leading-relaxed">If you would like to have your video be more specific to a certain concept, consider entering a prompt into the box below. If you are unsure how to word your prompt, ask the chat and it will generate a prompt for you.</p>
-                                <div className="max-w-2xl shadow-neomorph-sunken bg-surface-container-low my-8 px-4 py-8 rounded-lg flex items-center gap-2">
+                                <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body leading-relaxed">If you would like to have your video be more specific to a certain concept, consider entering a prompt into the box below. If you are unsure how to word your prompt, ask the chat and it will generate a prompt for you to use.</p>
+                                <div className="max-w-3xl shadow-neomorph-sunken bg-surface-container-low my-8 px-4 py-4 rounded-lg flex items-center gap-2">
                                     <span className="material-symbols-outlined text-outline text-[40px]"></span>
                                     <textarea
                                         value={prompt}
                                         onChange={(e) => setPrompt(e.target.value)}
-                                        className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Input an additional prompt here" rows={3} />
+                                        className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Input an additional prompt here" rows={5} />
                                 </div>
-                                <div className="max-w-2xl flex items-center gap-4 justify-center mt-4">
+                                <div className="max-w-3xl flex items-center gap-4 justify-center mt-4">
                                     <button
                                         onClick={handleSubmit}
                                         className="w-40 px-4 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-surface shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
