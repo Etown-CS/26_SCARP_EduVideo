@@ -95,59 +95,60 @@ export default function FinalVideo() {
                         <div className="flex justify-between items-end">
                             <div>
                                 <h1 className="font-headline text-3xl font-bold text-on-background self-start mb-6">Final Video</h1>
+                                <p> Your video is complete and ready for viewing and download!</p>
                             </div>
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-6 min-h-0">
-                                {/*
-                                <div className="shadow-neomorph-raised bg-surface rounded-3xl p-16 overflow-hidden">
+                                <div className="shadow-neomorph-raised bg-surface rounded-3xl p-12 overflow-hidden">
                                     <div className="aspect-video bg-inverse-surface rounded-2xl overflow-hidden shadow-inner">
-                                        <iframe width="560" height="315" src="https://www.youtube.com/embed/OnYSjEehxH0?si=gECZ-dlfw6SXL68j" title="YouTube video player" allowFullScreen className="w-full h-full"></iframe>
-                                    </div>
-                                    <div className="flex justify-between items-center mt-4 px-2">
-                                        <div className="flex items-center gap-4 text-on-surface-variant">
-                                            <span className="font-label text-sm">sample video from firebase</span>
-                                        </div>
+                                        {videoUrl && (
+                                            <video src={videoUrl} controls className="w-full h-full rounded-xl mt-4 object-contain" />
+                                        )}
                                     </div>
                                 </div>
-                                */}
-                                {videoUrl && (
-                                    <video src={videoUrl} controls className="w-full h-115 rounded-xl mt-4" />
-                                )}
                                 <div className="col-span-4 flex flex-col gap-6 min-h-0">
-                                    <div className="shadow-neomorph-raised bg-surface rounded-3xl p-6 h-fit sticky top-24">
-                                        <h2 className="font-headline text-xl font-bold text-on-surface">Set video information</h2>
+                                    <div className="shadow-neomorph-raised bg-surface rounded-3xl p-6 h-fit">
+                                        <div className="flex items-center justify-between mb-6">
+                                            <h2 className="font-headline text-2xl font-bold text-on-surface">Set video information</h2>
+                                        </div>
                                         <div className="space-y-6">
-                                            <div className="space-y-6">
-                                                <div>
-                                                    <label className="text-[10px] text-on-surface-variant uppercase tracking-widest block mb-2">Title</label>
+                                            <div>
+                                                <label>
+                                                    <label className="text-on-surface-variant uppercase block mb-2 font-bold text-md">Title</label>
                                                     <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
                                                         <textarea
                                                             value={title}
                                                             onChange={(e) => setTitle(e.target.value)}
-                                                            className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Title"></textarea>
+                                                            className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Title" name="videoTitle" id="videoTitle"></textarea>
                                                     </div>
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] text-on-surface-variant uppercase tracking-widest block mb-2">Description</label>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label>
+                                                    <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Description</label>
                                                     <div className="shadow-neomorph-sunken bg-surface-container-low p-4 rounded-xl">
                                                         <textarea
                                                             value={desc}
                                                             onChange={(e) => setDesc(e.target.value)}
-                                                            className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Description">
+                                                            className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Description" name="description" id="description">
                                                         </textarea>
                                                     </div>
-                                                </div>
-                                                <div>
-                                                    <label className="text-[10px] text-on-surface-variant uppercase tracking-widest block mb-2">Tags</label>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label>
+                                                    <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Tags</label>
                                                     <div>
                                                         {tags.map((tag, index) => (
                                                             <span key={index}
-                                                                className="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-xs font-label"
+                                                                className="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-sm font-label"
                                                             >{tag}</span>
                                                         ))}
                                                     </div>
-                                                    <div className="flex items-center gap-2 mt-2 mb-2">
+                                                </label>
+                                                <div className="flex items-center gap-2 mt-2 mb-2">
+                                                    <label>
                                                         <input
                                                             value={newTag}
                                                             onChange={(e) => setNewTag(e.target.value)}
@@ -157,21 +158,21 @@ export default function FinalVideo() {
                                                                     handleNewTag();
                                                                 }
                                                             }}
-                                                            className="bg-surface-container-low border border-outline-variant rounded-full px-1 p-1 text-xs outline-none focus:ring-1 ring-primary"
-                                                            placeholder="New tag"
+                                                            className="bg-surface-container-low border border-outline-variant rounded-full px-1 p-1 text-sm outline-none focus:ring-1 ring-primary"
+                                                            placeholder="New tag" name="tags" id="tags"
                                                         />
-                                                        <button
-                                                            onClick={handleNewTag}
-                                                            className="bg-primary text-on-primary px-3 py-1 rounded-full text-xs shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">
-                                                            Add tag
-                                                        </button>
-                                                    </div>
+                                                    </label>
+                                                    <button
+                                                        onClick={handleNewTag}
+                                                        className="bg-primary text-on-primary px-3 py-1 rounded-full text-sm shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">
+                                                        Add tag
+                                                    </button>
                                                 </div>
                                             </div>
-                                            <div className="pt-6 border-t border-outline-variant/30 max-w-2xl flex items-center gap-40 justify-center">
-                                                <button onClick={handleReset} className="bg-secondary text-on-primary px-5 py-1 rounded-full text-md shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">Reset</button>
-                                                <button onClick={handleSave} className="bg-primary text-on-primary px-5 py-1 rounded-full text-md shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">Save</button>
-                                            </div>
+                                        </div>
+                                        <div className="pt-6 border-t border-outline-variant/30 max-w-2xl flex items-center gap-40 justify-center">
+                                            <button onClick={handleReset} className="bg-secondary text-on-primary px-5 py-1 rounded-full text-md shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">Reset</button>
+                                            <button onClick={handleSave} className="bg-primary text-on-primary px-5 py-1 rounded-full text-md shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">Save</button>
                                         </div>
                                     </div>
                                 </div>

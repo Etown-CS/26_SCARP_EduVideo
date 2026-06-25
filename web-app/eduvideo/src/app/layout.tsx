@@ -57,7 +57,7 @@ export default function RootLayout({
               <div className="flex flex-wrap justify-center gap-6">
               </div>
               <div className="flex gap-4">
-                <Image src='/SCARP_image.png' alt="SCARP logo" width={110} height={110} />
+                <Image src='/SCARP_image.png' alt="SCARP logo" width={100} height={100} className="w-auto h-28" loading="eager" />
               </div>
             </div>
           </footer>

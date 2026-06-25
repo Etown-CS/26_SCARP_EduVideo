@@ -23,7 +23,6 @@ export default function SignUp() {
                 setError('Failed to create account.');
                 return;
             }
-            console.log({ res });
             setEmail('');
             setPassword('');
             router.push('/generate');

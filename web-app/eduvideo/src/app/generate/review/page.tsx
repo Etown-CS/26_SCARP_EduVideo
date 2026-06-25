@@ -16,7 +16,7 @@ export default function Review() {
     const [files, setFiles] = useState<File[]>([]);
     const [preloaded, setPreloaded] = useState<string | null>(null);
     const [prompt, setPrompt] = useState(() => {
-        if(typeof window !== 'undefined'){
+        if (typeof window !== 'undefined') {
             return localStorage.getItem('prompt') || '';
         }
         return '';
@@ -46,6 +46,7 @@ export default function Review() {
                         <div className="flex justify-between items-end">
                             <div>
                                 <h1 className="font-headline text-3xl font-bold text-on-background">Review</h1>
+                                <p className="max-w-2xl mt-4">Watch your video here. If you are unhappy with the results, you can go back and edit your prompt. If you like what you see, approve your video for exporting.</p>
                             </div>
                             <div className="flex gap-3">
                                 <button
@@ -64,33 +65,13 @@ export default function Review() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-4 min-h-0">
-                                {/*
-                                <div className="relative h-[500px] bg-on-surface rounded-2xl overflow-hidden shadow-2xl group">
-                                    <img alt="Physics visualization rendering" className="w-full h-full object-cover opacity-90" data-description="Video preview showing 3D molecular structures rotating in a physics simulation." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAc62_YABcIlzfG7Nggbtdb1bwiVG0DPIKuquq-FW21riChhIoQjWvNewPfAeLftp9jk-v025HR16gm62vVI4-KC1OT3jvpjZYRnM19hMeqYF9oI_EAqFHINVZ_O4YCa0eG50izl8pNYSdyiM3fC9mkJyi7_v7zpRqLT3nzXEPJI8FXrU5O8uOXrDG6hPApul-HwRYKtIEfVOzBpRoU51WW_ULc7ECHr-yxZEuUadK5yDvPPRNvWd_1ZagEluIsvRhW18OmEyurBg8">
-                                    </img>
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-6">
-                                        <div className="flex items-center gap-4 text-white">
-                                            <span className="material-symbols-outlined cursor-pointer text-3xl">play_arrow</span>
-                                            <div className="flex-1 h-1.5 bg-white/30 rounded-full overflow-hidden">
-                                                <div className="h-full bg-primary w-[75%] relative">
-                                                    <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-lg"></div>
-                                                </div>
-                                            </div>
-                                            <span className="font-label text-sm">08:24 / 11:00</span>
-                                            <span className="material-symbols-outlined cursor-pointer">volume_up</span>
-                                            <span className="material-symbols-outlined cursor-pointer">fullscreen</span>
-                                        </div>
-                                    </div>
-                                    <div className="absolute inset-0 flex items-center justify-center">
-                                        <button className="w-20 h-20 bg-primary/90 text-white rounded-full flex items-center justify-center shadow-2xl backdrop-blur-sm transition-transform active:scale-90 cursor-pointer">
-                                            <span className="material-symbols-outlined text-4xl">play_arrow</span>
-                                        </button>
+                                <div className="shadow-neomorph-raised bg-surface rounded-3xl p-12 overflow-hidden">
+                                    <div className="aspect-video bg-inverse-surface rounded-2xl overflow-hidden">
+                                        {videoUrl && (
+                                            <video src={videoUrl} controls className="w-full h-115 rounded-xl mt-4" />
+                                        )}
                                     </div>
                                 </div>
-                                */}
-                                {videoUrl && (
-                                    <video src={videoUrl} controls className="w-full h-115 rounded-xl mt-4" />
-                                )}
                                 <div className="h-48 bg-surface-container-low rounded-2xl p-4 shadow-neomorph-sunken overflow-hidden flex flex-col">
                                     <div className="flex justify-between items-center mb-3">
                                         <span className="font-headline font-bold text-on-surface-variant flex items-center gap-2">

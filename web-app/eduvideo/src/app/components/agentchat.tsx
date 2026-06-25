@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useChat } from '@/app/context/chatContext';
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 export default function AgentChat() {
     const { messages, setMessages } = useChat();
@@ -16,6 +16,8 @@ export default function AgentChat() {
     const username = user?.email ? user.email.split('@')[0] : 'User';
 
     const messageEnd = useRef<HTMLDivElement>(null);
+
+    const pathname = usePathname();
 
     useEffect(() => {
         if (!user && !loading) {
@@ -41,7 +43,7 @@ export default function AgentChat() {
             const res = await fetch('/api/agent', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: input, prompt }),
+                body: JSON.stringify({ message: input, prompt, currentPage: pathname }),
             });
             const data = await res.json();
             try {
@@ -59,8 +61,8 @@ export default function AgentChat() {
                         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
                     }
                     setMessages(prev => [...prev, { sender: 'agent', text: parsed.message }]);
-                    if (data.navigation) {
-                        router.push(data.navigation.path);
+                    if (parsed.navigateTo) {
+                        router.push(parsed.navigateTo);
                     }
                     return;
                 }
@@ -74,7 +76,7 @@ export default function AgentChat() {
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ prompt: parsed.prompt, document: activeFile, }),
                     });
-                    const {jobId} = await genRes.json();
+                    const { jobId } = await genRes.json();
                     localStorage.setItem('currentJobId', jobId);
 
                     setMessages(prev => [...prev, { sender: 'agent', text: parsed.message }]);
@@ -102,14 +104,39 @@ export default function AgentChat() {
             <div className="w-96 flex flex-col gap-6 shrink-0">
                 <div className="shadow-neomorph-raised bg-surface-container rounded-3xl p-6 h-fit sticky top-24">
                     <div className="flex items-center justify-between mb-6">
-                        <h2 className="font-headline text-xl font-bold text-on-surface">Chat</h2>
+                        <div className="flex items-center gap-2">
+                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center border border-primary/20">
+                                <span className="material-symbols-outlined text-primary">smart_toy</span>
+                            </div>
+                            <h3 className="font-semibold text-on-surface">BluEdu Assistant</h3>
+                        </div>
                         <button
                             onClick={handleClear}
-                            className="p-2 bg-primary text-white rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer">
+                            className="p-2 bg-primary text-on-primary rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer">
                             Clear
                         </button>
                     </div>
                     <div className="flex-1 space-y-4 pr-1 max-h-96 overflow-y-auto scroll-smooth">
+                        {messages.map((msg, index) => (
+                            <div key={index} className={`flex gap-3 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
+                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${msg.sender === 'user'
+                                    ? 'bg-primary/10 border-primary/20'
+                                    : 'bg-surface-variant border-outline-variant/30'
+                                    }`}>
+                                    <span className="material-symbols-outlined text-xs text-primary">{msg.sender === 'user' ? 'person' : 'auto_awesome'}</span>
+                                </div>
+                                <div className={`max-w-[85%] rounded-2xl px-4 py-3 border ${msg.sender === 'user'
+                                    ? 'bg-primary text-on-primary border-primary/20'
+                                    : 'bg-surface border-outline-variant/30'
+                                    }`}>
+                                    <span className={`text-[12px] font-bold block mb-1 ${msg.sender === 'user' ? 'text-on-primary/70 text-right' : 'text-primary'}`}>
+                                        {msg.sender === 'user' ? username : 'Video Agent'}
+                                    </span>
+                                    <p className={`text-sm leading-relaxed break-words whitespace-pre-wrap ${msg.sender === 'user' ? 'text-surface' : 'text-on-surface'}`}>{msg.text}</p>
+                                </div>
+                            </div>
+                        ))}
+                        {/*
                         {messages.map((msg, index) => (
                             <div
                                 key={index}
@@ -124,6 +151,7 @@ export default function AgentChat() {
                                 <p className="text-sm text-on-surface-variant mt-1 break-words whitespace-pre-wrap">{msg.text}</p>
                             </div>
                         ))}
+                            */}
                         {isLoading && (
                             <div className="p-3 rounded-xl border border-outline-variant/30 bg-surface-container-highest/50 mr-6">
                                 <span className="text-xs font-bold text-on-surface">Video Agent</span>
@@ -139,26 +167,31 @@ export default function AgentChat() {
 
                     <div className="mt-4 pt-4 border-t border-outline-variant/30">
                         <div className="relative">
-                            <textarea
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSend();
-                                    }
-                                }}
-                                className="w-full shadow-neomorph-sunken bg-surface p-3 rounded-xl text-sm outline-none resize-none h-24 focus:ring-1 ring-primary"
-                                placeholder="Write your message here..."
-                            />
+                            <label>
+                                <textarea
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSend();
+                                        }
+                                    }}
+                                    className="w-full shadow-neomorph-sunken bg-surface p-3 rounded-xl text-sm outline-none resize-none h-24 focus:ring-1 ring-primary"
+                                    placeholder="Write your message here..."
+                                    id="userMessage"
+                                    name="userMessage"
+                                />
+                            </label>
                         </div>
                         <div className="flex justify-end">
                             <button
                                 onClick={handleSend}
                                 disabled={isLoading}
-                                className="p-2 bg-primary text-white rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                                className="px-6 py-2 gap-2 bg-primary text-on-primary rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer"
                             >
-                                Send
+                                <span>Send</span>
+                                <span className="material-symbols-outlined text-sm">send</span>
                             </button>
                         </div>
                     </div>

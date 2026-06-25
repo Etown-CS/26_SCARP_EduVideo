@@ -160,10 +160,6 @@ export default function Generate() {
         }
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
         handleGenerate();
-        //setPrompt('');
-        //setFiles([]);
-        //setPreloaded(null);
-        //localStorage.removeItem('prompt');
     }
 
     /*

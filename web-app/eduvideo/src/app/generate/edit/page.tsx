@@ -147,10 +147,13 @@ export default function Edit() {
                                 <p className="mt-2 max-w-2xl text-sm text-on-surface-variant font-body leading-relaxed">If you would like your video to include something it didn't or remove a topic, consider adding or changing the prompt. If you ask the chat to generate a new prompt, make sure to add a space at the end so it saves, otherwise the new prompt will not work.</p>
                                 <div className="max-w-2xl shadow-neomorph-sunken bg-surface-container-low my-4 px-4 py-8 rounded-lg flex items-center gap-2">
                                     <span className="material-symbols-outlined text-outline text-[40px]"></span>
-                                    <textarea
-                                        value={prompt}
-                                        onChange={(e) => setPrompt(e.target.value)}
-                                        className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Change your prompt here..." rows={5} />
+                                    <label className="w-full">
+                                        <textarea
+                                            value={prompt}
+                                            onChange={(e) => setPrompt(e.target.value)}
+                                            className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none justify-center" placeholder="Change your prompt here..." rows={5}
+                                            name="promptEditor" id="promptEditor" />
+                                    </label>
                                 </div>
                                 <div className="max-w-2xl max-h-35 border-2 border-dashed border-outline-variant rounded-lg p-12 shadow-neomorph-sunken flex flex-col items-center justify-center gap-4 bg-surface-bright">
                                     <h3 className="font-headline text-xl font-bold text-on-surface">Check or change your files here.</h3>
@@ -176,6 +179,7 @@ export default function Edit() {
                                     ))}
                                 </div>)
                                 }
+                                {/*
                                 <h1 className="font-headline font-bold text-xl text-on-surface mb-2">Keywords</h1>
                                 <p className="text-on-surface-variant font-body">Here is where the extracted keywords will go if we want to use that feature.</p>
                                 <div className="flex gap-4">
@@ -214,6 +218,7 @@ export default function Edit() {
                                         </div>
                                     ))}
                                 </div>
+                                */}
                                 <button onClick={handleSubmit} className="w-44 shadow-neomorph-raised bg-primary text-on-primary px-6 py-2 rounded-lg items-center gap-2 font-semibold hover:brightness-110 transition-all cursor-pointer">Submit</button>
                             </div>
                             <div className="col-span-4 flex flex-col gap-4 min-h-0">
