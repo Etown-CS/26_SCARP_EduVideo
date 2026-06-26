@@ -13,7 +13,7 @@ export default function ThemeToggle() {
 
     return (
         <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
-            className="p-2 rounded-lg bg-surface-container hover:brightness-110 transition-all">
+            className="p-2 rounded-lg bg-surface-container hover:brightness-110 transition-all cursor-pointer">
             <span className="material-symbols-outlined">
                 {theme === 'dark' ? 'light_mode' : 'dark_mode'}
             </span>

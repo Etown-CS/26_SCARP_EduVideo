@@ -18,6 +18,8 @@ export default function AgentChat() {
     const messageEnd = useRef<HTMLDivElement>(null);
 
     const pathname = usePathname();
+    const [isHidden, setIsHidden] = useState(false);
+    const isDocuments = pathname === '/documents';
 
     useEffect(() => {
         if (!user && !loading) {
@@ -50,7 +52,7 @@ export default function AgentChat() {
                 const parsed = JSON.parse(data.reply);
                 if (parsed.action === 'update_prompt') {
                     localStorage.setItem('selectedPrompt', parsed.newPrompt);
-                    window.dispatchEvent(new Event('storage'));
+                    window.dispatchEvent(new StorageEvent('storage', {key: 'selectedPrompt', newValue: parsed.newPrompt}));
                     const activeFileId = localStorage.getItem('activeFileId');
                     if (activeFileId) {
                         const raw = localStorage.getItem('uploadedFiles');
@@ -100,43 +102,60 @@ export default function AgentChat() {
     }
 
     return (
-        <div className="self-start">
-            <div className="w-96 flex flex-col gap-6 shrink-0">
-                <div className="shadow-neomorph-raised bg-surface-container rounded-3xl p-6 h-fit sticky top-24">
-                    <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-2">
-                            <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center border border-primary/20">
-                                <span className="material-symbols-outlined text-primary">smart_toy</span>
-                            </div>
-                            <h3 className="font-semibold text-on-surface">BluEdu Assistant</h3>
-                        </div>
-                        <button
-                            onClick={handleClear}
-                            className="p-2 bg-primary text-on-primary rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer">
-                            Clear
-                        </button>
-                    </div>
-                    <div className="flex-1 space-y-4 pr-1 max-h-96 overflow-y-auto scroll-smooth">
-                        {messages.map((msg, index) => (
-                            <div key={index} className={`flex gap-3 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
-                                <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${msg.sender === 'user'
-                                    ? 'bg-primary/10 border-primary/20'
-                                    : 'bg-surface-variant border-outline-variant/30'
-                                    }`}>
-                                    <span className="material-symbols-outlined text-xs text-primary">{msg.sender === 'user' ? 'person' : 'auto_awesome'}</span>
+        <>
+            {isDocuments && isHidden && (
+                <button onClick={() => setIsHidden(prev => !prev)} className="bg-primary/10 rounded-full flex items-center justify-center border border-primary/20 px-4 py-4 hover:brightness-110 active:scale-95 transition-all cursor-pointer" title="Open Chat">
+                    <span className="material-symbols-outlined">chat</span>
+                </button>
+            )}
+
+            {!isHidden && (
+                <div className="self-start">
+                    <div className="w-96 flex flex-col gap-6 shrink-0">
+                        <div className="shadow-neomorph-raised bg-surface-container rounded-3xl p-6 h-fit sticky top-24">
+                            <div className="flex items-center justify-between mb-6 pb-3 border-b border-outline-variant/30">
+                                <div className="flex items-center gap-2">
+                                    <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center border border-primary/20">
+                                        <span className="material-symbols-outlined text-primary">smart_toy</span>
+                                    </div>
+                                    <h3 className="font-semibold text-on-surface">BluEdu Assistant</h3>
                                 </div>
-                                <div className={`max-w-[85%] rounded-2xl px-4 py-3 border ${msg.sender === 'user'
-                                    ? 'bg-primary text-on-primary border-primary/20'
-                                    : 'bg-surface border-outline-variant/30'
-                                    }`}>
-                                    <span className={`text-[12px] font-bold block mb-1 ${msg.sender === 'user' ? 'text-on-primary/70 text-right' : 'text-primary'}`}>
-                                        {msg.sender === 'user' ? username : 'Video Agent'}
-                                    </span>
-                                    <p className={`text-sm leading-relaxed break-words whitespace-pre-wrap ${msg.sender === 'user' ? 'text-surface' : 'text-on-surface'}`}>{msg.text}</p>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={handleClear}
+                                        className="text-outline hover:text-error transition-colors p-1.5 rounded-lg hover:bg-error-container/10 cursor-pointer" title="Clear Chat">
+                                        <span className="material-symbols-outlined">delete</span>
+
+                                    </button>
+                                    {isDocuments && (
+                                        <button onClick={() => setIsHidden(prev => !prev)} className="text-outline hover:text-on-surface transition-colors p-1.5 rounded-lg hover:bg-surface-variant/50 cursor-pointer" title="Close">
+                                            <span className="material-symbols-outlined">close</span>
+
+                                        </button>
+                                    )}
                                 </div>
                             </div>
-                        ))}
-                        {/*
+                            <div className="flex-1 space-y-4 pr-1 max-h-96 overflow-y-auto scroll-smooth">
+                                {messages.map((msg, index) => (
+                                    <div key={index} className={`flex gap-3 ${msg.sender === 'user' ? 'flex-row-reverse' : ''}`}>
+                                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 border ${msg.sender === 'user'
+                                            ? 'bg-primary/10 border-primary/20'
+                                            : 'bg-surface-variant border-primary/20'
+                                            }`}>
+                                            <span className="material-symbols-outlined text-xs text-primary">{msg.sender === 'user' ? 'person' : 'auto_awesome'}</span>
+                                        </div>
+                                        <div className={`max-w-[85%] rounded-2xl px-4 py-3 border ${msg.sender === 'user'
+                                            ? 'bg-primary text-on-primary border-primary/20'
+                                            : 'bg-surface border-outline-variant/30'
+                                            }`}>
+                                            <span className={`text-[12px] font-bold block mb-1 ${msg.sender === 'user' ? 'text-on-primary/70 text-right' : 'text-primary'}`}>
+                                                {msg.sender === 'user' ? username : 'Video Agent'}
+                                            </span>
+                                            <p className={`text-sm leading-relaxed break-words whitespace-pre-wrap ${msg.sender === 'user' ? 'text-surface' : 'text-on-surface'}`}>{msg.text}</p>
+                                        </div>
+                                    </div>
+                                ))}
+                                {/*
                         {messages.map((msg, index) => (
                             <div
                                 key={index}
@@ -152,51 +171,53 @@ export default function AgentChat() {
                             </div>
                         ))}
                             */}
-                        {isLoading && (
-                            <div className="p-3 rounded-xl border border-outline-variant/30 bg-surface-container-highest/50 mr-6">
-                                <span className="text-xs font-bold text-on-surface">Video Agent</span>
-                                <div className="flex gap-1 mt-4">
-                                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:0ms]" />
-                                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:150ms]" />
-                                    <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:300ms]" />
+                                {isLoading && (
+                                    <div className="p-3 rounded-xl border border-outline-variant/30 bg-surface-container-highest/50 mr-6">
+                                        <span className="text-xs font-bold text-on-surface">Video Agent</span>
+                                        <div className="flex gap-1 mt-4">
+                                            <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:0ms]" />
+                                            <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:150ms]" />
+                                            <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:300ms]" />
+                                        </div>
+                                    </div>
+                                )}
+                                <div ref={messageEnd} />
+                            </div>
+
+                            <div className="mt-4 pt-4 border-t border-outline-variant/30">
+                                <div className="relative">
+                                    <label>
+                                        <textarea
+                                            value={input}
+                                            onChange={(e) => setInput(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter' && !e.shiftKey) {
+                                                    e.preventDefault();
+                                                    handleSend();
+                                                }
+                                            }}
+                                            className="w-full shadow-neomorph-sunken bg-surface p-3 rounded-xl text-sm outline-none resize-none h-24 focus:ring-1 ring-primary"
+                                            placeholder="Write your message here..."
+                                            id="userMessage"
+                                            name="userMessage"
+                                        />
+                                    </label>
+                                </div>
+                                <div className="flex justify-end">
+                                    <button
+                                        onClick={handleSend}
+                                        disabled={isLoading}
+                                        className="px-6 py-2 gap-2 bg-primary text-on-primary rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer"
+                                    >
+                                        <span>Send</span>
+                                        <span className="material-symbols-outlined text-sm">send</span>
+                                    </button>
                                 </div>
                             </div>
-                        )}
-                        <div ref={messageEnd} />
-                    </div>
-
-                    <div className="mt-4 pt-4 border-t border-outline-variant/30">
-                        <div className="relative">
-                            <label>
-                                <textarea
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === 'Enter' && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSend();
-                                        }
-                                    }}
-                                    className="w-full shadow-neomorph-sunken bg-surface p-3 rounded-xl text-sm outline-none resize-none h-24 focus:ring-1 ring-primary"
-                                    placeholder="Write your message here..."
-                                    id="userMessage"
-                                    name="userMessage"
-                                />
-                            </label>
-                        </div>
-                        <div className="flex justify-end">
-                            <button
-                                onClick={handleSend}
-                                disabled={isLoading}
-                                className="px-6 py-2 gap-2 bg-primary text-on-primary rounded-lg flex gap-2 items-center justify-center shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer"
-                            >
-                                <span>Send</span>
-                                <span className="material-symbols-outlined text-sm">send</span>
-                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
+            )}
+        </>
     )
 }

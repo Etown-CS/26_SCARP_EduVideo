@@ -57,7 +57,7 @@ export default function Generate() {
         const savedPrompt = localStorage.getItem('selectedPrompt');
         if (savedPrompt && savedPrompt !== 'N/A') {
             setPrompt(savedPrompt);
-            localStorage.removeItem('selectedPrompt');
+            //localStorage.removeItem('selectedPrompt');
         }
         const activeFileId = localStorage.getItem('activeFileId');
         if (activeFileId) {
@@ -66,8 +66,8 @@ export default function Generate() {
     }, []);
 
     useEffect(() => {
-        localStorage.setItem('selectedPrompt', prompt);
         const activeFileId = localStorage.getItem('activeFileId');
+        localStorage.setItem('selectedPrompt', prompt);
         if (activeFileId) {
             const raw = localStorage.getItem('uploadedFiles');
             const existing = raw ? JSON.parse(raw) : [];
@@ -83,7 +83,6 @@ export default function Generate() {
                 setPrompt(updated);
             }
         };
-
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
     }, []);

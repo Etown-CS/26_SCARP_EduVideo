@@ -76,12 +76,12 @@ export default function Docs() {
                                             <span className="font-label text-[12px] text-outline bg-surface-container px-2 py-1 rounded">{file.name?.split('.').pop()?.toUpperCase()}</span>
                                             </div>
                                             <button onClick={() => handleDelete(file.id)}
-                                                className="text-on-surface-variant hover:text-error rounded-lg transition-all cursor-pointer">
+                                                className="text-on-surface-variant hover:text-error rounded-lg transition-all cursor-pointer" title="Delete Document">
                                                 <span className="text-sm material-symbols-outlined">close</span>
                                             </button>
                                         </div>
                                         <h3 className="font-headline text-lg font-semibold text-on-background mb-2">{file.name}</h3>
-                                        <p className="text-on-surface-variant text-md mb-6 gap-2 overflow-y-auto max-h-50"> Prompt: {file.prompt} </p>
+                                        <p className="text-on-surface-variant text-md mb-6 gap-2 overflow-y-auto max-h-50"> <span className="font-bold">Prompt: </span> {file.prompt} </p>
                                         
                                         <p className="text-on-surface-variant text-sm mt-6 mb-6 flex items-center gap-2">
                                             <span className="material-symbols-outlined text-[16px]">calendar_today</span>
