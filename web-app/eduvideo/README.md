@@ -33,6 +33,13 @@ npm install openai
 ```
 The openai API key is stored in .env. Everything for the agent configuration is located in the agent folder within the api folder. 
 
+## Setting Up Document Viewing 
+
+```bash
+npm install react-pdf
+```
+Used for document viewing purposes
+
 ## Learn More
 
 To learn more about Next.js, take a look at the following resources:

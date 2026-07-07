@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
         The user is currently on: "${currentPage}".
         The current prompt is: "${prompt}".
         Use navigate_to_page to take the user to the relevant page when they want to use certain features or perform certain tasks. You also have the ability to help users create and edit their video prompts. 
-        If the user asks you to generate, change, or update the prompt after a video has been generated, respond with a JSON object in this format:
+        If the user asks you to generate, change, or update the prompt, respond with a JSON object in this format:
         { "action": "update_prompt", "newPrompt": "the new prompt here", "navigateTo": "${currentPage === '/generate' ? '/generate' : '/generate/edit'}", "message": "your friendly confirmation message" }
         If the user has generated a video and would like to regenerate a new one respond with a JSON object in this format:
         { "action": "regenerate_video", "prompt" : "<the prompt to use, either exisiting or modified>", "document": "<the uploaded document to use, if there is one>", "navigateTo": "/generate/working", "message" : "your friendly confirmation message"}

@@ -13,6 +13,7 @@ export default function Edit() {
     const [user, loading] = useAuthState(auth);
     const [newKeyword, setNewKeyword] = useState('');
     const [keyword, setKeyword] = useState<string[]>([]);
+    const [isDragging, setIsDragging] = useState(false);
     const router = useRouter();
     const [prompt, setPrompt] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
@@ -28,17 +29,6 @@ export default function Edit() {
     };
 
     const handleBrowse = (e: React.ChangeEvent<HTMLInputElement>) => {
-        {/*
-        if (e.target.files) {
-            const selected = Array.from(e.target.files);
-            setFiles(prev => [...prev, ...selected]);
-
-            const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-            const name = selected.map(f => ({ name: f.name, prompt: 'N/A' }));
-            const merged = [...existing, ...name];
-            localStorage.setItem('uploadedFiles', JSON.stringify(merged));
-        }
-            */}
         if (e.target.files) {
             const selected = Array.from(e.target.files);
             setFiles(prev => [...prev, ...selected]);
@@ -57,6 +47,33 @@ export default function Edit() {
         }
     };
 
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = () => setIsDragging(false);
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        const dropped = Array.from(e.dataTransfer.files);
+        if(dropped.length === 0) return;
+        setFiles(prev => [...prev, ...dropped]);
+        const raw = localStorage.getItem('uploadedFiles');
+        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
+        const entry = dropped.map(f => ({
+            id: `${f.name}-${Date.now()}-${Math.random()}`,
+            name: f.name,
+            prompt: 'N/A',
+            date: new Date().toLocaleDateString(),
+        }));
+        localStorage.setItem("activeFileId", entry[0].id);
+        setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
+        const merged = [...existing, ...entry];
+        localStorage.setItem('uploadedFiles', JSON.stringify(merged));
+    };
+
     const removeFile = (index: number) => {
         setFiles(prev => prev.filter((_, i) => i !== index));
     };
@@ -71,24 +88,6 @@ export default function Edit() {
         router.push('/generate/working');
     }
 
-    {/*
-    useEffect(() => {
-        const saved = localStorage.getItem('selectedDocument');
-        if(saved){
-            setPreloaded(saved);
-            localStorage.removeItem('selectedDocument');
-        }
-    }, []);
-    */}
-
-    {/*}
-    useEffect(() => {
-        const savedPrompt = localStorage.getItem('selectedPrompt');
-        if (savedPrompt && savedPrompt !== 'N/A') {
-            setPrompt(savedPrompt);
-        }
-    }, []);
-    */}
     useEffect(() => {
         const saved = localStorage.getItem('selectedDocument');
         if (saved) {
@@ -118,6 +117,7 @@ export default function Edit() {
         }
     }, [prompt]);
 
+    
     useEffect(() => {
         const handleStorageChange = () => {
             const updated = localStorage.getItem('selectedPrompt');
@@ -129,6 +129,7 @@ export default function Edit() {
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
+    
 
     if (loading) return (
         <Loading />

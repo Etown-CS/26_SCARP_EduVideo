@@ -6,6 +6,12 @@ import { useEffect, useState } from "react";
 import Loading from "@/app/components/loading";
 import AgentChat from "../components/agentchat";
 import { usePathname } from "next/navigation";
+import { doc, deleteDoc, getDoc } from "firebase/firestore";
+import { storage } from "@/app/firebase/config";
+import dynamic from 'next/dynamic';
+
+const Document = dynamic(() => import('react-pdf').then(mod => mod.Document), { ssr: false });
+const Page = dynamic(() => import('react-pdf').then(mod => mod.Page), { ssr: false });
 
 export default function Docs() {
 
@@ -14,6 +20,10 @@ export default function Docs() {
     const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string }[]>([]);
     const pathname = usePathname();
     const [viewing, setviewing] = useState<typeof fileNames[0] | null>(null);
+    const [preview, setPreview] = useState<string | null>(null);
+    const [previewLoad, setPreviewLoad] = useState(false);
+    const [numPages, setNumPages] = useState<number | null>(null);
+    const [pageNum, setPageNum] = useState(1);
 
     useEffect(() => {
         if (!user && !loading) {
@@ -31,10 +41,54 @@ export default function Docs() {
         setFileNames(normalized);
     }, [pathname]);
 
-    const handleDelete = (id: string) => {
+    useEffect(() => {
+        import('react-pdf').then(({ pdfjs }) => {
+            pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url,).toString();
+        });
+    }, [])
+
+    useEffect(() => {
+        if (!viewing) {
+            setPreview(null);
+            return;
+        }
+
+        const loadView = async () => {
+            setPreviewLoad(true);
+            try {
+                const snap = await getDoc(doc(storage, "documentContents", viewing.id));
+                if (!snap.exists()) {
+                    setPreview(null);
+                    return;
+                }
+                const dataUrl = snap.data().content as string;
+                const t = getFileType(viewing.name);
+
+                if (t === 'pdf') {
+                    setPreview(dataUrl);
+                } else {
+                    setPreview(null);
+                }
+            } catch (err) {
+                console.error('Failed to load document preview: ', err);
+                setPreview(null);
+            }
+            finally {
+                setPreviewLoad(false);
+            }
+        };
+        loadView();
+    }, [viewing]);
+
+    const handleDelete = async (id: string) => {
         const updated = fileNames.filter(f => f.id !== id);
         setFileNames(updated);
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        try {
+            await deleteDoc(doc(storage, "documentContents", id));
+        } catch (err) {
+            console.error('Failed to delete the contents of the document in the Firestore: ', err);
+        }
     }
 
     const getIcon = (filename: string) => {
@@ -51,6 +105,14 @@ export default function Docs() {
             default:
                 return { icon: 'insert_drive_file' };
         }
+    };
+
+    const getFileType = (name: string): 'pdf' | 'docx' | 'md' | 'unknown' => {
+        const type = name.split('.').pop()?.toLowerCase();
+        if (type === 'pdf') return 'pdf';
+        if (type === 'docx') return 'docx';
+        if (type === 'md' || 'markdown') return 'md';
+        return 'unknown';
     };
 
     if (loading) return (
@@ -72,17 +134,17 @@ export default function Docs() {
                                     <div key={file.id} className="file-card bg-surface rounded-xl p-6 shadow-neomorph-raised border border-outline-variant/30 flex flex-col h-full">
                                         <div className="flex items-start justify-between mb-6">
                                             <div className="flex items-center gap-1">
-                                            <span className="material-symbols-outlined text-[20px]">{getIcon(file.name).icon}</span>
-                                            <span className="font-label text-[12px] text-outline bg-surface-container px-2 py-1 rounded">{file.name?.split('.').pop()?.toUpperCase()}</span>
+                                                <span className="material-symbols-outlined text-[20px]">{getIcon(file.name).icon}</span>
+                                                <span className="font-label text-[12px] text-outline bg-surface-container px-2 py-1 rounded">{file.name?.split('.').pop()?.toUpperCase()}</span>
                                             </div>
                                             <button onClick={() => handleDelete(file.id)}
                                                 className="text-on-surface-variant hover:text-error rounded-lg transition-all cursor-pointer" title="Delete Document">
-                                                <span className="text-sm material-symbols-outlined">close</span>
+                                                <span className="text-sm material-symbols-outlined">delete</span>
                                             </button>
                                         </div>
                                         <h3 className="font-headline text-lg font-semibold text-on-background mb-2">{file.name}</h3>
                                         <p className="text-on-surface-variant text-md mb-6 gap-2 overflow-y-auto max-h-50"> <span className="font-bold">Prompt: </span> {file.prompt} </p>
-                                        
+
                                         <p className="text-on-surface-variant text-sm mt-6 mb-6 flex items-center gap-2">
                                             <span className="material-symbols-outlined text-[16px]">calendar_today</span>
                                             Uploaded: {file.date || 'Unknown'}
@@ -107,7 +169,6 @@ export default function Docs() {
                                 ))
                             ) : (
                                 <div>
-                                    <p className="text-on-surface-variant font-body px-4"> No documents </p>
                                 </div>
                             )}
                             <div onClick={() => router.push('/generate')} className="bg-surface-container-low rounded-xl p-6 shadown-neomorph-sunken border-2 border-dashed border-outline-variant flex flex-col items-center justify-center text-center group cursor-pointer hoer:border-primary transition-colors">
@@ -142,20 +203,26 @@ export default function Docs() {
                         </div>
                         <div className="flex-grow overflow-y-auto bg-surface-container-low p-8 md:p-12">
                             <div className="max-w-3xl mx-auto bg-surface-container shadow-lg p-12 min-h-full font-body text-on-surface-variant leading-relaxed">
-                                <h1 className="text-2xl font-bold text-on-background mb-8">Temporary Document Placeholder</h1>
-                                <h1 className="text-2xl font-bold text-on-background mb-8">Technical Specification: Video Synthesis Engine v4.2</h1>
-                                <section className="mb-8">
-                                    <h2 className="text-lg font-semibold text-primary mb-4">1. Executive Summary</h2>
-                                    <p className="mb-4">This document outlines the architectural framework for the BluEdu video synthesis pipeline, focusing on the automated conversion of technical documentation into structured educational video content.</p>
-                                </section>
-                                <section className="mb-8">
-                                    <h2 className="text-lg font-semibold text-primary mb-4">2. System Architecture</h2>
-                                    <p className="mb-4">The engine utilizes a multi-stage processing model:</p>
-                                </section>
+                                {previewLoad && (
+                                    <p className="text-center text-outline">Loading document preview...</p>
+                                )}
+                                {!previewLoad && !preview && (
+                                    <p className="text-center text-outline">No available preview for this file</p>
+                                )}
+                                {!previewLoad && preview && getFileType(viewing.name) === 'pdf' && (
+                                    <div>
+                                        {/*<iframe src={preview} title={viewing.name} className="w-full h-[70vh] border-none" />*/}
+                                        <Document file={preview} onLoadSuccess={({ numPages }) => setNumPages(numPages)} className="rounded-lg overflow-hidden">
+                                            {Array.from({ length: numPages ?? 0 }, (_, i) => (
+                                                <Page key={i} pageNumber={i + 1} className="bg-surface shadow-neomorph-raised rounded-lg" renderAnnotationLayer={false} renderTextLayer={false} />
+                                            ))}
+                                        </Document>
+                                    </div>
+                                )}
                             </div>
                         </div>
                         <div className="px-6 py-4 border-t border-surface-variant bg-surface flex justify-between items-center">
-                            <span className="text-xs text-outline font-label">Page 1 of ?</span>
+                            <span className="text-xs text-outline font-label"></span>
                             <div className="flex gap-2">
                                 <button onClick={() => {
                                     localStorage.setItem('activeFileId', viewing.id);
