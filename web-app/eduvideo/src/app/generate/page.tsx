@@ -6,8 +6,8 @@ import { useEffect, useState, useRef } from 'react';
 import Aside from '@/app/components/aside';
 import AgentChat from '../components/agentchat';
 import Loading from "@/app/components/loading";
-import { storage } from "@/app/firebase/config";
-import { doc, setDoc, getDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "@/app/firebase/config";
+import { doc, setDoc, getDoc, serverTimestamp, collection, addDoc, updateDoc } from "firebase/firestore";
 
 export default function Generate() {
 
@@ -20,9 +20,9 @@ export default function Generate() {
     const [prompt, setPrompt] = useState('');
     const [preloaded, setPreloaded] = useState<string | null>(null);
     const [preloadedId, setPreloadedId] = useState<string | null>(null);
-    const [fileIds, setFileIds] = useState<string[]>([]);
     const allowedTypes = ['.pdf', '.docx', '.md'];
     const allowedMimeTypes = ['application/pdf', 'text/markdown', 'text/x-markdown', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',];
+    const [fileError, setFileError] = useState<string | null>(null);
 
     //check if file is allowed
     function isAllowed(file: File): boolean {
@@ -36,12 +36,18 @@ export default function Generate() {
     const processFiles = (incoming: File[]) => {
         if (incoming.length === 0) return;
         const valid = incoming.filter(isAllowed);
-        if (valid.length === 0) return;
-        if (incoming.length > 1 || valid.length > 1) {
-            //setError('Only one file can be uploaded at a time.');
+        if (valid.length === 0) {
+            setFileError('Only PDF, DOCX, and MD files can be uploaded at this time. Please try uploading a document in that format');
+            return;
+        }
+        if (incoming.length > 1) {
+            setFileError('Only one file can be uploaded at a time. The first valid file will be used');
+        } else {
+            setFileError(null);
         }
         const selectedFile = valid[0];
         setFiles([selectedFile]);
+        {/*
         const raw = localStorage.getItem('uploadedFiles');
         const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
         const entry = {
@@ -53,6 +59,7 @@ export default function Generate() {
         localStorage.setItem('activeFileId', entry.id);
         setFileIds([entry.id]);
         localStorage.setItem('uploadedFiles', JSON.stringify([...existing, entry]));
+        */}
     };
 
     //This function calls the generate video API as well as establishing the metadata scheme for the generate video.
@@ -72,7 +79,8 @@ export default function Generate() {
             description: 'None',
             length: 'Unknown',
             date: new Date().toISOString(),
-            document: preloaded || files[0]?.name || 'N/A'
+            document: preloaded || files[0]?.name || 'N/A',
+            tags: [] as string[]
         };
 
         //add everything to localStorage so it can be accessed across different pages.
@@ -111,11 +119,10 @@ export default function Generate() {
     useEffect(() => {
         const activeFileId = localStorage.getItem('activeFileId');
         localStorage.setItem('selectedPrompt', prompt);
-        if (activeFileId) {
-            const raw = localStorage.getItem('uploadedFiles');
-            const existing = raw ? JSON.parse(raw) : [];
-            const updated = existing.map((f: any) => f.id === activeFileId ? { ...f, prompt } : f);
-            localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        if (activeFileId && user) {
+            updateDoc(doc(db, 'users', user.uid, 'files', activeFileId), {
+                prompt: prompt || 'N/A'
+            }).catch(console.error);
         }
     }, [prompt]);
 
@@ -141,10 +148,17 @@ export default function Generate() {
 
     //allows the user to browse and select files to upload
     const handleBrowse = (e: React.ChangeEvent<HTMLInputElement>) => {
+
         if (e.target.files) {
+            {/*
             const selected = Array.from(e.target.files);
             setFiles(prev => [...prev, ...selected]);
 
+            const newIds = selected.map(f => `${f.name}-${Date.now}-${Math.random()}`);
+            setFileIds(prev => [...prev, ...newIds]);
+            */}
+            processFiles(Array.from(e.target.files));
+            {/*
             const raw = localStorage.getItem('uploadedFiles');
             const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
 
@@ -158,6 +172,7 @@ export default function Generate() {
             setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
             const merged = [...existing, ...entry];
             localStorage.setItem('uploadedFiles', JSON.stringify(merged));
+            */}
         }
     };
 
@@ -171,9 +186,17 @@ export default function Generate() {
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
+        {/*
         const dropped = Array.from(e.dataTransfer.files);
         if (dropped.length === 0) return;
         setFiles(prev => [...prev, ...dropped]);
+
+        const newIds = dropped.map(f => `${f.name}-${Date.now()}-${Math.random()}`);
+        setFileIds(prev => [...prev, ...newIds]);
+        */}
+        processFiles(Array.from(e.dataTransfer.files));
+
+        {/*
         const raw = localStorage.getItem('uploadedFiles');
         const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
 
@@ -187,14 +210,51 @@ export default function Generate() {
         setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
         const merged = [...existing, ...entry];
         localStorage.setItem('uploadedFiles', JSON.stringify(merged));
+        */}
     };
 
     const removeFile = (index: number) => {
         setFiles(prev => prev.filter((_, i) => i !== index));
     };
 
+    const commitFiles = async () => {
+        if (!user) return null;
+        const hasFile = !!(preloaded || files[0]);
+        let newFileId: string | null = null;
+
+        if (hasFile) {
+            if (preloadedId) {
+                await updateDoc(doc(db, 'users', user.uid, 'files', preloadedId), {
+                    prompt: prompt || 'N/A'
+                });
+            }
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const docRef = await addDoc(collection(db, 'users', user.uid, 'files'), {
+                    name: file.name,
+                    prompt: prompt || 'N/A',
+                    date: serverTimestamp(),
+                });
+                newFileId = docRef.id;
+                localStorage.setItem('activeFileId', docRef.id);
+                setPreloadedId(docRef.id);
+            }
+        } else {
+            const docRef = await addDoc(collection(db, 'users', user.uid, 'files'), {
+                name: 'N/A',
+                prompt: prompt,
+                date: new Date().toLocaleDateString(),
+            });
+            newFileId = docRef.id;
+            localStorage.setItem('activeFileId', docRef.id);
+            setPreloadedId(docRef.id);
+        }
+        return newFileId;
+    };
+
     //Old function. Still here for when I want to test something with a document I know I am going to delete and don't want to waste my writes to the db on.
-    const handleSubmit = () => {
+    {/*
+    \const handleSubmit = () => {
         const raw = localStorage.getItem('uploadedFiles');
         const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
         const hasFile = !!(preloaded || files[0]);
@@ -222,17 +282,22 @@ export default function Generate() {
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
         handleGenerate();
     }
+    */}
 
     //handles storing the document contents in firestore while storing everything else locally
     const handleSend = async () => {
         if (!user) return;
+        {/*
         const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
         const updated = existing.map((entry: { id: string; name: string; prompt?: string }) => {
             if (entry.id === preloadedId) return { ...entry, prompt: prompt || 'N/A' };
             if (fileIds.includes(entry.id)) return { ...entry, prompt: prompt || 'N/A' };
             return entry;
         });
-        localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        */}
+        const newFileId = await commitFiles();
+        const activeId = newFileId || preloadedId;
+
         let documentContent: string | null = null;
         if (files.length > 0) {
             const fileContentMap: Record<string, string> = {};
@@ -251,18 +316,20 @@ export default function Generate() {
                 )
             );
             await Promise.all(
-                updated.filter((entry: any) => fileContentMap[entry.name]).map((entry: any) => setDoc(doc(storage, "documentContents", entry.id), {
+               files.map((file) => {
+                if(!activeId || !fileContentMap[file.name]) return;
+                return setDoc(doc(db, "documentContents", activeId), {
                     userId: user.uid,
-                    name: entry.name,
-                    content: fileContentMap[entry.name],
+                    name: file.name,
+                    content: fileContentMap[file.name],
                     updatedAt: serverTimestamp(),
-                }))
+                });
+               })
             );
-            const active = updated.find((e: any) => fileIds.includes(e.id));
-            if (active) documentContent = fileContentMap[active.name] ?? null;
+            documentContent = fileContentMap[files[0].name] ?? null;
         } else if (preloadedId) {
             try {
-                const snap = await getDoc(doc(storage, "documentContents", preloadedId));
+                const snap = await getDoc(doc(db, "documentContents", preloadedId));
                 if (snap.exists()) {
                     documentContent = snap.data().content;
                 } else {
@@ -277,11 +344,10 @@ export default function Generate() {
 
     //handles uploading the document contents to firestore and saving the prompt, document name, etc. It is the same as handleSend, just without the video generation at the end.
     const handleSave = async () => {
-        const raw = localStorage.getItem('uploadedFiles');
-        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
-        const hasFile = !!(preloaded || files[0]);
-
-        let updated;
+        if(!user) return;
+        const newFileId = await commitFiles();
+        const activeId = newFileId || preloadedId;
+        {/*
         if (hasFile) {
             updated = existing.map((entry: { id: string; name: string; prompt?: string }) => {
                 if (entry.id === preloadedId) {
@@ -292,6 +358,7 @@ export default function Generate() {
                 }
                 return entry;
             });
+            
         } else {
             const newEntry = {
                 id: `prompt-only-${Date.now()}`,
@@ -299,9 +366,11 @@ export default function Generate() {
                 prompt: prompt,
                 date: new Date().toLocaleDateString(),
             };
-            updated = [...existing, newEntry];
+            //updated = [...existing, newEntry];
+            updated = commitFiles();
         }
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        */}
 
         if (files.length > 0) {
             const fileContentMap: Record<string, string> = {};
@@ -321,12 +390,15 @@ export default function Generate() {
             );
 
             await Promise.all(
-                updated.filter((entry: any) => fileContentMap[entry.name]).map((entry: any) => setDoc(doc(storage, "documentContents", entry.id), {
+               files.map((file) => {
+                if(!activeId || !fileContentMap[file.name]) return;
+                return setDoc(doc(db, "documentContents", activeId), {
                     userId: user.uid,
-                    name: entry.name,
-                    content: fileContentMap[entry.name],
+                    name: file.name,
+                    content: fileContentMap[file.name],
                     updatedAt: serverTimestamp(),
-                }))
+                });
+               })
             );
         }
         localStorage.removeItem('activeFileId');
@@ -347,7 +419,7 @@ export default function Generate() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-2 min-h-0">
-                                <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">Use the box below to upload your notes, powerpoints, coding samples, etc. You can drag and drop or use the browse files button.</p>
+                                <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">Use the box below to upload your notes, powerpoints, coding samples, etc. You can drag and drop or use the browse files button. We take docx, md, and pdf files, however, pdfs are preferred.</p>
                                 <div
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
@@ -364,7 +436,10 @@ export default function Generate() {
                                             className="mt-4 px-8 py-3 bg-surface border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
                                             Browse Files
                                         </button>
-                                        <input ref={inputRef} type="file" multiple className="hidden" onChange={handleBrowse} />
+                                        <input ref={inputRef} type="file" accept=".pdf,.docx,.md" className="hidden" onChange={handleBrowse} />
+                                        {fileError && (
+                                            <p className="text-sm text-error mt-2">{fileError}</p>
+                                        )}
                                     </div>
                                     {(files.length > 0 || preloaded) && (<div className="mt-4 space-y-2">
                                         {preloaded && (

@@ -18,8 +18,9 @@ export default function AgentChat() {
     const messageEnd = useRef<HTMLDivElement>(null);
 
     const pathname = usePathname();
-    const [isHidden, setIsHidden] = useState(false);
+    const [isHidden, setIsHidden] = useState(pathname === '/documents' || pathname === '/gallery');
     const isDocuments = pathname === '/documents';
+    const isGallery = pathname === '/gallery';
 
     useEffect(() => {
         if (!user && !loading) {
@@ -103,7 +104,7 @@ export default function AgentChat() {
 
     return (
         <>
-            {isDocuments && isHidden && (
+            {(isDocuments || isGallery) && isHidden && (
                 <button onClick={() => setIsHidden(prev => !prev)} className="bg-primary/10 rounded-full flex items-center justify-center border border-primary/20 px-4 py-4 hover:brightness-110 active:scale-95 transition-all cursor-pointer" title="Open Chat">
                     <span className="material-symbols-outlined">chat</span>
                 </button>
@@ -127,7 +128,7 @@ export default function AgentChat() {
                                         <span className="material-symbols-outlined">delete</span>
 
                                     </button>
-                                    {isDocuments && (
+                                    {(isDocuments || isGallery) && (
                                         <button onClick={() => setIsHidden(prev => !prev)} className="text-outline hover:text-on-surface transition-colors p-1.5 rounded-lg hover:bg-surface-variant/50 cursor-pointer" title="Close">
                                             <span className="material-symbols-outlined">close</span>
 

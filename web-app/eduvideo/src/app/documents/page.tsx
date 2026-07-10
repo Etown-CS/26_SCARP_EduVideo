@@ -1,14 +1,15 @@
 "use client"
 import { useAuthState } from "react-firebase-hooks/auth";
-import { auth } from "@/app/firebase/config";
+import { auth, db } from "@/app/firebase/config";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Loading from "@/app/components/loading";
 import AgentChat from "../components/agentchat";
 import { usePathname } from "next/navigation";
-import { doc, deleteDoc, getDoc } from "firebase/firestore";
-import { storage } from "@/app/firebase/config";
+import { doc, deleteDoc, getDoc, getDocs, collection, setDoc, orderBy, query } from "firebase/firestore";
 import dynamic from 'next/dynamic';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from "remark-gfm";
 
 const Document = dynamic(() => import('react-pdf').then(mod => mod.Document), { ssr: false });
 const Page = dynamic(() => import('react-pdf').then(mod => mod.Page), { ssr: false });
@@ -18,12 +19,28 @@ export default function Docs() {
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
     const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string }[]>([]);
-    const pathname = usePathname();
     const [viewing, setviewing] = useState<typeof fileNames[0] | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [previewLoad, setPreviewLoad] = useState(false);
     const [numPages, setNumPages] = useState<number | null>(null);
-    const [pageNum, setPageNum] = useState(1);
+    const [docxHtml, setDocxHtml] = useState<string | null>(null);
+    const [mdText, setMdText] = useState<string | null>(null);
+    const [filesLoading, setFilesLoading] = useState(true);
+
+    function urlToArray(dataUrl: string): ArrayBuffer {
+        const base64 = dataUrl.split(',')[1];
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    function urlToText(dataUrl: string): string {
+        const arrayBuffer = urlToArray(dataUrl);
+        return new TextDecoder('utf-8').decode(arrayBuffer);
+    }
 
     useEffect(() => {
         if (!user && !loading) {
@@ -31,6 +48,7 @@ export default function Docs() {
         }
     }, [user, router, loading]);
 
+    {/*
     useEffect(() => {
         const raw = localStorage.getItem('uploadedFiles');
         const stored = JSON.parse(raw || '[]');
@@ -40,6 +58,32 @@ export default function Docs() {
                 : entry);
         setFileNames(normalized);
     }, [pathname]);
+    */}
+    useEffect(() => {
+        if (!user) return;
+        const load = async () => {
+            {/*
+            const q = query(
+                collection(db, 'users', user.uid, 'files'),
+                orderBy('date', 'asc')
+            );
+            const snapshot = await getDocs(q);
+            const files = snapshot.docs.map(d =>  ({id: d.id, ...d.data()})) as typeof fileNames;
+            setFileNames(files);
+            */}
+            setFilesLoading(true);
+            const snapshot = await getDocs(collection(db, 'users', user.uid, 'files'));
+            const files = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as typeof fileNames;
+            const sorted = files.sort((a, b) => {
+                const dateA = new Date(a.date || 0).getTime();
+                const dateB = new Date(b.date || 0).getTime();
+                return dateA - dateB;
+            });
+            setFileNames(sorted);
+            setFilesLoading(false);
+        }
+        load();
+    }, [user]);
 
     useEffect(() => {
         import('react-pdf').then(({ pdfjs }) => {
@@ -55,8 +99,11 @@ export default function Docs() {
 
         const loadView = async () => {
             setPreviewLoad(true);
+            setPreview(null);
+            setDocxHtml(null);
+            setMdText(null);
             try {
-                const snap = await getDoc(doc(storage, "documentContents", viewing.id));
+                const snap = await getDoc(doc(db, "documentContents", viewing.id));
                 if (!snap.exists()) {
                     setPreview(null);
                     return;
@@ -66,6 +113,13 @@ export default function Docs() {
 
                 if (t === 'pdf') {
                     setPreview(dataUrl);
+                } else if (t === 'docx') {
+                    const mammoth = (await import('mammoth')).default;
+                    const arrayBuffer = urlToArray(dataUrl);
+                    const result = await mammoth.convertToHtml({ arrayBuffer });
+                    setDocxHtml(result.value);
+                } else if (t === 'md') {
+                    setMdText(urlToText(dataUrl));
                 } else {
                     setPreview(null);
                 }
@@ -80,12 +134,35 @@ export default function Docs() {
         loadView();
     }, [viewing]);
 
+    {/*
+    useEffect(() => {
+        if(!user) return;
+        const migrate = async () => {
+            const raw = localStorage.getItem('uploadedFiles');
+            if(!raw) return;
+            const stored = JSON.parse(raw);
+            if(stored.length ===  0) return;
+            await Promise.all(stored.map((entry: any) => 
+                setDoc(doc(db, 'users', user.uid, 'files', entry.id), {
+                name: entry.name,
+                prompt: entry.prompt || 'N/A',
+                date: entry.date || "Unknown",
+            })));
+            localStorage.removeItem('uploadedFiles');
+        };
+        migrate();
+    }, [user]);
+    */}
+
     const handleDelete = async (id: string) => {
-        const updated = fileNames.filter(f => f.id !== id);
-        setFileNames(updated);
-        localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        const entry = fileNames.find(f => f.id === id);
+        setFileNames(prev => prev.filter(f => f.id !== id));
+
         try {
-            await deleteDoc(doc(storage, "documentContents", id));
+            await deleteDoc(doc(db, 'users', user!.uid, 'files', id));
+            if (entry && entry.name !== 'N/A') {
+                await deleteDoc(doc(db, 'documentContents', id));
+            }
         } catch (err) {
             console.error('Failed to delete the contents of the document in the Firestore: ', err);
         }
@@ -111,7 +188,7 @@ export default function Docs() {
         const type = name.split('.').pop()?.toLowerCase();
         if (type === 'pdf') return 'pdf';
         if (type === 'docx') return 'docx';
-        if (type === 'md' || 'markdown') return 'md';
+        if (type === 'md' || type === 'markdown') return 'md';
         return 'unknown';
     };
 
@@ -129,7 +206,11 @@ export default function Docs() {
                     <p className="mt-3 max-w-3xl text-md text-on-surface-variant font-body leading-relaxed">Here is where your uploaded documents and prompts are stored.</p>
                     <div className="flex flex-row items-start gap-8 mt-8">
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {fileNames.length > 0 ? (
+                            {filesLoading ? (
+                                Array.from({ length: 3 }).map((_, i) => (
+                                    <div key={i} className="bg-surface rounded-xl p-6 shadow-neomorph-raised border border-outline-variant/30 h-64 animate-pusle" />
+                                ))
+                            ) : fileNames.length > 0 ? (
                                 fileNames.map((file, index) => (
                                     <div key={file.id} className="file-card bg-surface rounded-xl p-6 shadow-neomorph-raised border border-outline-variant/30 flex flex-col h-full">
                                         <div className="flex items-start justify-between mb-6">
@@ -206,7 +287,7 @@ export default function Docs() {
                                 {previewLoad && (
                                     <p className="text-center text-outline">Loading document preview...</p>
                                 )}
-                                {!previewLoad && !preview && (
+                                {!previewLoad && !preview && !docxHtml && !mdText && (
                                     <p className="text-center text-outline">No available preview for this file</p>
                                 )}
                                 {!previewLoad && preview && getFileType(viewing.name) === 'pdf' && (
@@ -217,6 +298,17 @@ export default function Docs() {
                                                 <Page key={i} pageNumber={i + 1} className="bg-surface shadow-neomorph-raised rounded-lg" renderAnnotationLayer={false} renderTextLayer={false} />
                                             ))}
                                         </Document>
+                                    </div>
+                                )}
+                                {!previewLoad && docxHtml && getFileType(viewing.name) === 'docx' && (
+                                    <div className="bg-surface shadow-neomorph-raised rounded-lg p-12">
+                                        <div className="prose max-w-none font-body text-on-surface-variant leading-relaxed prose-headings:font-headline prose-headings:text-on-surface prose-p:text-on-surface-variant prose-strong:text-on-surface prose-a:text-primary prose-li:text-on-surface-variant" dangerouslySetInnerHTML={{ __html: docxHtml }} />
+                                    </div>
+                                )}
+                                {!previewLoad && mdText && getFileType(viewing.name) === 'md' && (
+                                    <div className="bg-surface shadow-neomorph-raised rounded-lg p-12">
+                                        <div className="prose max-w-none font-body text-on-surface-variant leading-relaxed prose-headings:font-headline prose-headings:text-on-surface prose-p:text-on-surface-variant prose-strong:text-on-surface prose-a:text-primary prose-li:text-on-surface-variant"> <ReactMarkdown remarkPlugins={[remarkGfm]}>{mdText}</ReactMarkdown>
+                                        </div>
                                     </div>
                                 )}
                             </div>

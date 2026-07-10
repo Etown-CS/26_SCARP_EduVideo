@@ -37,6 +37,8 @@ The openai API key is stored in .env. Everything for the agent configuration is 
 
 ```bash
 npm install react-pdf
+npm install mammoth
+npm install react-markdown remark-gfm
 ```
 Used for document viewing purposes
 

@@ -1,5 +1,4 @@
 "use client"
-
 import Aside from "@/app/components/aside";
 import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -14,6 +13,18 @@ export default function FinalVideo() {
     const [title, setTitle] = useState(() => {
         if (typeof window !== 'undefined') {
             return localStorage.getItem('title') || '';
+        }
+        return '';
+    });
+    const [topic, setTopic] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('topic') || '';
+        }
+        return '';
+    });
+    const [prompt] = useState(() => {
+        if (typeof window !== 'undefined') {
+            return localStorage.getItem('prompt') || localStorage.getItem('selectedPrompt') || '';
         }
         return '';
     });
@@ -52,10 +63,13 @@ export default function FinalVideo() {
     const handleSave = () => {
         const metadata = {
             title,
+            topic: 'N/A',
+            prompt: localStorage.getItem('prompt') || 'N/A',
             description: desc,
+            length: 'Unknown',
             date: new Date().toISOString(),
             document: localStorage.getItem('selectedDocument') || 'N/A',
-            prompt: localStorage.getItem('prompt') || 'N/A',
+            tags
         };
         localStorage.setItem('videoMetadata', JSON.stringify(metadata));
     };
@@ -91,19 +105,19 @@ export default function FinalVideo() {
             <section className="relative pt-5 pb-32 px-6 overflow-hidden">
                 <div className="flex gap-8 relative z-10 items-start">
                     <Aside />
-                    <div className="flex-1 flex flex-col p-6 gap-6 overflow-hidden bg-surface-container-low rounded-2xl">
+                    <div className="flex-1 flex flex-col p-6 gap-2 overflow-hidden bg-surface-container-low rounded-2xl">
                         <div className="flex justify-between items-end">
                             <div>
-                                <h1 className="font-headline text-3xl font-bold text-on-background self-start mb-6">Final Video</h1>
+                                <h1 className="font-headline text-3xl font-bold text-on-background self-start mb-2">Final Video</h1>
                                 <p> Your video is complete and ready for viewing and download!</p>
                             </div>
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-6 min-h-0">
-                                <div className="shadow-neomorph-raised bg-surface rounded-3xl p-12 overflow-hidden">
+                                <div className="shadow-neomorph-raised bg-surface rounded-3xl p-8 overflow-hidden">
                                     <div className="aspect-video bg-inverse-surface rounded-2xl overflow-hidden shadow-inner">
                                         {videoUrl && (
-                                            <video src={videoUrl} controls className="w-full h-full rounded-xl mt-4 object-contain" />
+                                            <video src={videoUrl} controls className="w-full h-full rounded-xl object-contain" />
                                         )}
                                     </div>
                                 </div>
@@ -126,6 +140,22 @@ export default function FinalVideo() {
                                             </div>
                                             <div>
                                                 <label>
+                                                    <label className="text-on-surface-variant uppercase block mb-2 font-bold text-md">Topic</label>
+                                                    <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
+                                                        <textarea value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Topic" name="videoTopic" id="videoTopic"></textarea>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label>
+                                                    <label className="text-on-surface-variant uppercase block mb-2 font-bold text-md">Prompt</label>
+                                                    <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
+                                                        <p className="w-full p-3 text-sm text-on-surface-variant whitespace-pre-wrap">{prompt || 'No prompt set'}</p>
+                                                    </div>
+                                                </label>
+                                            </div>
+                                            <div>
+                                                <label>
                                                     <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Description</label>
                                                     <div className="shadow-neomorph-sunken bg-surface-container-low p-4 rounded-xl">
                                                         <textarea
@@ -138,15 +168,25 @@ export default function FinalVideo() {
                                             </div>
                                             <div>
                                                 <label>
-                                                    <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Tags</label>
-                                                    <div>
-                                                        {tags.map((tag, index) => (
-                                                            <span key={index}
-                                                                className="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-sm font-label"
-                                                            >{tag}</span>
-                                                        ))}
+                                                    <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Document</label>
+                                                    <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
+                                                        <p className="w-full p-3 text-sm text-on-surface-variant whitespace-pre-wrap">Document name will go here.</p>
                                                     </div>
                                                 </label>
+                                            </div>
+                                            <div>
+                                                <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Tags</label>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {tags.map((tag, index) => (
+                                                        <span key={index}
+                                                            className="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-sm font-label flex items-center gap-1"
+                                                        >{tag}
+                                                            <button onClick={() => setTags(prev => prev.filter((_, i) => i !== index))} className="text-on-secondary-container/70 hover:text-error cursor-pointer inline-flex items-center justify-center leading-none p-0 border-0 bg-transparent">
+                                                                <span className="material-symbols-outlined text-[14px] leading-none">close</span>
+                                                            </button>
+                                                        </span>
+                                                    ))}
+                                                </div>
                                                 <div className="flex items-center gap-2 mt-2 mb-2">
                                                     <label>
                                                         <input

@@ -14,21 +14,20 @@ export default function Header() {
   const { setMessages } = useChat();
   const pathname = usePathname();
 
-const navLinks = (href: string, label: string) => {
+  const navLinks = (href: string, label: string) => {
     const isActive = pathname === href || pathname.startsWith(href + '/');
     return (
-        <a
-            href={href}
-            className={`font-medium transition-colors duration-300 font-label text-sm uppercase tracking-wider ${
-                isActive
-                    ? 'text-primary border-b-2 border-primary pb-0.5'
-                    : 'text-on-surface-variant hover:text-primary'
-            }`}
-        >
-            {label}
-        </a>
+      <a
+        href={href}
+        className={`font-medium transition-colors duration-300 font-label text-sm uppercase tracking-wider ${isActive
+            ? 'text-primary border-b-2 border-primary pb-0.5'
+            : 'text-on-surface-variant hover:text-primary'
+          }`}
+      >
+        {label}
+      </a>
     );
-}
+  }
 
 
   const handleSignOut = () => {
@@ -43,8 +42,9 @@ const navLinks = (href: string, label: string) => {
         <div className="flex items-center gap-12">
           <a className="font-display text-2xl font-extrabold text-primary tracking-tight" href="/">BluEdu</a>
           <div className="hidden md:flex items-center gap-8">
-            {navLinks('/documents', 'Documents')}
             {navLinks('/generate', 'Generate')}
+            {navLinks('/documents', 'Documents')}
+            {navLinks('/gallery', 'Gallery')}
           </div>
         </div>
         <div className="flex items-center gap-4">

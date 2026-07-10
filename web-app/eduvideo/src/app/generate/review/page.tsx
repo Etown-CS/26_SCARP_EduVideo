@@ -1,5 +1,4 @@
 "use client"
-
 import Aside from "@/app/components/aside";
 import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -66,9 +65,9 @@ export default function Review() {
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-4 min-h-0">
                                 <div className="shadow-neomorph-raised bg-surface rounded-3xl p-12 overflow-hidden">
-                                    <div className="aspect-video bg-inverse-surface rounded-2xl overflow-hidden">
+                                    <div className="aspect-video bg-inverse-surface rounded-2xl overflow-hidden shadow-inner">
                                         {videoUrl && (
-                                            <video src={videoUrl} controls className="w-full h-115 rounded-xl mt-4" />
+                                            <video src={videoUrl} controls className="w-full h-full rounded-xl mt-4 object-contain" />
                                         )}
                                     </div>
                                 </div>

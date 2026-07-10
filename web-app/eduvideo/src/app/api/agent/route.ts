@@ -16,7 +16,7 @@ const navigateTool = tool({
         .map(r => `- ${r.path}: ${r.description}`)
         .join("\n")}`,
     parameters: z.object({
-        path: z.enum(["/generate", "/generate/edit", "/generate/final-video", "/generate/review", "/documents"]),
+        path: z.enum(["/generate", "/generate/edit", "/generate/final-video", "/generate/review", "/documents", "/gallery"]),
         reason: z.string().describe("Why we're navigating there"),
     }),
     execute: async ({ path, reason }) => {
@@ -41,6 +41,7 @@ export async function POST(req: NextRequest) {
                 BluEdu allows users to upload their computer science notes or write prompts and generates a short educational video from those materials.
             Pages and their purposes:
                 /documents - Allows the user to store their uploaded documents and prompts in one place. The user can go back and see what notes they have uploaded and even regenerate videos based on them.
+                /gallery - Where the user can view their previously generated videos.
                 /generate - Here is where the user can upload their documents and set their prompts. On this page they can choose to generate, which begins the video generation process and automatically saves the uploaded document and prompt, or save which does not start the generation process and simply saves the uploaded materials and prompt.
                 /generate/edit - Here is where the user can make edits to their prompt and uploaded document if they are unsatisfied with the generated video.
                 /generate/review - Here is where the user gets to see their video for the first time. The app will return an automatic evaluation of the video and the user can watch the video to see if they are satisfied with it. If they are, they can approve the video or if they are not satisfied they can return to the edit page to make changes.

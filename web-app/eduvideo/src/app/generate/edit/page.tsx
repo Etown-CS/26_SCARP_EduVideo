@@ -1,5 +1,4 @@
 "use client"
-
 import Aside from "@/app/components/aside";
 import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -21,15 +20,45 @@ export default function Edit() {
     const [preloaded, setPreloaded] = useState<string | null>(null);
     const [preloadedId, setPreloadedId] = useState<string | null>(null);
     const [fileIds, setFileIds] = useState<string[]>([]);
+    const allowedTypes = ['.pdf', '.docx', '.md'];
+    const allowedMimeTypes = ['application/pdf', 'text/markdown', 'text/x-markdown', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const [fileError, setFileError] = useState<string | null>(null);
 
+    //currently not in use. I don't think this feature will end up being implemented but thats ok
     const handleKeyword = () => {
         if (!newKeyword.trim()) return;
         setKeyword(prev => [...prev, newKeyword.trim()]);
         setNewKeyword('');
     };
 
+    function isAllowed(file: File): boolean {
+        const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+        const extOk = allowedTypes.includes(ext);
+        const mimeOk = file.type === '' || allowedMimeTypes.includes(file.type);
+        return extOk && mimeOk;
+    }
+
+    const processFiles = (incoming: File[]) => {
+        if (incoming.length === 0) return;
+        const valid = incoming.filter(isAllowed);
+        if(valid.length === 0){
+            setFileError('Only PDF, DOCX, and MD files can be uploaded at this time. Please try uploading a document in that format');
+            return;
+        }
+        if(incoming.length > 1){
+            setFileError('Only one file can be uploaded at a time. The first valid file will be used');
+        }else{
+            setFileError(null);
+        }
+        const selectedFile = valid[0];
+        setFiles([selectedFile]);
+        setFileIds([`${selectedFile.name}-${Date.now()}-${Math.random()}`]);
+    }
+
     const handleBrowse = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
+            processFiles(Array.from(e.target.files));
+            {/*
             const selected = Array.from(e.target.files);
             setFiles(prev => [...prev, ...selected]);
             const raw = localStorage.getItem('uploadedFiles');
@@ -41,9 +70,11 @@ export default function Edit() {
                 prompt: 'N/A',
                 date: new Date().toLocaleDateString()
             }));
+            localStorage.setItem('activeFileId', entry[0].id);
             setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
             const merged = [...existing, ...entry];
             localStorage.setItem('uploadedFiles', JSON.stringify(merged));
+            */}
         }
     };
 
@@ -57,6 +88,8 @@ export default function Edit() {
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
+        processFiles(Array.from(e.dataTransfer.files));
+        {/*
         const dropped = Array.from(e.dataTransfer.files);
         if(dropped.length === 0) return;
         setFiles(prev => [...prev, ...dropped]);
@@ -72,6 +105,7 @@ export default function Edit() {
         setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
         const merged = [...existing, ...entry];
         localStorage.setItem('uploadedFiles', JSON.stringify(merged));
+        */}
     };
 
     const removeFile = (index: number) => {
@@ -163,7 +197,10 @@ export default function Edit() {
                                         className="mt-4 px-8 py-3 border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
                                         Browse Files
                                     </button>
-                                    <input ref={inputRef} type="file" multiple className="hidden" onChange={handleBrowse} />
+                                    <input ref={inputRef} type="file" accept=".pdf,.docx,.md" className="hidden" onChange={handleBrowse} />
+                                    {fileError && (
+                                        <p className="text-sm text-error mt-2">{fileError}</p>
+                                    )}
                                 </div>
                                 {(files.length > 0 || preloaded) && (<div className="mt-4 space-y-2">
                                     {preloaded && (

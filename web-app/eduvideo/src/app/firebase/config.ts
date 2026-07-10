@@ -16,8 +16,8 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp()
 const auth = getAuth(app);
 const googleProvider = new GoogleAuthProvider();
-const storage = getFirestore();
+const db = getFirestore(app);
 
-export {app, auth, googleProvider, storage}
+export {app, auth, googleProvider, db}
 
 setPersistence(auth, browserSessionPersistence);
