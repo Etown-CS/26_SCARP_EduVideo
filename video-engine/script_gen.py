@@ -2,6 +2,7 @@ import json
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
+from targeting_level_rubric import DIFFICULTY_RUBRIC
 
 ############### Segment Filter ###############
 # In order to create a transcript per a core topic, remove segments such as...
@@ -42,7 +43,8 @@ def generate_transcript(section, subseg_lookup):
     
     summaries = "\n".join([f"- {sub['summary']}" for sub in subsegs])
 
-    prompt = f"""You are a Script Generation Agent creating an educational video transcripts for beginner undergraduate students.
+    prompt = DIFFICULTY_RUBRIC + f"""
+    You are a Script Generation Agent creating an educational video transcripts for beginner undergraduate students.
 
     This video is titled: "{data["video outline"]['title']}"
     The current section is: "{section['title']}" (role: {section['role']})
@@ -82,16 +84,16 @@ for topic in data["segments"]:
         subseg_lookup[sub["id"]] = sub
 
 # Test it
-# print(f"Total subsegments in lookup: {len(subseg_lookup)}")
-# print(f"Video title: {data['video outline']['title']}")
-# print(f"Number of sections: {len(data['video outline']['sections'])}")
+print(f"Total subsegments in lookup: {len(subseg_lookup)}")
+print(f"Video title: {data['video outline']['title']}")
+print(f"Number of sections: {len(data['video outline']['sections'])}")
 
-# ### Generate transcript for all sections
-# for section in data["video outline"]["sections"]:
-#     transcript = generate_transcript(section, subseg_lookup)
-#     if transcript:
-#         print(f"\n--- Section {section['section']}: {section['title']} [{section['role']}] ---")
-#         print(transcript)
+### Generate transcript for all sections
+for section in data["video outline"]["sections"]:
+    transcript = generate_transcript(section, subseg_lookup)
+    if transcript:
+        print(f"\n--- Section {section['section']}: {section['title']} [{section['role']}] ---")
+        print(transcript)
 
 ### Build output
 sections_output = []

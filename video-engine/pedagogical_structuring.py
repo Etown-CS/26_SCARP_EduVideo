@@ -2,6 +2,7 @@ import json
 from openai import OpenAI
 from dotenv import load_dotenv
 import os
+from targeting_level_rubric import DIFFICULTY_RUBRIC
 
 '''
 Overview of this Pedagogical Agent
@@ -23,7 +24,7 @@ def format_topic4prompt(topic):
         lines.append(f"  id: {sub['id']}, type: {sub['type']}, content: {sub['content']}")
     return "\n".join(lines)
 
-
+############### Reorder ###############
 ### Get ...
 # a new order of core topic for beginner friendly
 # Label importance
@@ -32,7 +33,7 @@ def finetune_reorder_topic(topic, user_prompt):
     # Convert a core topic in md file into plain text
     formatted = format_topic4prompt(topic)
 
-    prompt = f"""You are a Pedagogical Agent helping fine-tune and reorder the segments based on the user prompt for a beginner undergraduate student.
+    prompt = DIFFICULTY_RUBRIC + f"""You are a Pedagogical Agent helping fine-tune and reorder the segments based on the user prompt for a beginner undergraduate student.
 The user has the following request for this video: "{user_prompt}"
 Here are the subsegments for the topic "{topic['content']}":
 
@@ -84,7 +85,9 @@ def video_outline_maker(all_subsegments, user_prompt, client):
         messages=[
             {
                 "role": "system",
-                "content": """You are a Video Outline Maker for an educational video pipeline.
+                "content": DIFFICULTY_RUBRIC + """
+                
+                You are a Video Outline Maker for an educational video pipeline.
                 Given a list of lecture subsegments and a user's request, create a coherent video outline.
                 
                 Rules:
@@ -146,7 +149,7 @@ load_dotenv()
 client = OpenAI()
 
 ### Get a file name for future use
-file = "output_sample/cs350_llm/segmented.json"
+file = "output_sample/cs350_llm/4-filtered-segmented.json"
 output_dir = os.path.dirname(file)
 
 with open(file, "r") as f:

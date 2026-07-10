@@ -20,6 +20,8 @@ import re
 import json
 from openai import OpenAI
 from dotenv import load_dotenv
+from targeting_level_rubric import DIFFICULTY_RUBRIC
+
 
 ### LLM
 load_dotenv()
@@ -36,34 +38,34 @@ def format_checker(file):
         pdf_doc = pymupdf.open(file)
         return pdf_doc
 
-############### Helper Function 1 - Detect Text Color ###############
+# ############### Helper Function 1 - Detect Text Color ###############
 
-# Define dominant color
-def get_domColor(pdf_doc):
-    color_cnt = Counter()
-    for page in pdf_doc: # for each page of input pdf file, get large blocks for content
-        blocks = page.get_text("dict")["blocks"]
-        for block in blocks: # for each block within a page
-            if block["type"] == 0: # block is text-based
-                for line in block["lines"]: # for each line in one text block
-                    for span in line["spans"]: # for each span (continuous texts with the same style)
-                        if span["text"].strip():
-                            color_cnt[span["color"]] += 1 # add color
+# # Define dominant color
+# def get_domColor(pdf_doc):
+#     color_cnt = Counter()
+#     for page in pdf_doc: # for each page of input pdf file, get large blocks for content
+#         blocks = page.get_text("dict")["blocks"]
+#         for block in blocks: # for each block within a page
+#             if block["type"] == 0: # block is text-based
+#                 for line in block["lines"]: # for each line in one text block
+#                     for span in line["spans"]: # for each span (continuous texts with the same style)
+#                         if span["text"].strip():
+#                             color_cnt[span["color"]] += 1 # add color
 
-    return color_cnt.most_common(1)[0][0]
+#     return color_cnt.most_common(1)[0][0]
 
-def text_in_minorColor(pdf_doc, dom_color):
-# Store texts with minor colors(ones not dom_color) in a Set
-    minor_color_text = set() # A set to store
-    for page in pdf_doc:
-        blocks = page.get_text("dict")["blocks"]
-        for block in blocks:
-            if block["type"] == 0:
-                for line in block["lines"]:
-                    for span in line["spans"]:
-                        if span["text"].strip() and span["color"] != dom_color:
-                            minor_color_text.add(span["text"].strip())
-    return minor_color_text
+# def text_in_minorColor(pdf_doc, dom_color):
+# # Store texts with minor colors(ones not dom_color) in a Set
+#     minor_color_text = set() # A set to store
+#     for page in pdf_doc:
+#         blocks = page.get_text("dict")["blocks"]
+#         for block in blocks:
+#             if block["type"] == 0:
+#                 for line in block["lines"]:
+#                     for span in line["spans"]:
+#                         if span["text"].strip() and span["color"] != dom_color:
+#                             minor_color_text.add(span["text"].strip())
+#     return minor_color_text
 
 
 ############### LLM Filter ###############
@@ -164,7 +166,9 @@ def llm_segmentation(filtered_md, client):
         messages=[
             {
                 "role": "system",
-                "content": """You are a lecture content segmenter.
+                "content": DIFFICULTY_RUBRIC + """
+                
+                You are a lecture content segmenter.
                 Given lecture content in markdown, group it into meaningful segments with parent-child relationships.
                 - Identify main topics and their subtopics based on meaning, not markdown symbols
                 - A main topic (parent) should be a core concept (e.g. "Prim's Algorithm")
@@ -230,7 +234,7 @@ def llm_topic_filter(segments, user_prompt, client):
         messages = [
             {
                 "role": "system",
-                "content": """You are a topic selector for an educational video pipeline.
+                "content": DIFFICULTY_RUBRIC + """You are a topic selector for an educational video pipeline.
                 Given a list of topics and a user's request, decide which topics are relevant to keep.
                 Return ONLY a JSON list of topic ids to KEEP, like:
                 ["seg_001", "seg_003"]
@@ -253,8 +257,8 @@ def llm_topic_filter(segments, user_prompt, client):
 
 ############### Main ###############
 ####input
-# file = "cs350_data.pdf" # single page
 file = "cs350_llm.pdf"
+# file = "cs322_mst_all.pdf"
 
 ### User prompt - temporal, for testing
 user_prompt = "Create a short video focusing on Large Language Model(LLM)"
@@ -276,10 +280,10 @@ md = pymupdf4llm.to_markdown(file, write_images=True, image_path=f"output_sample
 cleaned_md = llm_cleaner(md, client)
 
 ### Generate another md file to compare with cleaned one
-with open(f"output_sample/{output_name}/{output_name}-cleaned.md", "w") as f: 
+with open(f"output_sample/{output_name}/2-cleaned.md", "w") as f: 
     f.write(cleaned_md)
 
-with open(f"output_sample/{output_name}/{output_name}.md", "w") as f: 
+with open(f"output_sample/{output_name}/1-extracted.md", "w") as f: 
     f.write(md)
 
 ### LLM Segmentation
@@ -293,14 +297,14 @@ for i, seg in enumerate(segments):
         sub["id"] = f"seg_{i+1:03d}_{j+1:03d}"
         sub["order"] = j + 1
 
-# ### JSON output - before filtering
-# result = {
-#     "topic": output_name,
-#     "segments": segments
-# }
-# with open(f"output_sample/{output_name}/{output_name}-all-topics.json", "w") as f:
-#     json.dump(result, f, indent=4, ensure_ascii=False)
-#     print("Saved! - All Segments")
+### JSON output - before filtering
+result = {
+    "topic": output_name,
+    "segments": segments
+}
+with open(f"output_sample/{output_name}/3-segmented-all.json", "w") as f:
+    json.dump(result, f, indent=4, ensure_ascii=False)
+    print("Saved! - All Segments")
 
 ### Filter segments based on keep_ids
 keep_ids = llm_topic_filter(segments, user_prompt, client)
@@ -312,6 +316,6 @@ result = {
     "user_prompt": user_prompt,
     "segments": segments
 }
-with open(f"output_sample/{output_name}/segmented.json", "w") as f:
+with open(f"output_sample/{output_name}/4-filtered-segmented.json", "w") as f:
     json.dump(result, f, indent=4, ensure_ascii=False)
     print("Saved!")
