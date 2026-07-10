@@ -4,7 +4,7 @@ import "./globals.css";
 import Header from "@/app/components/header";
 import { ChatProvider } from "./context/chatContext";
 import { ThemeProvider } from 'next-themes';
-
+import Image from "next/image";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -49,9 +49,15 @@ export default function RootLayout({
           </ChatProvider>
           <footer className="full-width mt-auto bg-surface-container-low border-t border-outline-variant/10">
             <div className="flex flex-col md:flex-row justify-between items-center w-full px-4 md:px-8 py-6 gap-8">
-              <div className="flex flex-col items-center md:items-start gap-4">
+              <div className="flex flex-col items-center md:items-start gap-1">
                 <span className="font-display text-2xl font-bold text-primary">BluEdu</span>
-                <p className="font-body text-sm text-on-secondary-container text-center md:text-left"> SCARP 2026 BluEdu Note to Video Project</p>
+                <p className="font-body text-sm text-on-secondary-container text-center md:text-left">Turning CS Notes into Teaching Videos: An AI-Driven Document-to-Video System​</p>
+                <p className="font-body text-sm text-on-secondary-container text-center md:text-left">Elizabethtown College SCARP 2026</p>
+              </div>
+              <div className="flex flex-wrap justify-center gap-6">
+              </div>
+              <div className="flex gap-4">
+                <Image src='/SCARP_image.png' alt="SCARP logo" width={100} height={100} className="w-auto h-28" loading="eager" />
               </div>
             </div>
           </footer>

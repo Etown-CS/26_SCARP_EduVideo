@@ -1,5 +1,4 @@
 "use client"
-
 import Aside from "@/app/components/aside";
 import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
@@ -13,35 +12,100 @@ export default function Edit() {
     const [user, loading] = useAuthState(auth);
     const [newKeyword, setNewKeyword] = useState('');
     const [keyword, setKeyword] = useState<string[]>([]);
+    const [isDragging, setIsDragging] = useState(false);
     const router = useRouter();
-    const [prompt, setPrompt] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('prompt') || '';
-        }
-        return '';
-    });
+    const [prompt, setPrompt] = useState('');
     const inputRef = useRef<HTMLInputElement>(null);
     const [files, setFiles] = useState<File[]>([]);
     const [preloaded, setPreloaded] = useState<string | null>(null);
+    const [preloadedId, setPreloadedId] = useState<string | null>(null);
+    const [fileIds, setFileIds] = useState<string[]>([]);
+    const allowedTypes = ['.pdf', '.docx', '.md'];
+    const allowedMimeTypes = ['application/pdf', 'text/markdown', 'text/x-markdown', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    const [fileError, setFileError] = useState<string | null>(null);
 
-
-
+    //currently not in use. I don't think this feature will end up being implemented but thats ok
     const handleKeyword = () => {
         if (!newKeyword.trim()) return;
         setKeyword(prev => [...prev, newKeyword.trim()]);
         setNewKeyword('');
     };
 
+    function isAllowed(file: File): boolean {
+        const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+        const extOk = allowedTypes.includes(ext);
+        const mimeOk = file.type === '' || allowedMimeTypes.includes(file.type);
+        return extOk && mimeOk;
+    }
+
+    const processFiles = (incoming: File[]) => {
+        if (incoming.length === 0) return;
+        const valid = incoming.filter(isAllowed);
+        if(valid.length === 0){
+            setFileError('Only PDF, DOCX, and MD files can be uploaded at this time. Please try uploading a document in that format');
+            return;
+        }
+        if(incoming.length > 1){
+            setFileError('Only one file can be uploaded at a time. The first valid file will be used');
+        }else{
+            setFileError(null);
+        }
+        const selectedFile = valid[0];
+        setFiles([selectedFile]);
+        setFileIds([`${selectedFile.name}-${Date.now()}-${Math.random()}`]);
+    }
+
     const handleBrowse = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
+            processFiles(Array.from(e.target.files));
+            {/*
             const selected = Array.from(e.target.files);
             setFiles(prev => [...prev, ...selected]);
+            const raw = localStorage.getItem('uploadedFiles');
+            const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
 
-            const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-            const name = selected.map(f => ({ name: f.name, prompt: 'N/A' }));
-            const merged = [...existing, ...name];
+            const entry = selected.map(f => ({
+                id: `${f.name}-${Date.now()}-${Math.random()}`,
+                name: f.name,
+                prompt: 'N/A',
+                date: new Date().toLocaleDateString()
+            }));
+            localStorage.setItem('activeFileId', entry[0].id);
+            setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
+            const merged = [...existing, ...entry];
             localStorage.setItem('uploadedFiles', JSON.stringify(merged));
+            */}
         }
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(true);
+    };
+
+    const handleDragLeave = () => setIsDragging(false);
+
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+        setIsDragging(false);
+        processFiles(Array.from(e.dataTransfer.files));
+        {/*
+        const dropped = Array.from(e.dataTransfer.files);
+        if(dropped.length === 0) return;
+        setFiles(prev => [...prev, ...dropped]);
+        const raw = localStorage.getItem('uploadedFiles');
+        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
+        const entry = dropped.map(f => ({
+            id: `${f.name}-${Date.now()}-${Math.random()}`,
+            name: f.name,
+            prompt: 'N/A',
+            date: new Date().toLocaleDateString(),
+        }));
+        localStorage.setItem("activeFileId", entry[0].id);
+        setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
+        const merged = [...existing, ...entry];
+        localStorage.setItem('uploadedFiles', JSON.stringify(merged));
+        */}
     };
 
     const removeFile = (index: number) => {
@@ -49,24 +113,58 @@ export default function Edit() {
     };
 
     const handleSubmit = async () => {
-        const {jobId} = await fetch('/api/generate', {
+        const { jobId } = await fetch('/api/generate', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({document:preloaded || files[0]?.name, prompt}),
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ document: preloaded || files[0]?.name, prompt }),
         }).then(r => r.json());
-
         localStorage.setItem('currentJobId', jobId);
         router.push('/generate/working');
     }
 
     useEffect(() => {
         const saved = localStorage.getItem('selectedDocument');
-        if(saved){
+        if (saved) {
             setPreloaded(saved);
             localStorage.removeItem('selectedDocument');
         }
+        const savedPrompt = localStorage.getItem('selectedPrompt');
+        if (savedPrompt && savedPrompt !== 'N/A') {
+            setPrompt(savedPrompt);
+        }
+        const activeFileId = localStorage.getItem('activeFileId');
+        if (activeFileId) {
+            setPreloadedId(activeFileId);
+        }
+
+    }, []);
+
+    useEffect(() => {
+        if (!prompt) return;
+        const activeFileId = localStorage.getItem('activeFileId');
+        localStorage.setItem('selectedPrompt', prompt);
+        if (activeFileId) {
+            const raw = localStorage.getItem('uploadedFiles');
+            const existing = raw ? JSON.parse(raw) : [];
+            const updated = existing.map((f: any) => f.id === activeFileId ? { ...f, prompt } : f);
+            localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        }
+    }, [prompt]);
+
+    
+    useEffect(() => {
+        const handleStorageChange = () => {
+            const updated = localStorage.getItem('selectedPrompt');
+            if (updated && updated !== 'N/A') {
+                setPrompt(updated);
+            }
+        };
+
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
     
+
     if (loading) return (
         <Loading />
     )
@@ -81,12 +179,16 @@ export default function Edit() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-2 min-h-0">
                             <div className="col-span-8 flex flex-col gap-4 min-h-0">
-                                <div className="max-w-2xl shadow-neomorph-sunken bg-surface-container-low my-8 px-4 py-8 rounded-lg flex items-center gap-2">
+                                <p className="mt-2 max-w-2xl text-sm text-on-surface-variant font-body leading-relaxed">If you would like your video to include something it didn't or remove a topic, consider adding or changing the prompt. If you ask the chat to generate a new prompt, make sure to add a space at the end so it saves, otherwise the new prompt will not work.</p>
+                                <div className="max-w-2xl shadow-neomorph-sunken bg-surface-container-low my-4 px-4 py-8 rounded-lg flex items-center gap-2">
                                     <span className="material-symbols-outlined text-outline text-[40px]"></span>
-                                    <textarea
-                                        value={prompt}
-                                        onChange={(e) => setPrompt(e.target.value)}
-                                        className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Change your prompt here..." rows={3} />
+                                    <label className="w-full">
+                                        <textarea
+                                            value={prompt}
+                                            onChange={(e) => setPrompt(e.target.value)}
+                                            className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none justify-center" placeholder="Change your prompt here..." rows={5}
+                                            name="promptEditor" id="promptEditor" />
+                                    </label>
                                 </div>
                                 <div className="max-w-2xl max-h-35 border-2 border-dashed border-outline-variant rounded-lg p-12 shadow-neomorph-sunken flex flex-col items-center justify-center gap-4 bg-surface-bright">
                                     <h3 className="font-headline text-xl font-bold text-on-surface">Check or change your files here.</h3>
@@ -95,7 +197,10 @@ export default function Edit() {
                                         className="mt-4 px-8 py-3 border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
                                         Browse Files
                                     </button>
-                                    <input ref={inputRef} type="file" multiple className="hidden" onChange={handleBrowse} />
+                                    <input ref={inputRef} type="file" accept=".pdf,.docx,.md" className="hidden" onChange={handleBrowse} />
+                                    {fileError && (
+                                        <p className="text-sm text-error mt-2">{fileError}</p>
+                                    )}
                                 </div>
                                 {(files.length > 0 || preloaded) && (<div className="mt-4 space-y-2">
                                     {preloaded && (
@@ -112,6 +217,7 @@ export default function Edit() {
                                     ))}
                                 </div>)
                                 }
+                                {/*
                                 <h1 className="font-headline font-bold text-xl text-on-surface mb-2">Keywords</h1>
                                 <p className="text-on-surface-variant font-body">Here is where the extracted keywords will go if we want to use that feature.</p>
                                 <div className="flex gap-4">
@@ -150,6 +256,7 @@ export default function Edit() {
                                         </div>
                                     ))}
                                 </div>
+                                */}
                                 <button onClick={handleSubmit} className="w-44 shadow-neomorph-raised bg-primary text-on-primary px-6 py-2 rounded-lg items-center gap-2 font-semibold hover:brightness-110 transition-all cursor-pointer">Submit</button>
                             </div>
                             <div className="col-span-4 flex flex-col gap-4 min-h-0">

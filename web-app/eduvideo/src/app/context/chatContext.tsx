@@ -15,22 +15,15 @@ type ChatContextType = {
 const chatContext = createContext<ChatContextType | null>(null);
 
 export function ChatProvider({ children }: { children: React.ReactNode }){
-    const [messages, setMessages] = useState<Message[]>([{sender: 'agent', text: 'How can I help you?'}]);
-    const [hydrated, setHydrated] = useState(false);
-
-    useEffect(() => {
+    const [messages, setMessages] = useState<Message[]>(() => {
+        if(typeof window === 'undefined') return [{sender: 'agent', text: 'How can I help you?'}];
         const saved = localStorage.getItem('chatMessages');
-        if(saved){
-            setMessages(JSON.parse(saved));
-        }
-        setHydrated(true);
-    }, []);
+        return saved ? JSON.parse(saved) : [{sender: 'agent', text: 'How can I help you?'}];
+    })
 
     useEffect(() => {
-        if(hydrated){
-            localStorage.setItem('chatMessages', JSON.stringify(messages));
-        }
-    }, [messages, hydrated]);
+        localStorage.setItem('chatMessages', JSON.stringify(messages));
+    }, [messages]);
 
     
     return(

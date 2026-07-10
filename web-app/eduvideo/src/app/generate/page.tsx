@@ -6,31 +6,72 @@ import { useEffect, useState, useRef } from 'react';
 import Aside from '@/app/components/aside';
 import AgentChat from '../components/agentchat';
 import Loading from "@/app/components/loading";
+import { db } from "@/app/firebase/config";
+import { doc, setDoc, getDoc, serverTimestamp, collection, addDoc, updateDoc } from "firebase/firestore";
 
 export default function Generate() {
 
+    //create necessary variables
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
     const [isDragging, setIsDragging] = useState(false);
     const [files, setFiles] = useState<File[]>([]);
     const inputRef = useRef<HTMLInputElement>(null);
-    const [prompt, setPrompt] = useState(() => {
-        if (typeof window !== 'undefined') {
-            return localStorage.getItem('prompt') || '';
-        }
-        return '';
-    });
+    const [prompt, setPrompt] = useState('');
     const [preloaded, setPreloaded] = useState<string | null>(null);
     const [preloadedId, setPreloadedId] = useState<string | null>(null);
-    const [fileIds, setFileIds] = useState<string[]>([]);
+    const allowedTypes = ['.pdf', '.docx', '.md'];
+    const allowedMimeTypes = ['application/pdf', 'text/markdown', 'text/x-markdown', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',];
+    const [fileError, setFileError] = useState<string | null>(null);
 
+    //check if file is allowed
+    function isAllowed(file: File): boolean {
+        const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
+        const extOk = allowedTypes.includes(ext);
+        const mimeOk = file.type === '' || allowedMimeTypes.includes(file.type);
+        return extOk && mimeOk;
+    }
+
+    //handles processing to eliminate repetative code but hasn't been implemented yet
+    const processFiles = (incoming: File[]) => {
+        if (incoming.length === 0) return;
+        const valid = incoming.filter(isAllowed);
+        if (valid.length === 0) {
+            setFileError('Only PDF, DOCX, and MD files can be uploaded at this time. Please try uploading a document in that format');
+            return;
+        }
+        if (incoming.length > 1) {
+            setFileError('Only one file can be uploaded at a time. The first valid file will be used');
+        } else {
+            setFileError(null);
+        }
+        const selectedFile = valid[0];
+        setFiles([selectedFile]);
+        {/*
+        const raw = localStorage.getItem('uploadedFiles');
+        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
+        const entry = {
+            id: `${selectedFile.name}-${Date.now()}-${Math.random()}`,
+            name: selectedFile.name,
+            prompt: 'N/A',
+            date: new Date().toLocaleDateString(),
+        };
+        localStorage.setItem('activeFileId', entry.id);
+        setFileIds([entry.id]);
+        localStorage.setItem('uploadedFiles', JSON.stringify([...existing, entry]));
+        */}
+    };
+
+    //This function calls the generate video API as well as establishing the metadata scheme for the generate video.
     const handleGenerate = async () => {
+        //At some point this will need to be updated to include the actual document content
         const { jobId } = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ document: preloaded || files[0]?.name, prompt }),
         }).then(r => r.json());
 
+        //set create and set initial values for the video metadata
         const metadata = {
             title: preloaded || files[0]?.name || 'Untitled',
             topic: 'Unknown',
@@ -38,25 +79,25 @@ export default function Generate() {
             description: 'None',
             length: 'Unknown',
             date: new Date().toISOString(),
-            document: preloaded || files[0]?.name || 'N/A'
+            document: preloaded || files[0]?.name || 'N/A',
+            tags: [] as string[]
         };
 
+        //add everything to localStorage so it can be accessed across different pages.
         localStorage.setItem('selectedDocument', preloaded || files[0]?.name || '');
         localStorage.setItem('currentJobId', jobId);
         localStorage.setItem('videoMetadata', JSON.stringify(metadata));
         router.push('/generate/working');
     };
 
+    //ensures that the user is logged in and the page is not still loading. If the user is not signed in, they will get pushed to the sign in page.
     useEffect(() => {
         if (!loading && !user) {
             router.push('/sign-in');
         }
     }, [user, router, loading]);
 
-    useEffect(() => {
-        localStorage.setItem('prompt', prompt);
-    }, [prompt]);
-
+    //loads all of the preloaded information from storage on page mount.
     useEffect(() => {
         const saved = localStorage.getItem('selectedDocument');
         if (saved) {
@@ -66,21 +107,58 @@ export default function Generate() {
         const savedPrompt = localStorage.getItem('selectedPrompt');
         if (savedPrompt && savedPrompt !== 'N/A') {
             setPrompt(savedPrompt);
-            localStorage.removeItem('selectedPrompt');
+            //localStorage.removeItem('selectedPrompt');
+        }
+        const activeFileId = localStorage.getItem('activeFileId');
+        if (activeFileId) {
+            setPreloadedId(activeFileId);
         }
     }, []);
 
+    //will refresh and save the prompt back to storage when it is updated
+    useEffect(() => {
+        const activeFileId = localStorage.getItem('activeFileId');
+        localStorage.setItem('selectedPrompt', prompt);
+        if (activeFileId && user) {
+            updateDoc(doc(db, 'users', user.uid, 'files', activeFileId), {
+                prompt: prompt || 'N/A'
+            }).catch(console.error);
+        }
+    }, [prompt]);
+
+    //Event listener for storage. 
+    useEffect(() => {
+        const handleStorageChange = () => {
+            const updated = localStorage.getItem('selectedPrompt');
+            if (updated && updated !== 'N/A') {
+                setPrompt(updated);
+            }
+        };
+        window.addEventListener('storage', handleStorageChange);
+        return () => window.removeEventListener('storage', handleStorageChange);
+    }, []);
+
+    //show loading wheel if page is still loading
     if (loading) return (
         <Loading />
     );
 
+    //Ensures that nothing loads when there is no user logged in
     if (!user) return null;
 
+    //allows the user to browse and select files to upload
     const handleBrowse = (e: React.ChangeEvent<HTMLInputElement>) => {
+
         if (e.target.files) {
+            {/*
             const selected = Array.from(e.target.files);
             setFiles(prev => [...prev, ...selected]);
 
+            const newIds = selected.map(f => `${f.name}-${Date.now}-${Math.random()}`);
+            setFileIds(prev => [...prev, ...newIds]);
+            */}
+            processFiles(Array.from(e.target.files));
+            {/*
             const raw = localStorage.getItem('uploadedFiles');
             const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
 
@@ -90,9 +168,11 @@ export default function Generate() {
                 prompt: 'N/A',
                 date: new Date().toLocaleDateString()
             }));
+            localStorage.setItem("activeFileId", entry[0].id);
             setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
             const merged = [...existing, ...entry];
             localStorage.setItem('uploadedFiles', JSON.stringify(merged));
+            */}
         }
     };
 
@@ -106,15 +186,75 @@ export default function Generate() {
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
+        {/*
         const dropped = Array.from(e.dataTransfer.files);
+        if (dropped.length === 0) return;
         setFiles(prev => [...prev, ...dropped]);
+
+        const newIds = dropped.map(f => `${f.name}-${Date.now()}-${Math.random()}`);
+        setFileIds(prev => [...prev, ...newIds]);
+        */}
+        processFiles(Array.from(e.dataTransfer.files));
+
+        {/*
+        const raw = localStorage.getItem('uploadedFiles');
+        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
+
+        const entry = dropped.map(f => ({
+            id: `${f.name}-${Date.now()}-${Math.random()}`,
+            name: f.name,
+            prompt: 'N/A',
+            date: new Date().toLocaleDateString()
+        }));
+        localStorage.setItem("activeFileId", entry[0].id);
+        setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
+        const merged = [...existing, ...entry];
+        localStorage.setItem('uploadedFiles', JSON.stringify(merged));
+        */}
     };
 
     const removeFile = (index: number) => {
         setFiles(prev => prev.filter((_, i) => i !== index));
     };
 
-    const handleSubmit = () => {
+    const commitFiles = async () => {
+        if (!user) return null;
+        const hasFile = !!(preloaded || files[0]);
+        let newFileId: string | null = null;
+
+        if (hasFile) {
+            if (preloadedId) {
+                await updateDoc(doc(db, 'users', user.uid, 'files', preloadedId), {
+                    prompt: prompt || 'N/A'
+                });
+            }
+            for (let i = 0; i < files.length; i++) {
+                const file = files[i];
+                const docRef = await addDoc(collection(db, 'users', user.uid, 'files'), {
+                    name: file.name,
+                    prompt: prompt || 'N/A',
+                    date: serverTimestamp(),
+                });
+                newFileId = docRef.id;
+                localStorage.setItem('activeFileId', docRef.id);
+                setPreloadedId(docRef.id);
+            }
+        } else {
+            const docRef = await addDoc(collection(db, 'users', user.uid, 'files'), {
+                name: 'N/A',
+                prompt: prompt,
+                date: new Date().toLocaleDateString(),
+            });
+            newFileId = docRef.id;
+            localStorage.setItem('activeFileId', docRef.id);
+            setPreloadedId(docRef.id);
+        }
+        return newFileId;
+    };
+
+    //Old function. Still here for when I want to test something with a document I know I am going to delete and don't want to waste my writes to the db on.
+    {/*
+    \const handleSubmit = () => {
         const raw = localStorage.getItem('uploadedFiles');
         const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
         const hasFile = !!(preloaded || files[0]);
@@ -141,50 +281,73 @@ export default function Generate() {
         }
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
         handleGenerate();
-        //setPrompt('');
-        //setFiles([]);
-        //setPreloaded(null);
-        //localStorage.removeItem('prompt');
     }
+    */}
 
-    /*
-    //In theory will send the document's content along with the document name. I don't want to take up all of the storage yet, so were are going to keep using the other function for now.
+    //handles storing the document contents in firestore while storing everything else locally
     const handleSend = async () => {
+        if (!user) return;
+        {/*
         const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-        const fileContentMap: Record<string, string> = {};
-        await Promise.all(
-            files.map(
-                (file) =>
-                    new Promise<void>((resolve) => {
-                        const reader = new FileReader();
-                        reader.onload = (e) => {
-                            fileContentMap[file.name] = e.target?.result as string;
-                            resolve();
-                        };
-                        reader.readAsDataURL(file);
-                    })
-            )
-        );
-        const updated = existing.map((entry: { id: string; name: string; prompt?: string; content?: string }) => {
-            if (entry.id === preloadedId) {
-                return { ...entry, prompt: prompt || 'N/A' };
-            }
-            if (fileIds.includes(entry.id)) {
-                return { ...entry, prompt: prompt || 'N/A' };
-            }
+        const updated = existing.map((entry: { id: string; name: string; prompt?: string }) => {
+            if (entry.id === preloadedId) return { ...entry, prompt: prompt || 'N/A' };
+            if (fileIds.includes(entry.id)) return { ...entry, prompt: prompt || 'N/A' };
             return entry;
         });
-        localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        */}
+        const newFileId = await commitFiles();
+        const activeId = newFileId || preloadedId;
+
+        let documentContent: string | null = null;
+        if (files.length > 0) {
+            const fileContentMap: Record<string, string> = {};
+            await Promise.all(
+                files.map(
+                    (file) =>
+                        new Promise<void>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                fileContentMap[file.name] = e.target?.result as string;
+                                resolve();
+                            };
+                            reader.onerror = () => reject(reader.error);
+                            reader.readAsDataURL(file);
+                        })
+                )
+            );
+            await Promise.all(
+               files.map((file) => {
+                if(!activeId || !fileContentMap[file.name]) return;
+                return setDoc(doc(db, "documentContents", activeId), {
+                    userId: user.uid,
+                    name: file.name,
+                    content: fileContentMap[file.name],
+                    updatedAt: serverTimestamp(),
+                });
+               })
+            );
+            documentContent = fileContentMap[files[0].name] ?? null;
+        } else if (preloadedId) {
+            try {
+                const snap = await getDoc(doc(db, "documentContents", preloadedId));
+                if (snap.exists()) {
+                    documentContent = snap.data().content;
+                } else {
+                    console.warn('No stored content found for', preloadedId);
+                }
+            } catch (err) {
+                console.error('Failed to fetch existing document contents: ', err);
+            }
+        }
         handleGenerate();
     };
-    */
 
-    const handleSave = () => {
-        const raw = localStorage.getItem('uploadedFiles');
-        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
-        const hasFile = !!(preloaded || files[0]);
-
-        let updated;
+    //handles uploading the document contents to firestore and saving the prompt, document name, etc. It is the same as handleSend, just without the video generation at the end.
+    const handleSave = async () => {
+        if(!user) return;
+        const newFileId = await commitFiles();
+        const activeId = newFileId || preloadedId;
+        {/*
         if (hasFile) {
             updated = existing.map((entry: { id: string; name: string; prompt?: string }) => {
                 if (entry.id === preloadedId) {
@@ -195,6 +358,7 @@ export default function Generate() {
                 }
                 return entry;
             });
+            
         } else {
             const newEntry = {
                 id: `prompt-only-${Date.now()}`,
@@ -202,13 +366,43 @@ export default function Generate() {
                 prompt: prompt,
                 date: new Date().toLocaleDateString(),
             };
-            updated = [...existing, newEntry];
+            //updated = [...existing, newEntry];
+            updated = commitFiles();
         }
         localStorage.setItem('uploadedFiles', JSON.stringify(updated));
-        setPrompt('');
-        setFiles([]);
-        setPreloaded(null);
-        localStorage.removeItem('prompt');
+        */}
+
+        if (files.length > 0) {
+            const fileContentMap: Record<string, string> = {};
+            await Promise.all(
+                files.map(
+                    (file) =>
+                        new Promise<void>((resolve, reject) => {
+                            const reader = new FileReader();
+                            reader.onload = (e) => {
+                                fileContentMap[file.name] = e.target?.result as string;
+                                resolve();
+                            };
+                            reader.onerror = () => reject(reader.error);
+                            reader.readAsDataURL(file);
+                        })
+                )
+            );
+
+            await Promise.all(
+               files.map((file) => {
+                if(!activeId || !fileContentMap[file.name]) return;
+                return setDoc(doc(db, "documentContents", activeId), {
+                    userId: user.uid,
+                    name: file.name,
+                    content: fileContentMap[file.name],
+                    updatedAt: serverTimestamp(),
+                });
+               })
+            );
+        }
+        localStorage.removeItem('activeFileId');
+        localStorage.removeItem('selectedPrompt');
         router.push('/documents');
     }
 
@@ -225,23 +419,27 @@ export default function Generate() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-2 min-h-0">
+                                <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">Use the box below to upload your notes, powerpoints, coding samples, etc. You can drag and drop or use the browse files button. We take docx, md, and pdf files, however, pdfs are preferred.</p>
                                 <div
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
                                     onDrop={handleDrop}
-                                    className="max-w-2xl w-full p-2 rounded-xl shadow-neomorph-raised bg-surface-container-low group cursor-pointer transition-all duration-300 hover:scale-[1.01]">
+                                    className="max-w-3xl w-full p-2 rounded-xl shadow-neomorph-raised bg-surface-container-low group cursor-pointer transition-all duration-300 hover:scale-[1.01]">
                                     <div className="border-2 border-dashed border-outline-variant rounded-lg p-12 shadow-neomorph-sunken flex flex-col items-center justify-center gap-4 bg-surface-bright">
                                         <div className="w-16 h-16 rounded-full bg-primary-container/10 flex items-center justify-center mb-2">
                                             <span className="material-symbols-outlined text-primary text-4xl">cloud_upload</span>
                                         </div>
                                         <h3 className="font-headline text-xl font-bold text-on-surface">Upload your files here</h3>
-                                        <p className="text-on-surface-variant font-body">Support for (needs to be decided)</p>
+                                        <p className="text-on-surface-variant font-body">Support for docx, pdf, and md</p>
                                         <button type="button"
                                             onClick={() => inputRef.current?.click()}
                                             className="mt-4 px-8 py-3 bg-surface border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
                                             Browse Files
                                         </button>
-                                        <input ref={inputRef} type="file" multiple className="hidden" onChange={handleBrowse} />
+                                        <input ref={inputRef} type="file" accept=".pdf,.docx,.md" className="hidden" onChange={handleBrowse} />
+                                        {fileError && (
+                                            <p className="text-sm text-error mt-2">{fileError}</p>
+                                        )}
                                     </div>
                                     {(files.length > 0 || preloaded) && (<div className="mt-4 space-y-2">
                                         {preloaded && (
@@ -259,16 +457,17 @@ export default function Generate() {
                                     </div>)
                                     }
                                 </div>
-                                <div className="max-w-2xl shadow-neomorph-sunken bg-surface-container-low my-8 px-4 py-8 rounded-lg flex items-center gap-2">
+                                <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body leading-relaxed">If you would like to have your video be more specific to a certain concept, consider entering a prompt into the box below. If you are unsure how to word your prompt, ask the chat and it will generate a prompt for you to use.</p>
+                                <div className="max-w-3xl shadow-neomorph-sunken bg-surface-container-low my-8 px-4 py-4 rounded-lg flex items-center gap-2">
                                     <span className="material-symbols-outlined text-outline text-[40px]"></span>
                                     <textarea
                                         value={prompt}
                                         onChange={(e) => setPrompt(e.target.value)}
-                                        className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Input an additional prompt here" rows={3} />
+                                        className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Input an additional prompt here" rows={5} />
                                 </div>
-                                <div className="max-w-2xl flex items-center gap-4 justify-center mt-4">
+                                <div className="max-w-3xl flex items-center gap-4 justify-center mt-4">
                                     <button
-                                        onClick={handleSubmit}
+                                        onClick={handleSend}
                                         className="w-40 px-4 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-surface shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
                                         Generate
                                     </button>
