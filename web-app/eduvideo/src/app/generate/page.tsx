@@ -78,6 +78,7 @@ export default function Generate() {
             prompt: prompt,
             description: 'None',
             length: 'Unknown',
+            url: 'None',
             date: new Date().toISOString(),
             document: preloaded || files[0]?.name || 'N/A',
             tags: [] as string[]

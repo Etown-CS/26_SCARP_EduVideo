@@ -6,6 +6,8 @@ import AgentChat from "@/app/components/agentchat";
 import Loading from "@/app/components/loading";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { db } from "@/app/firebase/config";
+import { serverTimestamp, collection, addDoc} from "firebase/firestore";
 
 export default function Review() {
 
@@ -32,6 +34,30 @@ export default function Review() {
         const url = localStorage.getItem('completedVideoUrl');
         if (url) setVideoUrl(url);
     }, []);
+
+    useEffect(() => {
+        if(!user || !videoUrl) return;
+        if (localStorage.getItem('videoDocId')) return;
+
+        const createDraft = async () => {
+            try{
+                const docRef = await addDoc(collection(db, 'users', user.uid, 'videos'), {
+                    videoUrl,
+                    status: 'draft',
+                    title: '',
+                    topic: '',
+                    description: '',
+                    tags: [],
+                    document: '',
+                    createdAt: serverTimestamp(),
+                });
+                localStorage.setItem('videoDocId', docRef.id);
+            } catch (err) {
+                console.error('Failed to create draft: ', err);
+            }
+        };
+        createDraft();
+    }, [user, videoUrl]);
 
     if (loading) return (
         <Loading />
