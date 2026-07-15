@@ -8,12 +8,11 @@ import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/app/firebase/config";
 import { doc, updateDoc } from "firebase/firestore";
+import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
 
 export default function Edit() {
 
     const [user, loading] = useAuthState(auth);
-    const [newKeyword, setNewKeyword] = useState('');
-    const [keyword, setKeyword] = useState<string[]>([]);
     const [isDragging, setIsDragging] = useState(false);
     const router = useRouter();
     const [prompt, setPrompt] = useState('');
@@ -26,13 +25,6 @@ export default function Edit() {
     const allowedMimeTypes = ['application/pdf', 'text/markdown', 'text/x-markdown', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     const [fileError, setFileError] = useState<string | null>(null);
 
-    //currently not in use. I don't think this feature will end up being implemented but thats ok
-    const handleKeyword = () => {
-        if (!newKeyword.trim()) return;
-        setKeyword(prev => [...prev, newKeyword.trim()]);
-        setNewKeyword('');
-    };
-
     function isAllowed(file: File): boolean {
         const ext = file.name.slice(file.name.lastIndexOf('.')).toLowerCase();
         const extOk = allowedTypes.includes(ext);
@@ -43,13 +35,13 @@ export default function Edit() {
     const processFiles = (incoming: File[]) => {
         if (incoming.length === 0) return;
         const valid = incoming.filter(isAllowed);
-        if(valid.length === 0){
+        if (valid.length === 0) {
             setFileError('Only PDF, DOCX, and MD files can be uploaded at this time. Please try uploading a document in that format');
             return;
         }
-        if(incoming.length > 1){
+        if (incoming.length > 1) {
             setFileError('Only one file can be uploaded at a time. The first valid file will be used');
-        }else{
+        } else {
             setFileError(null);
         }
         const selectedFile = valid[0];
@@ -60,23 +52,6 @@ export default function Edit() {
     const handleBrowse = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             processFiles(Array.from(e.target.files));
-            {/*
-            const selected = Array.from(e.target.files);
-            setFiles(prev => [...prev, ...selected]);
-            const raw = localStorage.getItem('uploadedFiles');
-            const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
-
-            const entry = selected.map(f => ({
-                id: `${f.name}-${Date.now()}-${Math.random()}`,
-                name: f.name,
-                prompt: 'N/A',
-                date: new Date().toLocaleDateString()
-            }));
-            localStorage.setItem('activeFileId', entry[0].id);
-            setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
-            const merged = [...existing, ...entry];
-            localStorage.setItem('uploadedFiles', JSON.stringify(merged));
-            */}
         }
     };
 
@@ -91,23 +66,6 @@ export default function Edit() {
         e.preventDefault();
         setIsDragging(false);
         processFiles(Array.from(e.dataTransfer.files));
-        {/*
-        const dropped = Array.from(e.dataTransfer.files);
-        if(dropped.length === 0) return;
-        setFiles(prev => [...prev, ...dropped]);
-        const raw = localStorage.getItem('uploadedFiles');
-        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
-        const entry = dropped.map(f => ({
-            id: `${f.name}-${Date.now()}-${Math.random()}`,
-            name: f.name,
-            prompt: 'N/A',
-            date: new Date().toLocaleDateString(),
-        }));
-        localStorage.setItem("activeFileId", entry[0].id);
-        setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
-        const merged = [...existing, ...entry];
-        localStorage.setItem('uploadedFiles', JSON.stringify(merged));
-        */}
     };
 
     const removeFile = (index: number) => {
@@ -123,6 +81,17 @@ export default function Edit() {
         localStorage.setItem('currentJobId', jobId);
         router.push('/generate/working');
     }
+
+    const handleAbandon = async () => {
+        const confirmed = window.confirm(
+            "Starting over will erase your video's current progress. Do you want to continue?"
+        );
+        if (confirmed) {
+            await cleanupAbandoned(user);
+            clearPipelineState();
+            router.push("/generate");
+        }
+    };
 
     useEffect(() => {
         const saved = localStorage.getItem('selectedDocument');
@@ -152,7 +121,7 @@ export default function Edit() {
         }
     }, [prompt]);
 
-    
+
     useEffect(() => {
         const handleStorageChange = () => {
             const updated = localStorage.getItem('selectedPrompt');
@@ -164,7 +133,7 @@ export default function Edit() {
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
-    
+
 
     if (loading) return (
         <Loading />
@@ -177,6 +146,10 @@ export default function Edit() {
                     <div className="flex-1 flex flex-col p-6 gap-6 overflow-hidden bg-surface rounded-2xl">
                         <div className="flex justify-between items-end">
                             <h1 className="font-headline text-3xl font-bold text-on-background self-start">Edit</h1>
+                            <button onClick={handleAbandon} className="shadow-neomorph-raised bg-surface-container-low px-4 py-2 rounded-lg flex items-center gap-2 text-on-surface-variant font-md hover:translate-y-[-1px] transition-all cursor-pointer">
+                                <span className="material-symbols-outlined">delete_forever</span>
+                                Start Over
+                            </button>
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-2 min-h-0">
                             <div className="col-span-8 flex flex-col gap-4 min-h-0">
@@ -218,46 +191,6 @@ export default function Edit() {
                                     ))}
                                 </div>)
                                 }
-                                {/*
-                                <h1 className="font-headline font-bold text-xl text-on-surface mb-2">Keywords</h1>
-                                <p className="text-on-surface-variant font-body">Here is where the extracted keywords will go if we want to use that feature.</p>
-                                <div className="flex gap-4">
-                                    <div className="shadow-neomorph-sunken bg-surface-container px-4 py-2 rounded-xl flex items-center gap-3 w-72">
-                                        <input className="bg-transparent border-non focus:ring-0 text-sm font-body w-full" placeholder="Add custom keyword..." type="text" value={newKeyword} onChange={(e) => setNewKeyword(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleKeyword()}></input>
-                                        <button onClick={handleKeyword}>
-                                            <span className="material-symbols-outlined text-primary">add</span>
-                                        </button>
-                                    </div>
-                                </div>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                                    <div className="shadow-neomorph-raised bg-surface rounded-2xl p-5 border border-outline-variant transition-all hover:scale-[1.02] cursor-pointer group">
-                                        <div className="flex justify-between items-start mb-4">
-                                            <input className="w-5 h-5 rounded text-primary border-outline-variant focus:ring-primary" type="checkbox"></input>
-                                            <button className="text-on-surface-variant hover:text-error transition-colors">
-                                                <span className="material-symbols-outlined text-sm">close</span>
-                                            </button>
-                                        </div>
-                                        <h3 className="font-headline text-xl font-bold text-on-surface mb-1">Keyword 1</h3>
-                                        <div className="flex items-center gap-2 mb-4">
-                                        </div>
-                                    </div>
-                                    {keyword.map((key, index) => (
-                                        <div key={index} className="shadow-neomorph-raised bg-surface rounded-2xl p-5 border border-outline-variant transition-all hover:scale-[1.02] cursor-pointer group">
-                                            <div className="flex justify-between items-start mb-4">
-                                                <input className="w-5 h-5 rounded text-primary border-outline-variant focus:ring-primary" type="checkbox" checked></input>
-                                                <button
-                                                    onClick={() => setKeyword(prev => prev.filter((_, i) => i !== index))}
-                                                    className="text-on-surface-variant hover:text-error transition-colors">
-                                                    <span className="material-symbols-outlined text-sm">close</span>
-                                                </button>
-                                            </div>
-                                            <h3 className="font-headline text-xl font-bold text-on-surface mb-1">{key}</h3>
-                                            <div className="flex items-center gap-2 mb-4">
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                                */}
                                 <button onClick={handleSubmit} className="w-44 shadow-neomorph-raised bg-primary text-on-primary px-6 py-2 rounded-lg items-center gap-2 font-semibold hover:brightness-110 transition-all cursor-pointer">Submit</button>
                             </div>
                             <div className="col-span-4 flex flex-col gap-4 min-h-0">

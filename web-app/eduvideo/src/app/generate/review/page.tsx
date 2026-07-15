@@ -7,7 +7,26 @@ import Loading from "@/app/components/loading";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { db } from "@/app/firebase/config";
-import { serverTimestamp, collection, addDoc} from "firebase/firestore";
+import { serverTimestamp, collection, addDoc, getDoc, doc} from "firebase/firestore";
+import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
+
+{/*
+function getVideoDuration(url: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => resolve(video.duration);
+        video.onerror = () => reject(new Error('Failed to load video metadata'));
+        video.src = url;
+    });
+}
+
+function formatDuration(seconds: number): string {
+    const mins = Math.floor(seconds/60);
+    const secs = Math.round(seconds%60);
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+*/}
 
 export default function Review() {
 
@@ -37,10 +56,30 @@ export default function Review() {
 
     useEffect(() => {
         if(!user || !videoUrl) return;
-        if (localStorage.getItem('videoDocId')) return;
-
+        
         const createDraft = async () => {
             try{
+                const existingId = localStorage.getItem('videoDocId');
+
+                if(existingId){
+                    const existingSnap = await getDoc(doc(db, 'users', user.uid, 'videos', existingId));
+                    if(existingSnap.exists()) return;
+                    localStorage.removeItem('videoDocId');
+                }
+
+                const fileId = localStorage.getItem('activeFileId');
+                const fileName = localStorage.getItem('selectedDocument');
+                
+                {/*
+                let length = 'Unknown';
+                try{
+                    const seconds = await getVideoDuration(videoUrl);
+                    length = formatDuration(seconds);
+                }catch(err){
+                    console.error('Failed to get video duration: ', err);
+                }
+                */}
+                
                 const docRef = await addDoc(collection(db, 'users', user.uid, 'videos'), {
                     videoUrl,
                     status: 'draft',
@@ -48,7 +87,9 @@ export default function Review() {
                     topic: '',
                     description: '',
                     tags: [],
-                    document: '',
+                    document: fileName || '',
+                    documentId: fileId || null,
+                    length: 'Unknown',
                     createdAt: serverTimestamp(),
                 });
                 localStorage.setItem('videoDocId', docRef.id);
@@ -58,6 +99,17 @@ export default function Review() {
         };
         createDraft();
     }, [user, videoUrl]);
+
+    const handleAbandon = async () => {
+        const confirmed = window.confirm(
+            "Starting over will erase your video's current progress. Do you want to continue?"
+        );
+        if(confirmed){
+            await cleanupAbandoned(user);
+            clearPipelineState();
+            router.push("/generate");
+        }
+    };
 
     if (loading) return (
         <Loading />
@@ -74,6 +126,11 @@ export default function Review() {
                                 <p className="max-w-2xl mt-4">Watch your video here. If you are unhappy with the results, you can go back and edit your prompt. If you like what you see, approve your video for exporting.</p>
                             </div>
                             <div className="flex gap-3">
+                                <button onClick={handleAbandon}
+                                    className="shadow-neomorph-raised bg-surface-container-low px-4 py-2 rounded-lg flex items-center gap-2 text-on-surface-variant font-md hover:translate-y-[-1px] transition-all cursor-pointer">
+                                    <span className="material-symbols-outlined">delete_forever</span>
+                                    Start Over
+                                </button>
                                 <button
                                     onClick={() => router.push("/generate/edit")}
                                     className="shadow-neomorph-raised bg-surface-container-low px-4 py-2 rounded-lg flex items-center gap-2 text-on-surface-variant font-medium hover:translate-y-[-1px] transition-all cursor-pointer">

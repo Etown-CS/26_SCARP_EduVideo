@@ -8,6 +8,7 @@ import AgentChat from "@/app/components/agentchat";
 import { useRouter } from "next/navigation";
 import { db } from "@/app/firebase/config";
 import { doc, serverTimestamp, updateDoc} from "firebase/firestore";
+import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
 
 export default function FinalVideo() {
 
@@ -99,22 +100,20 @@ export default function FinalVideo() {
         }
         localStorage.setItem('videoMetadata', JSON.stringify(metadata));
         setVideoMetadata(metadata);
+        clearPipelineState();
+        router.push('/documents');
     };
 
-    const handleReset = () => {
-        localStorage.removeItem('videoMetadata');
-        localStorage.removeItem('completedVideoUrl');
-        localStorage.removeItem('prompt');
-        localStorage.removeItem('selectedPrompt');
-        localStorage.removeItem('activeFileId');
-        localStorage.removeItem('selectedDocument');
-        localStorage.removeItem('title');
-        localStorage.removeItem('desc');
-        localStorage.removeItem('url');
-        localStorage.removeItem('topic');
-        localStorage.removeItem('videoDocId');
-        router.push('/documents');
-    }
+    const handleAbandon = async () => {
+        const confirmed = window.confirm(
+            "Starting over will erase your video's current progress. Do you want to continue?"
+        );
+        if(confirmed){
+            await cleanupAbandoned(user);
+            clearPipelineState();
+            router.push('/documents');
+        }
+    };
 
     useEffect(() => {
         const saved = localStorage.getItem('videoMetadata');
@@ -244,7 +243,6 @@ export default function FinalVideo() {
                                             </div>
                                         </div>
                                         <div className="pt-6 border-t border-outline-variant/30 max-w-2xl flex items-center gap-40 justify-center">
-                                            <button onClick={handleReset} className="bg-secondary text-on-primary px-5 py-1 rounded-full text-md shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">Reset</button>
                                             <button onClick={handleSave} className="bg-primary text-on-primary px-5 py-1 rounded-full text-md shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">Save</button>
                                         </div>
                                     </div>

@@ -1,8 +1,8 @@
 "use client"
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth, db } from "@/app/firebase/config";
-import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState, Suspense } from "react";
 import Loading from "@/app/components/loading";
 import AgentChat from "../components/agentchat";
 import { doc, deleteDoc, getDoc, getDocs, collection, Timestamp } from "firebase/firestore";
@@ -13,7 +13,7 @@ import remarkGfm from "remark-gfm";
 const Document = dynamic(() => import('react-pdf').then(mod => mod.Document), { ssr: false });
 const Page = dynamic(() => import('react-pdf').then(mod => mod.Page), { ssr: false });
 
-export default function Docs() {
+function Docs() {
 
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
@@ -25,6 +25,7 @@ export default function Docs() {
     const [docxHtml, setDocxHtml] = useState<string | null>(null);
     const [mdText, setMdText] = useState<string | null>(null);
     const [filesLoading, setFilesLoading] = useState(true);
+    const searchParams = useSearchParams();
 
     function urlToArray(dataUrl: string): ArrayBuffer {
         const base64 = dataUrl.split(',')[1];
@@ -47,17 +48,6 @@ export default function Docs() {
         }
     }, [user, router, loading]);
 
-    {/*
-    useEffect(() => {
-        const raw = localStorage.getItem('uploadedFiles');
-        const stored = JSON.parse(raw || '[]');
-        const normalized = stored.map((entry: any) =>
-            typeof entry === 'string'
-                ? { id: `${entry}-${Date.now()}`, name: entry, prompt: 'N/A', date: 'Unknown' }
-                : entry);
-        setFileNames(normalized);
-    }, [pathname]);
-    */}
     useEffect(() => {
         if (!user) return;
         const load = async () => {
@@ -132,6 +122,18 @@ export default function Docs() {
         };
         loadView();
     }, [viewing]);
+
+    useEffect(() => {
+        if(filesLoading || fileNames.length === 0) return;
+        const target = searchParams.get('docId');
+        if(!target) return;
+
+        const match = fileNames.find(f => f.id === target);
+        if(match){
+            setviewing(match);
+            router.replace('/documents');
+        }
+    }, [filesLoading, fileNames, searchParams]);
 
     {/*
     useEffect(() => {
@@ -342,5 +344,13 @@ export default function Docs() {
                 </div>
             )}
         </main>
+    )
+}
+
+export default function DocPage() {
+    return (
+        <Suspense fallback={<Loading />}>
+            <Docs/>
+        </Suspense>
     )
 }

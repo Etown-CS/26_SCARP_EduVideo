@@ -47,19 +47,6 @@ export default function Generate() {
         }
         const selectedFile = valid[0];
         setFiles([selectedFile]);
-        {/*
-        const raw = localStorage.getItem('uploadedFiles');
-        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
-        const entry = {
-            id: `${selectedFile.name}-${Date.now()}-${Math.random()}`,
-            name: selectedFile.name,
-            prompt: 'N/A',
-            date: new Date().toLocaleDateString(),
-        };
-        localStorage.setItem('activeFileId', entry.id);
-        setFileIds([entry.id]);
-        localStorage.setItem('uploadedFiles', JSON.stringify([...existing, entry]));
-        */}
     };
 
     //This function calls the generate video API as well as establishing the metadata scheme for the generate video.
@@ -81,6 +68,7 @@ export default function Generate() {
             url: 'None',
             date: new Date().toISOString(),
             document: preloaded || files[0]?.name || 'N/A',
+            documentId: 'None',
             tags: [] as string[]
         };
 
@@ -151,29 +139,7 @@ export default function Generate() {
     const handleBrowse = (e: React.ChangeEvent<HTMLInputElement>) => {
 
         if (e.target.files) {
-            {/*
-            const selected = Array.from(e.target.files);
-            setFiles(prev => [...prev, ...selected]);
-
-            const newIds = selected.map(f => `${f.name}-${Date.now}-${Math.random()}`);
-            setFileIds(prev => [...prev, ...newIds]);
-            */}
             processFiles(Array.from(e.target.files));
-            {/*
-            const raw = localStorage.getItem('uploadedFiles');
-            const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
-
-            const entry = selected.map(f => ({
-                id: `${f.name}-${Date.now()}-${Math.random()}`,
-                name: f.name,
-                prompt: 'N/A',
-                date: new Date().toLocaleDateString()
-            }));
-            localStorage.setItem("activeFileId", entry[0].id);
-            setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
-            const merged = [...existing, ...entry];
-            localStorage.setItem('uploadedFiles', JSON.stringify(merged));
-            */}
         }
     };
 
@@ -187,31 +153,7 @@ export default function Generate() {
     const handleDrop = (e: React.DragEvent) => {
         e.preventDefault();
         setIsDragging(false);
-        {/*
-        const dropped = Array.from(e.dataTransfer.files);
-        if (dropped.length === 0) return;
-        setFiles(prev => [...prev, ...dropped]);
-
-        const newIds = dropped.map(f => `${f.name}-${Date.now()}-${Math.random()}`);
-        setFileIds(prev => [...prev, ...newIds]);
-        */}
         processFiles(Array.from(e.dataTransfer.files));
-
-        {/*
-        const raw = localStorage.getItem('uploadedFiles');
-        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
-
-        const entry = dropped.map(f => ({
-            id: `${f.name}-${Date.now()}-${Math.random()}`,
-            name: f.name,
-            prompt: 'N/A',
-            date: new Date().toLocaleDateString()
-        }));
-        localStorage.setItem("activeFileId", entry[0].id);
-        setFileIds(prev => [...prev, ...entry.map(e => e.id)]);
-        const merged = [...existing, ...entry];
-        localStorage.setItem('uploadedFiles', JSON.stringify(merged));
-        */}
     };
 
     const removeFile = (index: number) => {
@@ -228,6 +170,8 @@ export default function Generate() {
                 await updateDoc(doc(db, 'users', user.uid, 'files', preloadedId), {
                     prompt: prompt || 'N/A'
                 });
+                newFileId = preloadedId;
+                localStorage.setItem('fileCreated', 'false');
             }
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
@@ -238,6 +182,7 @@ export default function Generate() {
                 });
                 newFileId = docRef.id;
                 localStorage.setItem('activeFileId', docRef.id);
+                localStorage.setItem('fileCreated', 'true');
                 setPreloadedId(docRef.id);
             }
         } else {
@@ -248,54 +193,15 @@ export default function Generate() {
             });
             newFileId = docRef.id;
             localStorage.setItem('activeFileId', docRef.id);
+            localStorage.setItem('fileCreated', 'true');
             setPreloadedId(docRef.id);
         }
         return newFileId;
     };
 
-    //Old function. Still here for when I want to test something with a document I know I am going to delete and don't want to waste my writes to the db on.
-    {/*
-    \const handleSubmit = () => {
-        const raw = localStorage.getItem('uploadedFiles');
-        const existing = raw && raw !== 'undefined' ? JSON.parse(raw) : [];
-        const hasFile = !!(preloaded || files[0]);
-
-        let updated;
-        if (hasFile) {
-            updated = existing.map((entry: { id: string; name: string; prompt?: string }) => {
-                if (entry.id === preloadedId) {
-                    return { ...entry, prompt: prompt || 'N/A' };
-                }
-                if (fileIds.includes(entry.id)) {
-                    return { ...entry, prompt: prompt || 'N/A' };
-                }
-                return entry;
-            });
-        } else {
-            const newEntry = {
-                id: `prompt-only-${Date.now()}`,
-                name: 'N/A',
-                prompt: prompt,
-                date: new Date().toLocaleDateString(),
-            };
-            updated = [...existing, newEntry];
-        }
-        localStorage.setItem('uploadedFiles', JSON.stringify(updated));
-        handleGenerate();
-    }
-    */}
-
     //handles storing the document contents in firestore while storing everything else locally
     const handleSend = async () => {
         if (!user) return;
-        {/*
-        const existing = JSON.parse(localStorage.getItem('uploadedFiles') || '[]');
-        const updated = existing.map((entry: { id: string; name: string; prompt?: string }) => {
-            if (entry.id === preloadedId) return { ...entry, prompt: prompt || 'N/A' };
-            if (fileIds.includes(entry.id)) return { ...entry, prompt: prompt || 'N/A' };
-            return entry;
-        });
-        */}
         const newFileId = await commitFiles();
         const activeId = newFileId || preloadedId;
 
@@ -348,31 +254,6 @@ export default function Generate() {
         if(!user) return;
         const newFileId = await commitFiles();
         const activeId = newFileId || preloadedId;
-        {/*
-        if (hasFile) {
-            updated = existing.map((entry: { id: string; name: string; prompt?: string }) => {
-                if (entry.id === preloadedId) {
-                    return { ...entry, prompt: prompt || 'N/A' };
-                }
-                if (fileIds.includes(entry.id)) {
-                    return { ...entry, prompt: prompt || 'N/A' };
-                }
-                return entry;
-            });
-            
-        } else {
-            const newEntry = {
-                id: `prompt-only-${Date.now()}`,
-                name: 'N/A',
-                prompt: prompt,
-                date: new Date().toLocaleDateString(),
-            };
-            //updated = [...existing, newEntry];
-            updated = commitFiles();
-        }
-        localStorage.setItem('uploadedFiles', JSON.stringify(updated));
-        */}
-
         if (files.length > 0) {
             const fileContentMap: Record<string, string> = {};
             await Promise.all(

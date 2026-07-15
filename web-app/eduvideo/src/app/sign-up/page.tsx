@@ -64,7 +64,7 @@ export default function SignUp() {
                 <div className="bg-surface-container-lowest border border-outline-variant rounded-xl p-8 md:p-10 shadow-xl">
                     <div className="mb-8">
                         <h2 className="font-display text-2xl font-bold text-on-surface mb-2">Welcome!</h2>
-                        <p className="text-sm text-on-surface-variant">Please enter an email and password to sign up for BluEdu. Your password must be at least 6 digits or else your account will not be created.</p>
+                        <p className="text-sm text-on-surface-variant">Please enter an email and password to sign up for BluEdu. Your password must be at least 6 characters long to be valid.</p>
                     </div>
                     <form className="space-y-6" onSubmit={handleSignUp}>
                         <div>

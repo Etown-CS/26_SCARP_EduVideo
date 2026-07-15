@@ -2,21 +2,26 @@
 import { useRouter } from "next/navigation";
 
 export default function Home() {
-  
+
   const router = useRouter();
 
   return (
     <section className="relative pt-20 pb-20 px-6 overflow-hidden">
       <div className="max-w-4xl mx-auto text-center relative z-10">
-        <h1 className="font-display text-5xl md:text-7xl font-extrabold text-on-surface leading-tight tracking-tight mb-8">
+        <h1 className="font-display text-5xl md:text-7xl font-extrabold text-on-surface leading-tight tracking-tight mb-8 text-primary">
           Welcome to <br />
           <span className="text-primary">BluEdu</span>
         </h1>
         <p className="text-lg md:text-xl text-on-surface-variant max-w-2xl mx-auto mb-16 leading-relaxed">
-          BluEdu turns your Computer Science materials into informational videos. <a className="text-primary" href="/sign-in">Sign in</a> or <a className="text-primary" href="/sign-up">create an account</a> to get started.
+          Turn your Computer Science materials into short informational videos. {/* <a className="text-primary" href="/sign-in">Sign in</a> or <a className="text-primary" href="/sign-up">create an account</a> to get started. */}
         </p>
+        <div className="flex flex-wrap justify-center gap-8">
+          <button onClick={() => router.push('/sign-up')} className="bg-primary text-on-primary px-10 py-5 rounded-xl font-bold shadow-lg hover:scale-[1.05] active:scale-95 transition-all">
+            Get Started
+          </button>
+        </div>
       </div>
-      <section className="py-24 px-6 bg-surface-container-low rounded-xl">
+      <section className="py-24 px-6 bg-surface-container-low rounded-xl mt-12">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="font-display text-4xl md:text-5xl font-extrabold text-on-surface mb-4">How it Works</h2>
@@ -27,14 +32,14 @@ export default function Home() {
                 <span className="material-symbols-outlined text-3xl text-primary">upload_file</span>
               </div>
               <h3 className="font-display text-xl font-bold text-on-surface mb-3">Upload Your Documents</h3>
-              <p className="text-on-surface-variant text-sm leading-relaxed">Upload PDFs, Documents, or Markdown file computer science notes. Select keywords and add prompts to help generate your video.</p>
+              <p className="text-on-surface-variant text-sm leading-relaxed">Upload PDFs, Documents, or Markdown file computer science notes. Add prompts to help generate your video.</p>
             </div>
             <div className="p-8 rounded-3xl bg-surface-container-high shadow-neomorph-raised flex flex-col items-center text-center group hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl bg-primary-container/20 flex items-center justify-center mb-6">
                 <span className="material-symbols-outlined text-sm text-primary">psychology</span>
               </div>
               <h3 className="font-display text-xl font-bold text-on-surface mb-3">AI Video Generation</h3>
-              <p className="text-on-surface-variant text-sm leading-relaxed">Our system will read through your document, prompts, and keywords to generate a short educational video tailored to your needs.</p>
+              <p className="text-on-surface-variant text-sm leading-relaxed">Our system will read through your document and prompt to generate a short educational video tailored to your needs.</p>
             </div>
             <div className="p-8 rounded-3xl bg-surface-container-high shadow-neomorph-raised flex flex-col items-center text-center group hover:scale-105 transition-transform duration-300">
               <div className="w-16 h-16 rounded-2xl bg-primary-container/20 flex items-center justify-center mb-6">
@@ -72,7 +77,7 @@ export default function Home() {
             <h2 className="font-display text-4xl md:text-3xl font-extrabold text-on-surface mb-8">
               Ready to get started?
             </h2>
-            <button 
+            <button
               onClick={() => router.push("/generate")}
               className="inline-flex items-center gap-3 px-8 py-3 bg-primary text-on-primary rounded-xl font-bold text-lg shadow-xl hover:scale-105 transition-all duration-300 active:scale-95">
               Start Generating
