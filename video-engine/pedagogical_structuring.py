@@ -144,12 +144,12 @@ def build_output(data, results, outline):
 
 
 ############### Main ###############
-# Open AI 
+# Open AI
 load_dotenv()
 client = OpenAI()
 
 ### Get a file name for future use
-file = "output_sample/cs350_llm/4-filtered-segmented.json"
+file = "output_sample/cs350_llm/doc_analysis_output.json"
 output_dir = os.path.dirname(file)
 
 with open(file, "r") as f:

@@ -20,27 +20,22 @@ def filter_subsegments(segment):
         filtered.append(sub)
     return filtered
 
-############### Transcript Generation ###############
+############### Transcript Generation + Key point extraction###############
 # based on summaries
 def generate_transcript(section, subseg_lookup):
-    # Get the subsegments for this section using the lookup
     subsegs = []
     for sid in section["subsegment_ids"]:
         if sid in subseg_lookup:
             sub = subseg_lookup[sid]
-
-            # Skip images, optional, and advanced
             if sub['content'].startswith("![]"):
                 continue
             if sub["importance"] not in ["essential", "supplementary"]:
                 continue
-
             subsegs.append(sub)
 
-    # if no valid subsegments, skip this section
     if not subsegs:
         return None
-    
+
     summaries = "\n".join([f"- {sub['summary']}" for sub in subsegs])
 
     prompt = DIFFICULTY_RUBRIC + f"""
@@ -53,18 +48,48 @@ Key points to cover in this section:
 {summaries}
 
 Write a short, clear transcript paragraph for this section that:
-- Fits naturally as part if a larger video (not a standalone lesson)
+- Fits naturally as part of a larger video (not a standalone lesson)
 - Flows naturally as spoken educational content
 - Matches the section's role ({section['role']})
 
-Return only the transcript text, no labels or explanation."""
+Also identify up to 3 key terms or the specific angle/question the transcript addresses about it 
+(e.g. "Why it matters", "What makes it powerful", "How it works"). Each term MUST appear
+verbatim (word-for-word) in the transcript text you write. Order them by the
+order they first appear.
+
+Return ONLY a valid JSON object, no explanation, no markdown formatting:
+{{
+    "transcript": "the transcript text here",
+    "key_points": [
+        "Term One", "Why it matters", "How it works"
+    ]
+}}"""
 
     response = client.chat.completions.create(
         model="gpt-4o",
         messages=[{"role": "user", "content": prompt}]
     )
 
-    return response.choices[0].message.content.strip()
+    raw = response.choices[0].message.content.strip()
+    clean = raw.removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+
+    try:
+        result = json.loads(clean)
+    except json.JSONDecodeError:
+        print(f"Warning: could not parse transcript+key_points JSON for section {section['section']}")
+        return None
+
+    transcript = result.get("transcript", "").strip()
+    key_points = result.get("key_points", [])
+
+    # Safety check: verify each term actually appears verbatim.
+    transcript_lower = transcript.lower()
+    verified_key_points = [
+        kp for kp in key_points
+        if kp.lower() in transcript_lower
+    ]
+
+    return {"transcript": transcript, "key_points": verified_key_points}
 
 
 ############### Main ###############
@@ -98,16 +123,20 @@ for section in data["video outline"]["sections"]:
 ### Build output
 sections_output = []
 for section in data["video outline"]["sections"]:
-    transcript = generate_transcript(section, subseg_lookup)
-    if transcript:
+    result = generate_transcript(section, subseg_lookup)
+    if result:
+        print(f"\n--- Section {section['section']}: {section['title']} [{section['role']}] ---")
+        print(result["transcript"])
+        print(f"Key points: {result['key_points']}")
+
         sections_output.append({
             "section": section["section"],
             "title": section["title"],
             "role": section["role"],
             "subsegment_ids": section["subsegment_ids"],
-            "transcript": transcript
+            "transcript": result["transcript"],
+            "key_points": result["key_points"],
         })
-
 ### Save
 output = {
     "topic": data["topic"],
