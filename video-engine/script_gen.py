@@ -113,12 +113,12 @@ print(f"Total subsegments in lookup: {len(subseg_lookup)}")
 print(f"Video title: {data['video outline']['title']}")
 print(f"Number of sections: {len(data['video outline']['sections'])}")
 
-# ### Generate transcript for all sections
-# for section in data["video outline"]["sections"]:
-#     transcript = generate_transcript(section, subseg_lookup)
-#     if transcript:
-#         print(f"\n--- Section {section['section']}: {section['title']} [{section['role']}] ---")
-#         print(transcript)
+### Generate transcript for all sections
+for section in data["video outline"]["sections"]:
+    transcript = generate_transcript(section, subseg_lookup)
+    if transcript:
+        print(f"\n--- Section {section['section']}: {section['title']} [{section['role']}] ---")
+        print(transcript)
 
 ### Build output
 sections_output = []

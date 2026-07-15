@@ -5,8 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import Loading from "@/app/components/loading";
 import AgentChat from "../components/agentchat";
-import { usePathname } from "next/navigation";
-import { doc, deleteDoc, getDoc, getDocs, collection, setDoc, orderBy, query } from "firebase/firestore";
+import { doc, deleteDoc, getDoc, getDocs, collection, Timestamp } from "firebase/firestore";
 import dynamic from 'next/dynamic';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from "remark-gfm";
@@ -18,7 +17,7 @@ export default function Docs() {
 
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
-    const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string }[]>([]);
+    const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string | Timestamp }[]>([]);
     const [viewing, setviewing] = useState<typeof fileNames[0] | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [previewLoad, setPreviewLoad] = useState(false);
@@ -75,8 +74,8 @@ export default function Docs() {
             const snapshot = await getDocs(collection(db, 'users', user.uid, 'files'));
             const files = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as typeof fileNames;
             const sorted = files.sort((a, b) => {
-                const dateA = new Date(a.date || 0).getTime();
-                const dateB = new Date(b.date || 0).getTime();
+                const dateA = a.date instanceof Timestamp ? a.date.toMillis() : new Date(a.date || 0).getTime();
+                const dateB = b.date instanceof Timestamp ? b.date.toMillis() : new Date(b.date || 0).getTime();
                 return dateA - dateB;
             });
             setFileNames(sorted);
@@ -168,6 +167,19 @@ export default function Docs() {
         }
     }
 
+    const formatDate = (date: unknown): string => {
+        if (!date) return 'Unknown';
+        if (date instanceof Timestamp) {
+            return date.toDate().toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+            });
+        }
+        if(typeof date === 'string') return date;
+        return 'Unknown';
+    };
+
     const getIcon = (filename: string) => {
         const ex = filename?.split('.').pop()?.toLowerCase();
 
@@ -228,7 +240,7 @@ export default function Docs() {
 
                                         <p className="text-on-surface-variant text-sm mt-6 mb-6 flex items-center gap-2">
                                             <span className="material-symbols-outlined text-[16px]">calendar_today</span>
-                                            Uploaded: {file.date || 'Unknown'}
+                                            Uploaded: {formatDate(file.date)}
                                         </p>
                                         <button onClick={() => setviewing(file)}
                                             className="bg-secondary-container text-on-secondary-container py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer mb-4">

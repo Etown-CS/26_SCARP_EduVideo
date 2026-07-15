@@ -6,6 +6,8 @@ import AgentChat from "@/app/components/agentchat";
 import Loading from "@/app/components/loading";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { db } from "@/app/firebase/config";
+import { doc, updateDoc } from "firebase/firestore";
 
 export default function Edit() {
 
@@ -143,11 +145,10 @@ export default function Edit() {
         if (!prompt) return;
         const activeFileId = localStorage.getItem('activeFileId');
         localStorage.setItem('selectedPrompt', prompt);
-        if (activeFileId) {
-            const raw = localStorage.getItem('uploadedFiles');
-            const existing = raw ? JSON.parse(raw) : [];
-            const updated = existing.map((f: any) => f.id === activeFileId ? { ...f, prompt } : f);
-            localStorage.setItem('uploadedFiles', JSON.stringify(updated));
+        if (activeFileId && user) {
+            updateDoc(doc(db, 'users', user.uid, 'files', activeFileId), {
+                prompt: prompt || 'N/A'
+            }).catch(console.error);
         }
     }, [prompt]);
 

@@ -6,6 +6,8 @@ import { useEffect, useState } from "react";
 import Loading from "@/app/components/loading";
 import AgentChat from "@/app/components/agentchat";
 import { useRouter } from "next/navigation";
+import { db } from "@/app/firebase/config";
+import { doc, serverTimestamp, updateDoc} from "firebase/firestore";
 
 export default function FinalVideo() {
 
@@ -34,19 +36,27 @@ export default function FinalVideo() {
         }
         return '';
     });
+    const [documentName, setDocName] = useState(() => {
+        if(typeof window !== 'undefined'){
+            return localStorage.getItem('selectedDocument') || 'N/A';
+        }
+        return 'N/A';
+    });
 
     const router = useRouter();
     const [newTag, setNewTag] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [videoMetadata, setVideoMetadata] = useState<{
-        title: '',
-        topic: '',
-        prompt: string,
-        description: '',
-        length: string,
-        date: string,
-        document: string
+        title: string;
+        topic: string;
+        prompt: string;
+        description: string;
+        length: string;
+        url: string;
+        date: string;
+        document: string;
+        tags: string[];
     } | null>(null);
 
     useEffect(() => {
@@ -60,18 +70,35 @@ export default function FinalVideo() {
         setNewTag('');
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        if(!videoUrl) return;
+        if(!user) return;
+        const docId = localStorage.getItem('videoDocId');
+        if(!docId){
+            console.error('No video id found. No metadata saved to database.');
+            return;
+        }
         const metadata = {
             title,
-            topic: 'N/A',
-            prompt: localStorage.getItem('prompt') || 'N/A',
+            topic: topic || 'N/A',
+            prompt: prompt || 'N/A',
             description: desc,
             length: 'Unknown',
+            url: videoUrl || '',
             date: new Date().toISOString(),
-            document: localStorage.getItem('selectedDocument') || 'N/A',
-            tags
+            document: documentName || 'N/A',
+            tags,
+            status: 'complete',
+            updatedAt: serverTimestamp(),
         };
+        try{
+            await updateDoc(doc(db, 'users', user.uid, 'videos', docId), metadata);
+        }catch (err){
+            console.error('Failed to updated video metadata: ', err);
+            return;
+        }
         localStorage.setItem('videoMetadata', JSON.stringify(metadata));
+        setVideoMetadata(metadata);
     };
 
     const handleReset = () => {
@@ -83,6 +110,9 @@ export default function FinalVideo() {
         localStorage.removeItem('selectedDocument');
         localStorage.removeItem('title');
         localStorage.removeItem('desc');
+        localStorage.removeItem('url');
+        localStorage.removeItem('topic');
+        localStorage.removeItem('videoDocId');
         router.push('/documents');
     }
 
@@ -91,7 +121,10 @@ export default function FinalVideo() {
         if (saved) {
             const meta = JSON.parse(saved);
             if (meta.title) setTitle(meta.title?.split('.')[0]);
+            if (meta.topic) setTopic(meta.topic);
             if (meta.description) setDesc(meta.description);
+            if (meta.document) setDocName(meta.document);
+            if (meta.url) setVideoUrl(meta.url);
             if (meta.tags) setTags(meta.tags);
         }
     }, []);
@@ -170,7 +203,7 @@ export default function FinalVideo() {
                                                 <label>
                                                     <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Document</label>
                                                     <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
-                                                        <p className="w-full p-3 text-sm text-on-surface-variant whitespace-pre-wrap">Document name will go here.</p>
+                                                        <p className="w-full p-3 text-sm text-on-surface-variant whitespace-pre-wrap">{documentName || 'No document selected'}</p>
                                                     </div>
                                                 </label>
                                             </div>
