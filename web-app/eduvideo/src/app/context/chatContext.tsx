@@ -1,6 +1,8 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "@/app/firebase/config";
 
 type Message = {
     sender: string;
@@ -17,14 +19,28 @@ const chatContext = createContext<ChatContextType | null>(null);
 export function ChatProvider({ children }: { children: React.ReactNode }){
     const [messages, setMessages] = useState<Message[]>(() => {
         if(typeof window === 'undefined') return [{sender: 'agent', text: 'How can I help you?'}];
-        const saved = localStorage.getItem('chatMessages');
+        const saved = sessionStorage.getItem('chatMessages');
         return saved ? JSON.parse(saved) : [{sender: 'agent', text: 'How can I help you?'}];
-    })
+    });
+
+    const previousUser = useRef<string | null | undefined>(undefined);
 
     useEffect(() => {
-        localStorage.setItem('chatMessages', JSON.stringify(messages));
+        sessionStorage.setItem('chatMessages', JSON.stringify(messages));
     }, [messages]);
 
+    useEffect(() => {
+        const signOutUser = onAuthStateChanged(auth, (user) => {
+            const wasSignedIn = previousUser.current;
+            const uid = user?.uid ?? null;
+            if(wasSignedIn && !uid){
+                setMessages([{sender: 'agent', text: 'How can I help you?'}]);
+                sessionStorage.removeItem('chatMessages');
+            }
+            previousUser.current = uid;
+        });
+        return () => signOutUser();
+    }, []);
     
     return(
         <chatContext.Provider value={{ messages, setMessages}}>

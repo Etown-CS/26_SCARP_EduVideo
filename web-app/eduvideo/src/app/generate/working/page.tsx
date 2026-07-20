@@ -8,6 +8,7 @@ import Loading from "@/app/components/loading";
 import Aside from "@/app/components/aside";
 import AgentChat from "@/app/components/agentchat";
 import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
+import Image from "next/image";
 
 export default function WorkingPage() {
     const router = useRouter();
@@ -21,7 +22,7 @@ export default function WorkingPage() {
         const confirmed = window.confirm(
             "Starting over will erase your video's current progress. Do you want to continue?"
         );
-        if(confirmed){
+        if (confirmed) {
             await cleanupAbandoned(user);
             clearPipelineState();
             router.push("/generate");
@@ -30,6 +31,7 @@ export default function WorkingPage() {
 
     useEffect(() => {
         const jobId = localStorage.getItem('currentJobId');
+
         if (!jobId) {
             router.push('/generate');
             return;
@@ -91,6 +93,9 @@ export default function WorkingPage() {
                                     <p className="text-xs text-on-surface-variant leading-relaxed">
                                         Creating your video now. Please be patient as it may take a few minutes. Estimated completion: <span className="font-bold">{timeRemaining}</span>.
                                     </p>
+                                </div>
+                                <div className="flex justify-center">
+                                    <Image src='/blue-pop-up-removebg-preview.png' alt="SCARP logo" width={100} height={100} className="w-28 h-28 animate-spin border-6 border-primary border-t-transparent rounded-full" loading="eager"></Image>
                                 </div>
                                 <div>
                                     <button onClick={handleAbandon} className="shadow-neomorph-raised bg-surface-container-low px-4 py-2 rounded-lg flex items-center gap-2 text-on-surface-variant font-md hover:translate-y-[-1px] transition-all cursor-pointer">

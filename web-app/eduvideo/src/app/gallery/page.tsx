@@ -8,6 +8,12 @@ import AgentChat from "../components/agentchat";
 import { collection, getDocs, query, orderBy, Timestamp, deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/app/firebase/config";
 
+interface videoEvaluation {
+    score: number | null;
+    notes: string;
+    submittedAt?: Timestamp;
+}
+
 interface videoDoc {
     id: string;
     title?: string;
@@ -15,12 +21,13 @@ interface videoDoc {
     prompt?: string;
     description?: string;
     createdAt?: Timestamp;
-    url?: string;
+    videoUrl?: string;
     tags?: string[];
     status?: string;
     document?: string;
     documentId?: string;
     length?: string;
+    evaluation?: videoEvaluation;
 }
 
 export default function Gallery() {
@@ -104,8 +111,8 @@ export default function Gallery() {
                                 {videos.map((video) => (
                                     <div key={video.id} onClick={() => setViewing(video)} className="bg-surface-container-lowest rounded-xl p-6 shadow-neomorph-raised group cursor-pointer transition-transform duration-300 hover:-translate-y-1">
                                         <div className="relative aspect-video bg-inverse-surface rounded-2xl overflow-hidden shadow-inner mb-4">
-                                            {video.url && video.status === 'complete' && (
-                                                <video src={video.url} className="w-full h-full object-cover" muted />
+                                            {video.videoUrl && video.status === 'complete' && (
+                                                <video src={video.videoUrl} className="w-full h-full object-cover" muted />
                                             )}
                                             <div className="absolute inset-0 flex items-center justify-center bg-primary/10 group-hover:bg-primary/20 transition-colors">
                                                 <div className="w-16 h-16 rounded-full bg-surface/90 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300">
@@ -162,8 +169,8 @@ export default function Gallery() {
                         </div>
                         <div className="shadow-neomorph-raised bg-surface rounded-3xl p-12 overflow-y-auto">
                             <div className="relative aspect-video bg-inverse-surface rounded-2xl overflow-hidden shadow-inner mb-4">
-                                {viewing.url && (
-                                    <video src={viewing.url} controls className="w-full h-full rounded-xl mt-4 object-contain" />
+                                {viewing.videoUrl && (
+                                    <video src={viewing.videoUrl} controls className="w-full h-full rounded-xl mt-4 object-contain" />
                                 )}
                             </div>
                             <div className="flex flex-col gap-4">
@@ -172,6 +179,12 @@ export default function Gallery() {
                                 )}
                                 {viewing.length && (
                                     <p className="font-body text-sm text-secondary"><span className="font-bold">Duration: </span>{viewing.length}</p>
+                                )}
+                                {viewing.evaluation?.score != null && (
+                                    <p className="font-body text-sm text-secondary"><span className="font-bold">Evaluation Score: </span>{viewing.evaluation.score} / 10</p>
+                                )}
+                                {viewing.topic && (
+                                    <p className="font-body text-sm text-secondary"><span className="font-bold">Topic: </span>{viewing.topic}</p>
                                 )}
                                 {viewing.description && (
                                     <p className="font-body text-sm text-secondary"><span className="font-bold">Description: </span>{viewing.description}</p>

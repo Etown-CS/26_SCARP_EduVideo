@@ -47,6 +47,7 @@ export default function Generate() {
         }
         const selectedFile = valid[0];
         setFiles([selectedFile]);
+        //possibly add API call here for getting out topics. But if topic selection available, why would we need a prompt? Also would letting the user select topics alter how that agent works, effectively causing more problems and adding more work to do before the end of the project?
     };
 
     //This function calls the generate video API as well as establishing the metadata scheme for the generate video.
@@ -65,7 +66,7 @@ export default function Generate() {
             prompt: prompt,
             description: 'None',
             length: 'Unknown',
-            url: 'None',
+            videoUrl: 'None',
             date: new Date().toISOString(),
             document: preloaded || files[0]?.name || 'N/A',
             documentId: 'None',
@@ -223,15 +224,15 @@ export default function Generate() {
                 )
             );
             await Promise.all(
-               files.map((file) => {
-                if(!activeId || !fileContentMap[file.name]) return;
-                return setDoc(doc(db, "documentContents", activeId), {
-                    userId: user.uid,
-                    name: file.name,
-                    content: fileContentMap[file.name],
-                    updatedAt: serverTimestamp(),
-                });
-               })
+                files.map((file) => {
+                    if (!activeId || !fileContentMap[file.name]) return;
+                    return setDoc(doc(db, "documentContents", activeId), {
+                        userId: user.uid,
+                        name: file.name,
+                        content: fileContentMap[file.name],
+                        updatedAt: serverTimestamp(),
+                    });
+                })
             );
             documentContent = fileContentMap[files[0].name] ?? null;
         } else if (preloadedId) {
@@ -251,7 +252,7 @@ export default function Generate() {
 
     //handles uploading the document contents to firestore and saving the prompt, document name, etc. It is the same as handleSend, just without the video generation at the end.
     const handleSave = async () => {
-        if(!user) return;
+        if (!user) return;
         const newFileId = await commitFiles();
         const activeId = newFileId || preloadedId;
         if (files.length > 0) {
@@ -272,15 +273,15 @@ export default function Generate() {
             );
 
             await Promise.all(
-               files.map((file) => {
-                if(!activeId || !fileContentMap[file.name]) return;
-                return setDoc(doc(db, "documentContents", activeId), {
-                    userId: user.uid,
-                    name: file.name,
-                    content: fileContentMap[file.name],
-                    updatedAt: serverTimestamp(),
-                });
-               })
+                files.map((file) => {
+                    if (!activeId || !fileContentMap[file.name]) return;
+                    return setDoc(doc(db, "documentContents", activeId), {
+                        userId: user.uid,
+                        name: file.name,
+                        content: fileContentMap[file.name],
+                        updatedAt: serverTimestamp(),
+                    });
+                })
             );
         }
         localStorage.removeItem('activeFileId');
@@ -338,6 +339,11 @@ export default function Generate() {
                                         ))}
                                     </div>)
                                     }
+                                </div>
+                                <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body leading-relaxed">Topic selection for video.</p>
+                                <div className="flex flex-wrap gap-2 font-body text-md text-secondary"> <span className="font-bold">Topics: </span>
+                                        <span className="shrink-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label text-sm"> Topics
+                                        </span>
                                 </div>
                                 <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body leading-relaxed">If you would like to have your video be more specific to a certain concept, consider entering a prompt into the box below. If you are unsure how to word your prompt, ask the chat and it will generate a prompt for you to use.</p>
                                 <div className="max-w-3xl shadow-neomorph-sunken bg-surface-container-low my-8 px-4 py-4 rounded-lg flex items-center gap-2">

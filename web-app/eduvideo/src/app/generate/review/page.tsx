@@ -7,7 +7,7 @@ import Loading from "@/app/components/loading";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { db } from "@/app/firebase/config";
-import { serverTimestamp, collection, addDoc, getDoc, doc} from "firebase/firestore";
+import { serverTimestamp, collection, addDoc, getDoc, doc, updateDoc } from "firebase/firestore";
 import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
 
 {/*
@@ -35,6 +35,10 @@ export default function Review() {
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [files, setFiles] = useState<File[]>([]);
     const [preloaded, setPreloaded] = useState<string | null>(null);
+    const [score, setScore] = useState<number | null>(null);
+    const [notes, setNotes] = useState('');
+    const [submitted, setSubmitted] = useState(false);
+    const [submitting, setSubmitting] = useState(false);
     const [prompt, setPrompt] = useState(() => {
         if (typeof window !== 'undefined') {
             return localStorage.getItem('prompt') || '';
@@ -49,27 +53,51 @@ export default function Review() {
         router.push("/generate/final-video")
     }
 
+    const handleSubmission = async () => {
+        if(score === null || !user) return;
+        const videoDocId = localStorage.getItem('videoDocId');
+        if(!videoDocId){
+            console.error('No videoDocId found.');
+            return;
+        }
+        setSubmitting(true);
+        try{
+            await updateDoc(doc(db, 'users', user.uid, 'videos', videoDocId), {
+                evaluation: {
+                    score,
+                    notes,
+                    submittedAt: serverTimestamp(),
+                },
+            });
+            setSubmitted(true);
+        }catch(err){
+            console.error("Failed to submit review: ", err);
+        }finally{
+            setSubmitting(false);
+        }
+    };
+
     useEffect(() => {
         const url = localStorage.getItem('completedVideoUrl');
         if (url) setVideoUrl(url);
     }, []);
 
     useEffect(() => {
-        if(!user || !videoUrl) return;
-        
+        if (!user || !videoUrl) return;
+
         const createDraft = async () => {
-            try{
+            try {
                 const existingId = localStorage.getItem('videoDocId');
 
-                if(existingId){
+                if (existingId) {
                     const existingSnap = await getDoc(doc(db, 'users', user.uid, 'videos', existingId));
-                    if(existingSnap.exists()) return;
+                    if (existingSnap.exists()) return;
                     localStorage.removeItem('videoDocId');
                 }
 
                 const fileId = localStorage.getItem('activeFileId');
                 const fileName = localStorage.getItem('selectedDocument');
-                
+
                 {/*
                 let length = 'Unknown';
                 try{
@@ -79,7 +107,7 @@ export default function Review() {
                     console.error('Failed to get video duration: ', err);
                 }
                 */}
-                
+
                 const docRef = await addDoc(collection(db, 'users', user.uid, 'videos'), {
                     videoUrl,
                     status: 'draft',
@@ -91,6 +119,11 @@ export default function Review() {
                     documentId: fileId || null,
                     length: 'Unknown',
                     createdAt: serverTimestamp(),
+                    evaluation: {
+                        score: null,
+                        notes: '',
+                        submittedAt: null,
+                    }
                 });
                 localStorage.setItem('videoDocId', docRef.id);
             } catch (err) {
@@ -104,7 +137,7 @@ export default function Review() {
         const confirmed = window.confirm(
             "Starting over will erase your video's current progress. Do you want to continue?"
         );
-        if(confirmed){
+        if (confirmed) {
             await cleanupAbandoned(user);
             clearPipelineState();
             router.push("/generate");
@@ -154,25 +187,47 @@ export default function Review() {
                                         )}
                                     </div>
                                 </div>
-                                <div className="h-48 bg-surface-container-low rounded-2xl p-4 shadow-neomorph-sunken overflow-hidden flex flex-col">
+                                <div className="bg-surface-container-low rounded-2xl p-4 shadow-neomorph-sunken overflow-hidden flex flex-col">
                                     <div className="flex justify-between items-center mb-3">
                                         <span className="font-headline font-bold text-on-surface-variant flex items-center gap-2">
-                                            Video Review
+                                            Optional Video Review
                                         </span>
                                     </div>
-                                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 text-on-surface-variant space-y-3">
-                                        <div className="flex justify-between items-center text-md">
-                                            <span className="text-outline">Eval Method 1</span>
-                                            <span className="font-bold">Score 1</span>
+                                    <p className="text-sm text-on-surface-variant mb-4">
+                                        If you are interested in helping us make the video generation better, please give a brief evaluation of the quality of your video. Rank the video overall on a scale from 1 to 10 with 1 being the worst and 10 being the best. Then if you have any specific notes please add them to the box below. For example, how accurate the content was, how good the visuals were, or how well synced the audio and visual were.
+                                    </p>
+                                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 text-on-surface-variant space-y-4">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <span className="text-sm font-medium text-on-surface-variant"><span className="font-bold">Rating</span></span>
+                                            {score !== null && (
+                                                <span className="font-label text-primary font-bold">{score} / 10</span>
+                                            )}
                                         </div>
-                                        <div className="flex justify-between items-center text-md">
-                                            <span className="text-outline">Eval Method 2</span>
-                                            <span className="font-bold">Score 2</span>
+                                        <div className="flex gap-2 flex-wrap mb-4 justify-center">
+                                            {Array.from({length: 10}, (_, i) => i + 1).map((num) => (
+                                                <button key={num} onClick={() => setScore(num)} className={`w-9 h-9 rounded-lg flex items-center justify-center text-sm font-medium border transition-all cursor-pointer ${
+                                                    score === num
+                                                    ? 'bg-primary text-on-primary border-primary/20'
+                                                    : 'bg-surface border-outline-variant/30 text-on-surface-variant hover:translate-y-[-1px]'
+                                                }`} >
+                                                    {num}
+                                                </button>
+                                            ))}
                                         </div>
-                                        <div className="flex justify-between items-center text-md">
-                                            <span className="text-outline">Eval Method 3</span>
-                                            <span className="font-bold">Score 3</span>
-                                        </div>
+                                    </div>
+                                    <div>
+                                        <label htmlFor="reviewNotes" className="text-sm font-medium text-on-surface-variant block mb-2">
+                                            <span className="font-bold">
+                                                Additional Notes
+                                            </span>
+                                        </label>
+                                        <textarea id="reviewNotes" name="reviewNotes" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Additional input. What worked well or what didn't work at all..." 
+                                        className="w-full shadow-neomorph-sunken bg-surface p-3 rounded-xl text-sm outline-none resize-none h-20 focus:ring-1 ring-primary"/>
+                                    </div>
+                                    <div className="flex justify-end">
+                                        <button onClick={handleSubmission} className="px-5 py-2 bg-primary text-on-primary rounded-lg flex items-center gap-2 text-sm font-medium shadow-lg hover:brightness-110 active:scale-95 transition-all cursor-pointer">
+                                            Submit Review
+                                        </button>
                                     </div>
                                 </div>
                             </div>

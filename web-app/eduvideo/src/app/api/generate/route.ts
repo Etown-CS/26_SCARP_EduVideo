@@ -6,7 +6,7 @@ const STUB_MODE = process.env.STUB_VIDEO_GENERATION === 'true';
 const mockJobs: Record<string, {status: string; progress: number; videoUrl?: string}> = {};
 
 export async function POST(req: NextRequest){
-    const {document, prompt, keywords} = await req.json();
+    const {document, prompt} = await req.json();
 
     if(STUB_MODE){
         const jobId = `mock-job-${Date.now()}`;

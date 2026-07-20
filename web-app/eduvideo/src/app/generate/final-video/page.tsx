@@ -7,7 +7,7 @@ import Loading from "@/app/components/loading";
 import AgentChat from "@/app/components/agentchat";
 import { useRouter } from "next/navigation";
 import { db } from "@/app/firebase/config";
-import { doc, serverTimestamp, updateDoc} from "firebase/firestore";
+import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
 import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
 
 export default function FinalVideo() {
@@ -38,7 +38,7 @@ export default function FinalVideo() {
         return '';
     });
     const [documentName, setDocName] = useState(() => {
-        if(typeof window !== 'undefined'){
+        if (typeof window !== 'undefined') {
             return localStorage.getItem('selectedDocument') || 'N/A';
         }
         return 'N/A';
@@ -54,7 +54,7 @@ export default function FinalVideo() {
         prompt: string;
         description: string;
         length: string;
-        url: string;
+        videoUrl: string;
         date: string;
         document: string;
         tags: string[];
@@ -72,10 +72,10 @@ export default function FinalVideo() {
     };
 
     const handleSave = async () => {
-        if(!videoUrl) return;
-        if(!user) return;
+        if (!videoUrl) return;
+        if (!user) return;
         const docId = localStorage.getItem('videoDocId');
-        if(!docId){
+        if (!docId) {
             console.error('No video id found. No metadata saved to database.');
             return;
         }
@@ -85,16 +85,16 @@ export default function FinalVideo() {
             prompt: prompt || 'N/A',
             description: desc,
             length: 'Unknown',
-            url: videoUrl || '',
+            videoUrl: videoUrl || '',
             date: new Date().toISOString(),
             document: documentName || 'N/A',
             tags,
             status: 'complete',
             updatedAt: serverTimestamp(),
         };
-        try{
+        try {
             await updateDoc(doc(db, 'users', user.uid, 'videos', docId), metadata);
-        }catch (err){
+        } catch (err) {
             console.error('Failed to updated video metadata: ', err);
             return;
         }
@@ -108,7 +108,7 @@ export default function FinalVideo() {
         const confirmed = window.confirm(
             "Starting over will erase your video's current progress. Do you want to continue?"
         );
-        if(confirmed){
+        if (confirmed) {
             await cleanupAbandoned(user);
             clearPipelineState();
             router.push('/documents');
@@ -123,7 +123,7 @@ export default function FinalVideo() {
             if (meta.topic) setTopic(meta.topic);
             if (meta.description) setDesc(meta.description);
             if (meta.document) setDocName(meta.document);
-            if (meta.url) setVideoUrl(meta.url);
+            if (meta.videoUrl) setVideoUrl(meta.videoUrl);
             if (meta.tags) setTags(meta.tags);
         }
     }, []);
@@ -141,7 +141,7 @@ export default function FinalVideo() {
                         <div className="flex justify-between items-end">
                             <div>
                                 <h1 className="font-headline text-3xl font-bold text-on-background self-start mb-2">Final Video</h1>
-                                <p> Your video is complete and ready for viewing and download!</p>
+                                <p> Your video is complete and ready for viewing!</p>
                             </div>
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
@@ -160,51 +160,41 @@ export default function FinalVideo() {
                                         </div>
                                         <div className="space-y-6">
                                             <div>
-                                                <label>
-                                                    <label className="text-on-surface-variant uppercase block mb-2 font-bold text-md">Title</label>
-                                                    <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
-                                                        <textarea
-                                                            value={title}
-                                                            onChange={(e) => setTitle(e.target.value)}
-                                                            className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Title" name="videoTitle" id="videoTitle"></textarea>
-                                                    </div>
-                                                </label>
+                                                <label className="text-on-surface-variant uppercase mb-2 font-bold text-md flex items-center gap-1">Title <span className="material-symbols-outlined text-xs">edit</span></label>
+                                                <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
+                                                    <textarea
+                                                        value={title}
+                                                        onChange={(e) => setTitle(e.target.value)}
+                                                        className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Title" name="videoTitle" id="videoTitle"></textarea>
+                                                </div>
                                             </div>
                                             <div>
-                                                <label>
-                                                    <label className="text-on-surface-variant uppercase block mb-2 font-bold text-md">Topic</label>
-                                                    <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
-                                                        <textarea value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Topic" name="videoTopic" id="videoTopic"></textarea>
-                                                    </div>
-                                                </label>
+                                                <label className="text-on-surface-variant uppercase mb-2 font-bold text-md flex items-center gap-1">Topic <span className="material-symbols-outlined text-xs">edit</span></label>
+                                                <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
+                                                    <textarea value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Topic" name="videoTopic" id="videoTopic"></textarea>
+                                                </div>
                                             </div>
                                             <div>
-                                                <label>
-                                                    <label className="text-on-surface-variant uppercase block mb-2 font-bold text-md">Prompt</label>
-                                                    <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
-                                                        <p className="w-full p-3 text-sm text-on-surface-variant whitespace-pre-wrap">{prompt || 'No prompt set'}</p>
-                                                    </div>
-                                                </label>
+                                                <label className="text-on-surface-variant uppercase block mb-2 font-bold text-md">Prompt</label>
+                                                <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
+                                                    <p className="w-full p-3 text-sm text-on-surface-variant whitespace-pre-wrap">{prompt || 'No prompt set'}</p>
+                                                </div>
                                             </div>
                                             <div>
-                                                <label>
-                                                    <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Description</label>
-                                                    <div className="shadow-neomorph-sunken bg-surface-container-low p-4 rounded-xl">
-                                                        <textarea
-                                                            value={desc}
-                                                            onChange={(e) => setDesc(e.target.value)}
-                                                            className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Description" name="description" id="description">
-                                                        </textarea>
-                                                    </div>
-                                                </label>
+                                                <label className="text-on-surface-variant uppercase mb-2 font-bold text-md flex items-center gap-1">Description <span className="material-symbols-outlined text-xs">edit</span></label>
+                                                <div className="shadow-neomorph-sunken bg-surface-container-low p-4 rounded-xl">
+                                                    <textarea
+                                                        value={desc}
+                                                        onChange={(e) => setDesc(e.target.value)}
+                                                        className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Description" name="description" id="description">
+                                                    </textarea>
+                                                </div>
                                             </div>
                                             <div>
-                                                <label>
-                                                    <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Document</label>
-                                                    <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
-                                                        <p className="w-full p-3 text-sm text-on-surface-variant whitespace-pre-wrap">{documentName || 'No document selected'}</p>
-                                                    </div>
-                                                </label>
+                                                <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Document</label>
+                                                <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
+                                                    <p className="w-full p-3 text-sm text-on-surface-variant whitespace-pre-wrap">{documentName || 'No document selected'}</p>
+                                                </div>
                                             </div>
                                             <div>
                                                 <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Tags</label>
@@ -250,6 +240,12 @@ export default function FinalVideo() {
                             </div>
                             <div className="col-span-4 flex flex-col gap-6 min-h-0">
                                 <AgentChat />
+                                <div className="shadow-neomorph-raised bg-primary/10 rounded-3xl p-6 h-fit">
+                                    <div className="flex items-center justify-between mb-6">
+                                        <h2 className="font-headline text-2xl font-bold text-on-surface">Additional Resources</h2>
+                                    </div>
+                                    <p>Agent can add extra links and things here. Essentially this section will help the user to view other, non-AI resources.</p>
+                                </div>
                             </div>
                         </div>
                     </div>
