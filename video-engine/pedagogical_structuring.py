@@ -33,6 +33,8 @@ def finetune_reorder_topic(topic, user_prompt):
     # Convert a core topic in md file into plain text
     formatted = format_topic4prompt(topic)
 
+    # print(f"Here's input before being put into the LLM call:s\n{formatted}\n\n") # for check
+
     prompt = DIFFICULTY_RUBRIC + f"""You are a Pedagogical Agent helping fine-tune and reorder the segments based on the user prompt for a beginner undergraduate student.
 The user has the following request for this video: "{user_prompt}"
 Here are the subsegments for the topic "{topic['content']}":
@@ -56,7 +58,8 @@ Return ONLY a JSON list like this, no explanation:
         "id": "seg_001_002",
         "content": "original content here",
         "summary": "simplified summary here",
-        "importance": "essential"
+        "importance": "essential",
+        "type": "type here"
     }}
 ]"""
 
@@ -70,6 +73,7 @@ Return ONLY a JSON list like this, no explanation:
     clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     result = json.loads(clean)
 
+    # print(f"Output is here:\n{result}\n\n") for check
     return result
 
 ############### LLM Video Outline Generator ###############
@@ -79,6 +83,7 @@ def video_outline_maker(all_subsegments, user_prompt, client):
         f"{sub['id']} [{sub['importance']}] ({sub['topic']}): {sub['content'][:100]}"
         for sub in all_subsegments
     ])
+
 
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -96,6 +101,14 @@ def video_outline_maker(all_subsegments, user_prompt, client):
                 - Prioritize subsegments that match the user's request as "main focus"
                 - Keep foundational definitions as "foundation" even if not directly requested
                 - The outline should tell one coherent story, not separate topic summaries
+                - You MUST NOT remove subsegments whose "type" is "visual"
+                - You MUST keep subsegments whose "type" is "visual" grouped together with the
+                other subsegments that share the same "topic" value -- do not create a
+                separate section that only contains visual subsegments.
+                - This rule takes priority over grouping by role -- even if a visual's topic
+                mostly consists of "foundation" content and the visual itself seems more
+                "supporting", keep it with its original topic's section rather than moving
+                it elsewhere.
                 - Return ONLY valid JSON, no explanation, no markdown formatting:
                 {
                     "title": "video title based on user's request",
@@ -170,8 +183,9 @@ for topic, result in zip(data["segments"], all_results):
         all_subsegments.append({
             "id": sub["id"],
             "topic": topic["content"],
-            "content": sub["content"],
-            "importance": sub["importance"]
+            "content": sub["summary"],
+            "importance": sub["importance"],
+            "type": sub["type"]
         })
 
 outline = video_outline_maker(all_subsegments, user_prompt, client)
