@@ -4,16 +4,11 @@ from dotenv import load_dotenv
 import os
 from targeting_level_rubric import DIFFICULTY_RUBRIC
 
-'''
-Overview of this Pedagogical Agent
+from pathlib import Path
 
-Load the JSON file created in the doc_analysis.py (Document Analysis Agent)
-↓↓↓
-Format JSON file to the plain text since AI can't read a raw json well
-↓↓↓
-Loop through all core topics - Reorder function called for every single main topic to reorder subsegments
-
-'''
+### LLM
+load_dotenv()
+client = OpenAI()
 
 ############### Process segmentation ###############
 # Takes a core topic and convert its subsegments into text readable for the AI 
@@ -32,8 +27,6 @@ def format_topic4prompt(topic):
 def finetune_reorder_topic(topic, user_prompt):
     # Convert a core topic in md file into plain text
     formatted = format_topic4prompt(topic)
-
-    # print(f"Here's input before being put into the LLM call:s\n{formatted}\n\n") # for check
 
     prompt = DIFFICULTY_RUBRIC + f"""You are a Pedagogical Agent helping fine-tune and reorder the segments based on the user prompt for a beginner undergraduate student.
 The user has the following request for this video: "{user_prompt}"
@@ -73,7 +66,6 @@ Return ONLY a JSON list like this, no explanation:
     clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     result = json.loads(clean)
 
-    # print(f"Output is here:\n{result}\n\n") for check
     return result
 
 ############### LLM Video Outline Generator ###############
@@ -83,7 +75,6 @@ def video_outline_maker(all_subsegments, user_prompt, client):
         f"{sub['id']} [{sub['importance']}] ({sub['topic']}): {sub['content'][:100]}"
         for sub in all_subsegments
     ])
-
 
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -141,7 +132,7 @@ def video_outline_maker(all_subsegments, user_prompt, client):
 def build_output(data, results, outline):
     output = {
         "topic": data["topic"],
-        "user_prompt": user_prompt,
+        "user_prompt": data["user_prompt"],
         "video outline": outline,
         "segments": []
     }
@@ -156,52 +147,52 @@ def build_output(data, results, outline):
     return output
 
 
-############### Main ###############
-# Open AI
-load_dotenv()
-client = OpenAI()
+###################################### Main ######################################
+def run_pedagogical_structuring(doc_analysis_json, output_folder):
+    file = doc_analysis_json
 
-### Get a file name for future use
-file = "output_sample/cs350_llm/doc_analysis_output.json"
-output_dir = os.path.dirname(file)
+    with open(file, "r") as f:
+        data = json.load(f)
 
-with open(file, "r") as f:
-    data = json.load(f)
+    user_prompt = data.get("user_prompt", "") # empty string by default
 
-user_prompt = data.get("user_prompt", "") # empty string by default
+    # Run all topics and collect their importance & summary of subsegments
+    all_results = []
+    for topic in data["segments"]:
+        result = finetune_reorder_topic(topic, user_prompt)
+        all_results.append(result)
 
-# Run all topics and collect their importance & summary of subsegments
-all_results = []
-for topic in data["segments"]:
-    result = finetune_reorder_topic(topic, user_prompt)
-    all_results.append(result)
+    # Flatten all subsegments across all topics
+    all_subsegments = []
+    for topic, result in zip(data["segments"], all_results):
+        for sub in result:
+            all_subsegments.append({
+                "id": sub["id"],
+                "topic": topic["content"],
+                "content": sub["summary"],
+                "importance": sub["importance"],
+                "type": sub["type"]
+            })
 
-# Flatten all subsegments across all topics
-all_subsegments = []
-for topic, result in zip(data["segments"], all_results):
-    for sub in result:
-        all_subsegments.append({
-            "id": sub["id"],
-            "topic": topic["content"],
-            "content": sub["summary"],
-            "importance": sub["importance"],
-            "type": sub["type"]
-        })
+    outline = video_outline_maker(all_subsegments, user_prompt, client)
 
-outline = video_outline_maker(all_subsegments, user_prompt, client)
+    ### Build and save output
+    output = build_output(data, all_results, outline)
 
-# ### Check outline and content in each section
-# outline = video_outline_maker(all_subsegments, user_prompt, client)
-# print(f"\nVideo Title: {outline['title']}")
-# for section in outline["sections"]:
-#     print(f"\n  Section {section['section']}: {section['title']} [{section['role']}]")
-#     for sid in section["subsegment_ids"]:
-#         print(f"    {sid}")
+    with open(os.path.join(output_folder, "pedagogical_output.json"), "w") as f:
+        json.dump(output, f, indent=4)
 
-# Build and save output
-output = build_output(data, all_results, outline)
+    print(f"\n✅ pedagogical_output.json saved to {output_folder}!")
 
-with open(os.path.join(output_dir, "pedagogical_output.json"), "w") as f:
-    json.dump(output, f, indent=4)
+    return output_folder
 
-print(f"\n✅ pedagogical_output.json saved to {output_dir}!")
+if __name__ == "__main__":
+    fileName = input("Provide a valid folder name: ")
+    doc_analysis_json_path = Path(f"output_sample/{fileName}/doc_analysis_output.json")
+    output_folder = Path(f"outout_sample/{fileName}")
+
+    if output_folder.exists() == False or doc_analysis_json_path.exists() == False:
+        print(f"Folder not found or doc_analysis.py skipped.")
+        exit()
+        
+    run_pedagogical_structuring(doc_analysis_json_path, output_folder)
