@@ -7,7 +7,12 @@ import Loading from "@/app/components/loading";
 import AgentChat from "../components/agentchat";
 import { collection, getDocs, query, orderBy, Timestamp, deleteDoc, doc } from "firebase/firestore";
 import { db } from "@/app/firebase/config";
-import { format } from "path";
+
+interface videoEvaluation {
+    score: number | null;
+    notes: string;
+    submittedAt?: Timestamp;
+}
 
 interface videoDoc {
     id: string;
@@ -16,17 +21,19 @@ interface videoDoc {
     prompt?: string;
     description?: string;
     createdAt?: Timestamp;
-    url?: string;
+    videoUrl?: string;
     tags?: string[];
     status?: string;
     document?: string;
+    documentId?: string;
+    length?: string;
+    evaluation?: videoEvaluation;
 }
 
 export default function Gallery() {
 
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
-    const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string }[]>([]);
     const [viewing, setViewing] = useState<videoDoc | null>(null);
     const [videoLoading, setVideoLoading] = useState(true);
     const [videos, setVideos] = useState<videoDoc[]>([]);
@@ -44,11 +51,14 @@ export default function Gallery() {
         if (!user) return;
         const previous = videos;
         setVideos(prev => prev.filter(v => v.id !== id));
-        if(viewing?.id === id) setViewing(null);
+        if (viewing?.id === id) setViewing(null);
 
-        try{
+        try {
             await deleteDoc(doc(db, 'users', user.uid, 'videos', id));
-        } catch (err){
+            if(localStorage.getItem('videoDocId') === id){
+                localStorage.removeItem('videoDocId');
+            }
+        } catch (err) {
             console.error('Failed to remove video: ', err);
             setVideos(previous);
         }
@@ -101,8 +111,8 @@ export default function Gallery() {
                                 {videos.map((video) => (
                                     <div key={video.id} onClick={() => setViewing(video)} className="bg-surface-container-lowest rounded-xl p-6 shadow-neomorph-raised group cursor-pointer transition-transform duration-300 hover:-translate-y-1">
                                         <div className="relative aspect-video bg-inverse-surface rounded-2xl overflow-hidden shadow-inner mb-4">
-                                            {video.url && (
-                                                <video src={video.url} className="w-full h-full object-cover" muted />
+                                            {video.videoUrl && video.status === 'complete' && (
+                                                <video src={video.videoUrl} className="w-full h-full object-cover" muted />
                                             )}
                                             <div className="absolute inset-0 flex items-center justify-center bg-primary/10 group-hover:bg-primary/20 transition-colors">
                                                 <div className="w-16 h-16 rounded-full bg-surface/90 flex items-center justify-center text-primary group-hover:scale-110 transition-transform duration-300">
@@ -114,7 +124,7 @@ export default function Gallery() {
                                             <div className="flex justify-between items-start gap-2">
                                                 <h3 className="font-headline text-lg font-semibold text-on-surface">{video.title || 'Untitled'}</h3>
                                                 {video.topic && (
-                                                    <span className="shrink-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label text-xs">{video.topic}</span>
+                                                    <span className="shrink-0 bg-secondary text-on-primary px-3 py-1 rounded-full font-label text-xs">{video.topic}</span>
                                                 )}
                                             </div>
                                             {video.description && (
@@ -149,7 +159,7 @@ export default function Gallery() {
                                 )}
                             </div>
                             <div className="flex items-center gap-4">
-                                <button onClick={() =>  handleDelete(viewing.id)} className="text-secondary hover:text-error transition-colors cursor-pointer">
+                                <button onClick={() => handleDelete(viewing.id)} className="text-secondary hover:text-error transition-colors cursor-pointer">
                                     <span className="material-symbols-outlined">delete</span>
                                 </button>
                                 <button onClick={() => setViewing(null)} className="text-secondary hover:text-primary transition-colors cursor-pointer">
@@ -159,13 +169,22 @@ export default function Gallery() {
                         </div>
                         <div className="shadow-neomorph-raised bg-surface rounded-3xl p-12 overflow-y-auto">
                             <div className="relative aspect-video bg-inverse-surface rounded-2xl overflow-hidden shadow-inner mb-4">
-                                {viewing.url && (
-                                    <video src={viewing.url} controls className="w-full h-full rounded-xl mt-4 object-contain" />
+                                {viewing.videoUrl && (
+                                    <video src={viewing.videoUrl} controls className="w-full h-full rounded-xl mt-4 object-contain" />
                                 )}
                             </div>
                             <div className="flex flex-col gap-4">
                                 {viewing.createdAt && (
                                     <p className="font-body text-sm text-secondary"><span className="font-bold">Generated: </span>{formatDate(viewing.createdAt)}</p>
+                                )}
+                                {viewing.length && (
+                                    <p className="font-body text-sm text-secondary"><span className="font-bold">Duration: </span>{viewing.length}</p>
+                                )}
+                                {viewing.evaluation?.score != null && (
+                                    <p className="font-body text-sm text-secondary"><span className="font-bold">Evaluation Score: </span>{viewing.evaluation.score} / 10</p>
+                                )}
+                                {viewing.topic && (
+                                    <p className="font-body text-sm text-secondary"><span className="font-bold">Topic: </span>{viewing.topic}</p>
                                 )}
                                 {viewing.description && (
                                     <p className="font-body text-sm text-secondary"><span className="font-bold">Description: </span>{viewing.description}</p>
@@ -185,10 +204,12 @@ export default function Gallery() {
                                 {viewing.document && (
                                     <div className="flex items-center justify-between gap-4">
                                         <p className="font-body text-sm text-secondary"><span className="font-bold">Document: </span>{viewing.document} </p>
-                                        <button onClick={() => router.push("/documents")}
-                                            className="bg-secondary-container text-on-secondary-container py-3 px-5 rounded-lg font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer mb-4">
-                                            <span className="material-symbols-outlined text-sm">document_search</span>View Document
-                                        </button>
+                                        {viewing.documentId && (
+                                            <button onClick={() => router.push(`/documents?docId=${encodeURIComponent(viewing.documentId!)}`)}
+                                                className="bg-secondary-container text-on-secondary-container py-3 px-5 rounded-lg font-bold text-xs flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer mb-4">
+                                                <span className="material-symbols-outlined text-sm">document_search</span>View Document
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>

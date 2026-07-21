@@ -6,7 +6,9 @@ import { useAuthState } from "react-firebase-hooks/auth";
 import { usePathname, useRouter } from "next/navigation";
 import { useChat } from "../context/chatContext";
 import ThemeToggle from "./themetoggle";
-import { isValueExpired } from "next/dist/client/components/segment-cache/cache-map";
+import { cleanupAbandoned, clearPipelineState } from "../lib/pipelineState";
+
+const midPipelinePages = ['/generate/edit', '/generate/review', '/generate/final-video'];
 
 export default function Header() {
   const router = useRouter();
@@ -14,14 +16,29 @@ export default function Header() {
   const { setMessages } = useChat();
   const pathname = usePathname();
 
+  const handleClick = async (e: React.MouseEvent, href: string) => {
+    if (midPipelinePages.includes(pathname) && !href.startsWith('/generate')) {
+      e.preventDefault();
+      const confirmed = window.confirm(
+        "Starting a new upload will erase your video's current progress. Do you want to continue?"
+      );
+      if(confirmed){
+        await cleanupAbandoned(user);
+        clearPipelineState();
+        router.push(href);
+      }
+    }
+  };
+
   const navLinks = (href: string, label: string) => {
     const isActive = pathname === href || pathname.startsWith(href + '/');
     return (
       <a
         href={href}
+        onClick={(e) => handleClick(e, href)}
         className={`font-medium transition-colors duration-300 font-label text-sm uppercase tracking-wider ${isActive
-            ? 'text-primary border-b-2 border-primary pb-0.5'
-            : 'text-on-surface-variant hover:text-primary'
+          ? 'text-primary border-b-2 border-primary pb-0.5'
+          : 'text-on-surface-variant hover:text-primary'
           }`}
       >
         {label}
@@ -40,7 +57,7 @@ export default function Header() {
     <header className="docked full-width top-0 z-50 bg-surface shadow-neomorph-raised">
       <nav className="flex justify-between items-center w-full px-4 md:px-8 py-6">
         <div className="flex items-center gap-12">
-          <a className="font-display text-2xl font-extrabold text-primary tracking-tight" href="/">BluEdu</a>
+          <a className="font-display text-2xl font-extrabold text-primary tracking-tight" href="/" onClick={(e) => handleClick(e, '/')}>BluEdu</a>
           <div className="hidden md:flex items-center gap-8">
             {navLinks('/generate', 'Generate')}
             {navLinks('/documents', 'Documents')}

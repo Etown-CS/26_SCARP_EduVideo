@@ -1,5 +1,8 @@
 "use client"
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { cleanupAbandoned, clearPipelineState } from "../lib/pipelineState";
+import { auth } from "@/app/firebase/config";
+import { useAuthState } from "react-firebase-hooks/auth";
 
 const navLinks = [
     { href: "/generate", label: "Upload", span: "upload" },
@@ -8,9 +11,27 @@ const navLinks = [
     { href: "/generate/final-video", label: "Final Video", span: "movie_filter" }
 ]
 
+const midPipelinePages = ['/generate/edit', '/generate/review', '/generate/final-video'];
+
 export default function Aside() {
 
     const pathName = usePathname();
+    const router = useRouter();
+    const [user, loading] = useAuthState(auth);
+
+    const handleClick = async (e: React.MouseEvent, href: string) => {
+        if(href === '/generate' && midPipelinePages.includes(pathName)){
+            e.preventDefault();
+            const confirmed = window.confirm(
+                "Starting a new upload will erase your video's current progress. Do you want to continue?"
+            );
+            if(confirmed){
+                await cleanupAbandoned(user);
+                clearPipelineState();
+                router.push(href);
+            }
+        }
+    };
 
     return (
         <aside className="bg-surface-container-low w-60 h-128 flex flex-col p-4 gap-2 shadow-neomorph-raised rounded-2xl z-40">
@@ -25,7 +46,7 @@ export default function Aside() {
                     navLinks.map(({ href, label, span }) => {
                         const isActive = pathName === href;
                         return (
-                            <a href={href} key={href}>
+                            <a href={href} key={href} onClick={(e) => handleClick(e, href)}>
                                 <div className={
                                     isActive
                                         ? "ems-center gap-3 px-3 py-3 flex items-center bg-primary-container text-on-primary-container rounded-lg cursor-pointer active:scale-[0.98]"

@@ -5,6 +5,7 @@ import { auth } from "@/app/firebase/config";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useChat } from '@/app/context/chatContext';
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 
 export default function AgentChat() {
     const { messages, setMessages } = useChat();
@@ -22,11 +23,13 @@ export default function AgentChat() {
     const isDocuments = pathname === '/documents';
     const isGallery = pathname === '/gallery';
 
+    {/*
     useEffect(() => {
         if (!user && !loading) {
             setMessages([{ sender: 'agent', text: 'How can I help you?' }]);
         }
     }, [user, loading]);
+    */}
 
     useEffect(() => {
         messageEnd.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -53,7 +56,7 @@ export default function AgentChat() {
                 const parsed = JSON.parse(data.reply);
                 if (parsed.action === 'update_prompt') {
                     localStorage.setItem('selectedPrompt', parsed.newPrompt);
-                    window.dispatchEvent(new StorageEvent('storage', {key: 'selectedPrompt', newValue: parsed.newPrompt}));
+                    window.dispatchEvent(new StorageEvent('storage', { key: 'selectedPrompt', newValue: parsed.newPrompt }));
                     const activeFileId = localStorage.getItem('activeFileId');
                     if (activeFileId) {
                         const raw = localStorage.getItem('uploadedFiles');
@@ -117,7 +120,8 @@ export default function AgentChat() {
                             <div className="flex items-center justify-between mb-6 pb-3 border-b border-outline-variant/30">
                                 <div className="flex items-center gap-2">
                                     <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center border border-primary/20">
-                                        <span className="material-symbols-outlined text-primary">smart_toy</span>
+                                        {/*<span className="material-symbols-outlined text-primary">smart_toy</span>*/}
+                                        <span><Image src='/Picture1-removebg-preview.png' alt="Blue" width={100} height={100} className="w-auto"></Image></span>
                                     </div>
                                     <h3 className="font-semibold text-on-surface">BluEdu Assistant</h3>
                                 </div>
@@ -143,35 +147,19 @@ export default function AgentChat() {
                                             ? 'bg-primary/10 border-primary/20'
                                             : 'bg-surface-variant border-primary/20'
                                             }`}>
-                                            <span className="material-symbols-outlined text-xs text-primary">{msg.sender === 'user' ? 'person' : 'auto_awesome'}</span>
+                                            <span className="material-symbols-outlined text-xs text-primary">{msg.sender === 'user' ? 'person' : 'raven'}</span>
                                         </div>
                                         <div className={`max-w-[85%] rounded-2xl px-4 py-3 border ${msg.sender === 'user'
                                             ? 'bg-primary text-on-primary border-primary/20'
                                             : 'bg-surface border-outline-variant/30'
                                             }`}>
                                             <span className={`text-[12px] font-bold block mb-1 ${msg.sender === 'user' ? 'text-on-primary/70 text-right' : 'text-primary'}`}>
-                                                {msg.sender === 'user' ? username : 'Video Agent'}
+                                                {msg.sender === 'user' ? username : 'Blue'}
                                             </span>
                                             <p className={`text-sm leading-relaxed break-words whitespace-pre-wrap ${msg.sender === 'user' ? 'text-surface' : 'text-on-surface'}`}>{msg.text}</p>
                                         </div>
                                     </div>
                                 ))}
-                                {/*
-                        {messages.map((msg, index) => (
-                            <div
-                                key={index}
-                                className={`p-3 rounded-xl border border-outline-variant/30 ${msg.sender === 'user'
-                                    ? 'bg-primary/10 ml-6 text-right'
-                                    : 'bg-surface-container-highest/50 mr-6'
-                                    }`}
-                            >
-                                <span className="text-xs font-bold text-on-surface">
-                                    {msg.sender === 'user' ? username : 'Video Agent'}
-                                </span>
-                                <p className="text-sm text-on-surface-variant mt-1 break-words whitespace-pre-wrap">{msg.text}</p>
-                            </div>
-                        ))}
-                            */}
                                 {isLoading && (
                                     <div className="p-3 rounded-xl border border-outline-variant/30 bg-surface-container-highest/50 mr-6">
                                         <span className="text-xs font-bold text-on-surface">Video Agent</span>

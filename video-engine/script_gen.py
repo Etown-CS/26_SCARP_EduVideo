@@ -20,6 +20,7 @@ def filter_subsegments(segment):
     return filtered
 
 ############### Transcript Generation + Key point extraction###############
+############### Transcript Generation + Key point extraction###############
 # based on summaries
 def generate_transcript(section, subseg_lookup):
     subsegs = []
