@@ -10,7 +10,6 @@ from targeting_level_rubric import DIFFICULTY_RUBRIC
 
 import argparse
 import base64
-from difflib import SequenceMatcher
 import numpy as np
 
 ### LLM
