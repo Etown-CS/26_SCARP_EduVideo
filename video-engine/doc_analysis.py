@@ -10,7 +10,7 @@ from targeting_level_rubric import DIFFICULTY_RUBRIC
 
 import argparse
 import base64
-from difflib import SequenceMatcher
+import numpy as np
 
 ### LLM
 load_dotenv()
@@ -124,33 +124,28 @@ def placeholders_to_imageTags(segments, img_placeholder_map):
         if "subsegments" in seg:
             placeholders_to_imageTags(seg['subsegments'], img_placeholder_map)
 
-def find_best_matching_seg(context, segments, threshold=0.15):
+def find_best_matching_seg(context, segments, seg_embedding_map, client, threshold=0.25):
     '''
     Compare text surrounding the image with all the segments and returns the best parent segment to bring dropped image back.
     If no segments found, it can fall back to the visual segment instead of a wrong guess.
-
-    SequenceMatcher (difflib, Python Standard Library) - used to compare pairs of any type
-        * SequenceMatcher(isjunk, data1, data2) # Compare data1 and data 2
     '''
 
     best_seg = None
     best_score = 0.0
 
-    ### Make `combine` for each parent segment - contains "content" of the parent segment and all the subsegments
-    for seg in segments:
-        texts = [seg.get("content", "")]
-        for sub in seg.get("subsegments", []):
-            texts.append(sub.get("content", ""))
-        combined = " ".join(texts)
+    v_context = embedding_text(context, client)
 
-        score = SequenceMatcher(None, context, combined).ratio()
+    for seg_id in seg_embedding_map:
+        score, v_context, v_seg = similarity_check(v_context, seg_embedding_map[seg_id])
         if score > best_score:
             best_score = score
-            best_seg = seg
+            for s in segments:
+                if s["id"] == seg_id:
+                    best_seg = s
 
     return best_seg if best_score >= threshold else None, best_score
 
-def collect_dropped_imgs(segments, img_placeholder_map, img_context_map):
+def collect_dropped_imgs(segments, img_placeholder_map, img_context_map, client):
     '''
     What this does?:
     Detect images the LLM dropped, reattach them to the best segment where their context highly matches with.
@@ -174,12 +169,15 @@ def collect_dropped_imgs(segments, img_placeholder_map, img_context_map):
     if not missing_keys:
         return
     
-    print(f"⚠️ Warning: {len(missing_keys)} image(s) were dropped by the model's output; appending them at the end")
+    ### When there are missed images, get the embedding of the segments
+    seg_embedding_map = get_seg_embedding(segments, client)
+    
+    print(f"⚠️ Warning: {len(missing_keys)} image(s) were dropped by the model's output")
     
     left = []
     for key in missing_keys:
         context = img_context_map.get(key, "")
-        target_seg, best_score = find_best_matching_seg(context, segments)
+        target_seg, best_score = find_best_matching_seg(context, segments, seg_embedding_map, client)
         imageTag = img_placeholder_map[key]
 
         ### Reattach dropped images to the parent segment
@@ -194,6 +192,9 @@ def collect_dropped_imgs(segments, img_placeholder_map, img_context_map):
                 "Recovered?": True,
                 "match_score": round(best_score, 3)
             })
+
+        else:
+            left.append(imageTag)
     
     ### Put images with no reasonable match in the generic segment
     if left:
@@ -242,7 +243,41 @@ def describe_image(image_path, client):
     )
     return response.choices[0].message.content.strip()
 
-############### LLM Cleaning + Segmentation ###############
+############################## Text Embedding ##############################
+''' Convert text into a vector '''
+def embedding_text(text, client, model="text-embedding-3-small"):
+    if not text.strip(): # Remove leading and trailing whitespaces
+        text = " "
+    response = client.embeddings.create(
+        input=text,
+        model=model
+    )
+    return response.data[0].embedding
+
+def get_seg_embedding(segments, client):
+    seg_embedding_map = {}
+    for seg in segments:
+        texts = [seg.get("content", "")]
+        for sub in seg.get("subsegments", []):
+            texts.append(sub.get("content", ""))
+        combined = " ".join(texts)
+        seg_embedding_map[seg["id"]] = embedding_text(combined, client)
+
+    return seg_embedding_map
+
+############################# Similarity Check (Cosine Similarity) #############################
+def similarity_check(v_context, v_seg):
+
+    ### np.linalg.norm & np.dot automatically does np.array, but explicitly converts them into arrays for readability
+    v_context = np.array(v_context)
+    v_seg = np.array(v_seg)
+    
+    # cosine similarity - (a * b) / (||a|| * ||b|| )
+    similarity = np.dot(v_context, v_seg) / (np.linalg.norm(v_context) * np.linalg.norm(v_seg))
+
+    return similarity, v_context, v_seg
+
+######################## LLM Cleaning + Segmentation #######################
 def llm_segmentation(md, client):
     ### Replace imahge tags with placeholders
     cleaned_md_no_imgTags, imgTag_ph_map, imgContext_map = imageTags_to_placeholders(md)
@@ -271,7 +306,7 @@ def llm_segmentation(md, client):
         placeholders_to_imageTags(result, imgTag_ph_map)
 
         ### Rcover skipped images
-        collect_dropped_imgs(result, imgTag_ph_map, imgContext_map)
+        collect_dropped_imgs(result, imgTag_ph_map, imgContext_map, client)
 
         ### Add description to images
         add_image_description(result, client)
@@ -315,7 +350,6 @@ def llm_topic_filter(segments, user_prompt, client):
 
 
 ############################################## Main ##############################################
-#### input
 def run_doc_analysis(file, user_prompt, output_name):
     ### Format Check
     pdf = format_checker(file)
