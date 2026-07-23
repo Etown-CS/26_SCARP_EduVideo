@@ -43,11 +43,15 @@ export default function FinalVideo() {
         }
         return 'N/A';
     });
+    const [resources, setResources] = useState<{ title: string; url: string; description: string }[]>([]);
+    const [resourcesLoading, setResourcesLoading] = useState(false);
+    const [resourcesError, setResourcesError] = useState<string | null>(null);
 
     const router = useRouter();
     const [newTag, setNewTag] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
+    const [downloading, setDownloading] = useState(false);
     const [videoMetadata, setVideoMetadata] = useState<{
         title: string;
         topic: string;
@@ -64,6 +68,38 @@ export default function FinalVideo() {
         const url = localStorage.getItem('completedVideoUrl');
         if (url) setVideoUrl(url);
     }, []);
+
+    useEffect(() => {
+        if (!topic) return;
+
+        const controller = new AbortController();
+
+        const fetchResources = async () => {
+            setResourcesLoading(true);
+            setResourcesError(null);
+            try {
+                const res = await fetch('/api/resources', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: topic, prompt }),
+                    signal: controller.signal,
+                });
+                if (!res.ok) throw new Error('Failed to fetch additional resources');
+                const data = await res.json();
+                setResources(data.reply?.resources ?? []);
+            } catch (err) {
+                if ((err as Error).name !== 'AbortError') {
+                    console.error('Failed to fetch additional resources: ', err);
+                    setResourcesError('Could not load additional resources');
+                }
+            } finally {
+                setResourcesLoading(false);
+            }
+        };
+        fetchResources();
+        return () => controller.abort();
+    }, [topic, prompt]);
+
 
     const handleNewTag = () => {
         if (!newTag.trim()) return;
@@ -115,6 +151,27 @@ export default function FinalVideo() {
         }
     };
 
+    const handleDownload = async () => {
+        if (!videoUrl) return;
+        setDownloading(true);
+        try {
+            const res = await fetch(videoUrl);
+            if (!res.ok) throw new Error("Failed to fetch video.");
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = `${title || "video"}.mp4`;
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(blobUrl);
+        } catch (err) {
+            console.error("Failed to download video: ", err);
+        } finally {
+            setDownloading(false);
+        }
+    }
+
     useEffect(() => {
         const saved = localStorage.getItem('videoMetadata');
         if (saved) {
@@ -158,6 +215,9 @@ export default function FinalVideo() {
                                         <div className="flex items-center justify-between mb-6">
                                             <h2 className="font-headline text-2xl font-bold text-on-surface">Set video information</h2>
                                         </div>
+                                        <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">
+                                            If you would like, you can edit the title, subject/topic, and description to better describe your video. You can also add tags to help describe the contents of your video. Once the information is to your liking, you can save the video to your gallery.
+                                        </p>
                                         <div className="space-y-6">
                                             <div>
                                                 <label className="text-on-surface-variant uppercase mb-2 font-bold text-md flex items-center gap-1">Title <span className="material-symbols-outlined text-xs">edit</span></label>
@@ -175,12 +235,6 @@ export default function FinalVideo() {
                                                 </div>
                                             </div>
                                             <div>
-                                                <label className="text-on-surface-variant uppercase block mb-2 font-bold text-md">Prompt</label>
-                                                <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
-                                                    <p className="w-full p-3 text-sm text-on-surface-variant whitespace-pre-wrap">{prompt || 'No prompt set'}</p>
-                                                </div>
-                                            </div>
-                                            <div>
                                                 <label className="text-on-surface-variant uppercase mb-2 font-bold text-md flex items-center gap-1">Description <span className="material-symbols-outlined text-xs">edit</span></label>
                                                 <div className="shadow-neomorph-sunken bg-surface-container-low p-4 rounded-xl">
                                                     <textarea
@@ -188,6 +242,12 @@ export default function FinalVideo() {
                                                         onChange={(e) => setDesc(e.target.value)}
                                                         className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Description" name="description" id="description">
                                                     </textarea>
+                                                </div>
+                                            </div>
+                                            <div>
+                                                <label className="text-on-surface-variant uppercase block mb-2 font-bold text-md">Prompt</label>
+                                                <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
+                                                    <p className="w-full p-3 text-sm text-on-surface-variant whitespace-pre-wrap">{prompt || 'No prompt set'}</p>
                                                 </div>
                                             </div>
                                             <div>
@@ -232,9 +292,17 @@ export default function FinalVideo() {
                                                 </div>
                                             </div>
                                         </div>
-                                        <div className="pt-6 border-t border-outline-variant/30 max-w-2xl flex items-center gap-40 justify-center">
-                                            <button onClick={handleSave} className="bg-primary text-on-primary px-5 py-1 rounded-full text-md shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">Save</button>
+                                        <div className="pt-6 flex items-center gap-40 justify-center">
+                                            <button onClick={handleSave} className="w-50 bg-primary text-on-primary py-3 px-5 rounded-lg font-bold text-md flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer mb-4">Save</button>
                                         </div>
+                                        {/*
+                                        <div className="flex justify-center">
+                                            //Doesn't actually download anything yet because there is nothing to download
+                                            <button className="w-50 bg-secondary text-on-secondary py-3 px-5 rounded-lg font-bold text-md flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer mb-4">
+                                                <span className="material-symbols-outlined text-md">download</span>Download Video
+                                            </button>
+                                        </div>
+                                        */}
                                     </div>
                                 </div>
                             </div>
@@ -244,7 +312,29 @@ export default function FinalVideo() {
                                     <div className="flex items-center justify-between mb-6">
                                         <h2 className="font-headline text-2xl font-bold text-on-surface">Additional Resources</h2>
                                     </div>
-                                    <p>Agent can add extra links and things here. Essentially this section will help the user to view other, non-AI resources.</p>
+                                    {resourcesLoading && (
+                                        <p className="text-sm text-on-surface-variant">Finding resources...</p>
+                                    )}
+                                    {resourcesError && (
+                                        <p className="text-sm text-on-surface-variant">{resourcesError}</p>
+                                    )}
+                                    {!resourcesLoading && !resourcesError && resources.length === 0 && (
+                                        <p className="text-sm text-on-surface-variant">No resources found yet.</p>
+                                    )}
+                                    <ul className="space-y-3">
+                                        {resources.map((r, i) => (
+                                            <li key={i}>
+                                                <a
+                                                    href={r.url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="font-medium text-primary hover:underline">
+                                                    {r.title}
+                                                </a>
+                                                <p className="text-sm text-on-surface-variant">{r.description}</p>
+                                            </li>
+                                        ))}
+                                    </ul>
                                 </div>
                             </div>
                         </div>

@@ -7,6 +7,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useChat } from "../context/chatContext";
 import ThemeToggle from "./themetoggle";
 import { cleanupAbandoned, clearPipelineState } from "../lib/pipelineState";
+import { useTheme } from "next-themes";
+import { useEffect, useState } from "react";
 
 const midPipelinePages = ['/generate/edit', '/generate/review', '/generate/final-video'];
 
@@ -15,6 +17,12 @@ export default function Header() {
   const [user, loading] = useAuthState(auth);
   const { setMessages } = useChat();
   const pathname = usePathname();
+  const { theme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const handleClick = async (e: React.MouseEvent, href: string) => {
     if (midPipelinePages.includes(pathname) && !href.startsWith('/generate')) {
@@ -22,7 +30,7 @@ export default function Header() {
       const confirmed = window.confirm(
         "Starting a new upload will erase your video's current progress. Do you want to continue?"
       );
-      if(confirmed){
+      if (confirmed) {
         await cleanupAbandoned(user);
         clearPipelineState();
         router.push(href);
@@ -57,7 +65,12 @@ export default function Header() {
     <header className="docked full-width top-0 z-50 bg-surface shadow-neomorph-raised">
       <nav className="flex justify-between items-center w-full px-4 md:px-8 py-6">
         <div className="flex items-center gap-12">
-          <a className="font-display text-2xl font-extrabold text-primary tracking-tight" href="/" onClick={(e) => handleClick(e, '/')}>BluEdu</a>
+          <div className="flex items-center gap-2">
+            <a className="font-display text-2xl font-extrabold text-primary tracking-tight" href="/" onClick={(e) => handleClick(e, '/')}>BluEdu</a>
+            {mounted && theme === "party" && (
+              <span className="bg-gradient-to-r from-pink-500 to-orange-400 text-white text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider animate-pulse">Party Mode</span>
+            )}
+          </div>
           <div className="hidden md:flex items-center gap-8">
             {navLinks('/generate', 'Generate')}
             {navLinks('/documents', 'Documents')}

@@ -2,7 +2,7 @@ import { db } from "@/app/firebase/config";
 import { doc, deleteDoc } from "firebase/firestore";
 import type { User } from "firebase/auth";
 
-export const midPipelinePages = ["/generate/edit", "/generate/review", "generate/final-video", "/generate/working"];
+export const midPipelinePages = ["/generate/edit", "/generate/review", "/generate/final-video", "/generate/working"];
 const PIPELINE_KEYS = [
     'prompt',
     'selectedPrompt',

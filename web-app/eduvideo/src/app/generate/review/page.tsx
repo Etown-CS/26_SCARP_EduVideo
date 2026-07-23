@@ -70,6 +70,8 @@ export default function Review() {
                 },
             });
             setSubmitted(true);
+            setScore(null);
+            setNotes('');
         }catch(err){
             console.error("Failed to submit review: ", err);
         }finally{
@@ -229,6 +231,9 @@ export default function Review() {
                                             Submit Review
                                         </button>
                                     </div>
+                                    {submitted && (
+                                        <p className="text-sm text-primary font-medium">Thank you for submitting your feedback!</p>
+                                    )}
                                 </div>
                             </div>
                             <div className="col-span-4 flex flex-col gap-6 min-h-0">
