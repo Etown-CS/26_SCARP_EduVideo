@@ -6,6 +6,10 @@ from targeting_level_rubric import DIFFICULTY_RUBRIC
 
 from pathlib import Path
 
+### LLM
+load_dotenv()
+client = OpenAI()
+
 ############### Segment Filter ###############
 # In order to create a transcript per a core topic, remove segments such as...
 # - ones labeled as "optional" or "advanced"
@@ -20,9 +24,7 @@ def filter_subsegments(segment):
     return filtered
 
 ############### Transcript Generation + Key point extraction###############
-############### Transcript Generation + Key point extraction###############
-# based on summaries
-def generate_transcript(section, subseg_lookup):
+def generate_transcript(section, subseg_lookup, video_title):
     subsegs = []
     for sid in section["subsegment_ids"]:
         if sid in subseg_lookup:
@@ -34,15 +36,13 @@ def generate_transcript(section, subseg_lookup):
     if not subsegs:
         return None
 
-    print(f"My subsegments: {subsegs}\n")
     summary, marker_dict = summaries_with_markers(subsegs)
-    # print(summary)
     new_summary = restore_img_path(summary, marker_dict)
 
     prompt = DIFFICULTY_RUBRIC + f"""
     You are a Script Generation Agent creating an educational video transcripts for beginner undergraduate students.
 
-    This video is titled: "{data["video outline"]['title']}"
+    This video is titled: "{video_title}"
     The current section is: "{section['title']}" (role: {section['role']})
 
 Key points to cover in this section:
@@ -129,60 +129,60 @@ def restore_img_path(summary, marker_dict):
     return new_summary
 
 ############### Main ###############
+def run_script_gen(pedagogical_json, output_folder):
+    file = pedagogical_json
 
-load_dotenv()
-client = OpenAI()
+    with open(file, "r") as f:
+        data = json.load(f)
 
-file = "output_sample/cs350_llm/pedagogical_output.json"
-
-with open(file, "r") as f:
-    data = json.load(f)
-
-# Build a lookup: subsegment id → subsegment data
-subseg_lookup = {}
-for topic in data["segments"]:
-    for sub in topic["ordered_subsegments"]:
-        subseg_lookup[sub["id"]] = sub
+    # Build a lookup: subsegment id → subsegment data
+    subseg_lookup = {}
+    for topic in data["segments"]:
+        for sub in topic["ordered_subsegments"]:
+            subseg_lookup[sub["id"]] = sub
 
 
-### Build output
-sections_output = []
-for section in data["video outline"]["sections"]:
-    result = generate_transcript(section, subseg_lookup)
-    if result:
-        print(f"\n\n--- Section {section['section']}: {section['title']} [{section['role']}] ---")
-        print(result["transcript"])
-        print(f"Key points: {result['key_points']}")
+    ### Build output
+    sections_output = []
+    video_title = data["video_outline"]["title"]
+    for section in data["video_outline"]["sections"]:
+        result = generate_transcript(section, subseg_lookup, video_title)
+        if result:
+            print(f"\n\n--- Section {section['section']}: {section['title']} [{section['role']}] ---")
+            print(result["transcript"])
+            print(f"Key points: {result['key_points']}")
 
-        sections_output.append({
-            "section": section["section"],
-            "title": section["title"],
-            "role": section["role"],
-            "subsegment_ids": section["subsegment_ids"],
-            "transcript": result["transcript"],
-            "key_points": result["key_points"],
-        })
-### Save
-output = {
-    "topic": data["topic"],
-    "user_prompt": data["user_prompt"],
-    "video_title": data["video outline"]["title"],
-    "sections": sections_output
-}
+            sections_output.append({
+                "section": section["section"],
+                "title": section["title"],
+                "role": section["role"],
+                "subsegment_ids": section["subsegment_ids"],
+                "transcript": result["transcript"],
+                "key_points": result["key_points"],
+            })
+    ### Save output file
+    output = {
+        "topic": data["topic"],
+        "user_prompt": data["user_prompt"],
+        "video_title": data["video_outline"]["title"],
+        "sections": sections_output
+    }
 
-output_dir = os.path.dirname(file)
-with open(os.path.join(output_dir, "script_output.json"), "w") as f:
-    json.dump(output, f, indent=4)
+    output_dir = os.path.dirname(file)
+    with open(os.path.join(output_dir, "script_output.json"), "w") as f:
+        json.dump(output, f, indent=4)
 
-print(f"\n✅ Saved to {output_dir}/script_output.json")
+    print(f"\n✅ Saved to {output_dir}/script_output.json")
 
-# if __name__ == "__main__":
-#     fileName = input("Provide a valid folder name: ")
-#     pedagogical_json_path = Path(f"output_sample/{fileName}/pedagogical_output.json")
-#     output_folder = Path(f"outout_sample/{fileName}")
+    return output_folder
 
-#     if output_folder.exists() == False or pedagogical_json_path.exists() == False:
-#         print(f"Folder not found or doc_analysis.py skipped.")
-#         exit()
+if __name__ == "__main__":
+    fileName = input("Provide a valid folder name: ")
+    pedagogical_json_path = Path(f"output_sample/{fileName}/pedagogical_output.json")
+    output_folder = Path(f"output_sample/{fileName}")
+
+    if output_folder.exists() == False or pedagogical_json_path.exists() == False:
+        print(f"Folder not found or doc_analysis.py skipped.")
+        exit()
         
-#     run_script_gen(pedagogical_json_path, output_folder)
+    run_script_gen(pedagogical_json_path, output_folder)

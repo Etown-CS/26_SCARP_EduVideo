@@ -10,6 +10,7 @@ from targeting_level_rubric import DIFFICULTY_RUBRIC
 
 import argparse
 import base64
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import numpy as np
 
 ### LLM
@@ -215,14 +216,37 @@ def collect_dropped_imgs(segments, img_placeholder_map, img_context_map, client)
         })
 
 ############################## Interpret images ##############################
-def add_image_description(segments, client):
-    ''' Find images from all the segments and call describe_image() '''
-    for seg in segments:
-        if seg["type"] == "visual":
-            image_path = re.search(r"\((.*?)\)", seg['content']).group(1) # Remove "![]()" to get an actual path | .group(0) includes parenthesis, .group(1) only takes strings inside ()
-            seg["image_description"] = describe_image(image_path, client)
-        if "subsegments" in seg:
-            add_image_description(seg["subsegments"], client)
+def add_image_description(segments, client, max_workers=10):
+    '''
+    - Find images from all the segments and call describe_image() in parallel 
+    - max_worker=5: how many requests it sends simulaneously
+    - What was changed?: Get a visual seg and call LLM for describe_image() -> Get all visual segments and process them in parallel
+        + Less LLM calls, multiple segments are processed at a time
+    '''
+    ### First, recursively collect all "visual" segments that need a description
+    visual_segs = []
+    def _collect(segs):
+        for seg in segs:
+            if seg["type"] == "visual":
+                visual_segs.append(seg)
+            if "subsegments" in seg:
+                _collect(seg["subsegments"]) # Call it again
+
+    _collect(segments)
+
+    def _describe_one(v_seg):
+        ''' Process only one image to get a description '''
+        image_path = re.search(r"\((.*?)\)", v_seg['content']).group(1) # Remove "![]()" to get an actual path | .group(0) includes parenthesis, .group(1) only takes strings inside ()
+        return v_seg, describe_image(image_path, client) # needs to be tuple because of as_completed(futures) later
+
+    ### Parallel executions
+    with ThreadPoolExecutor(max_workers=max_workers) as executor: # wrapping with 'with' allows to release resource after the process is done.
+        futures = [executor.submit(_describe_one, v_seg) for v_seg in visual_segs] # futures = receives the result
+        # executor.submit(_describe_one, seg) ... Run _describe_one(v_seg), but goes to the next segment without waiting result.
+        # As it finishes processing each segment, the result is added to futures
+        for future in as_completed(futures): # start processing ones whose result is returned
+            v_seg, description = future.result()
+            v_seg["image_description"] = description # Add the new key
 
 def describe_image(image_path, client):
     ''' Add a description to an image '''
@@ -254,15 +278,28 @@ def embedding_text(text, client, model="text-embedding-3-small"):
     )
     return response.data[0].embedding
 
-def get_seg_embedding(segments, client):
-    seg_embedding_map = {}
+def get_seg_embedding(segments, client, model="text-embedding-3-small"):
+    seg_ids = []
+    combined_texts_all = [] # all segments
+
     for seg in segments:
         texts = [seg.get("content", "")]
         for sub in seg.get("subsegments", []):
             texts.append(sub.get("content", ""))
-        combined = " ".join(texts)
-        seg_embedding_map[seg["id"]] = embedding_text(combined, client)
+        seg_combined = " ".join(texts) # each segment
 
+        if not seg_combined.strip():
+            seg_combined = " "
+        seg_ids.append(seg["id"])
+        combined_texts_all.append(seg_combined)
+
+    # Call the embedding model only once and embed all topics
+    response = client.embeddings.create(input=combined_texts_all, model=model)
+
+    seg_embedding_map = {}
+    for seg_id, item in zip(seg_ids, response.data):
+        seg_embedding_map[seg_id] = item.embedding
+        
     return seg_embedding_map
 
 ############################# Similarity Check (Cosine Similarity) #############################

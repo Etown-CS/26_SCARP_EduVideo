@@ -133,7 +133,7 @@ def build_output(data, results, outline):
     output = {
         "topic": data["topic"],
         "user_prompt": data["user_prompt"],
-        "video outline": outline,
+        "video_outline": outline,
         "segments": []
     }
 
@@ -189,7 +189,7 @@ def run_pedagogical_structuring(doc_analysis_json, output_folder):
 if __name__ == "__main__":
     fileName = input("Provide a valid folder name: ")
     doc_analysis_json_path = Path(f"output_sample/{fileName}/doc_analysis_output.json")
-    output_folder = Path(f"outout_sample/{fileName}")
+    output_folder = Path(f"output_sample/{fileName}")
 
     if output_folder.exists() == False or doc_analysis_json_path.exists() == False:
         print(f"Folder not found or doc_analysis.py skipped.")
