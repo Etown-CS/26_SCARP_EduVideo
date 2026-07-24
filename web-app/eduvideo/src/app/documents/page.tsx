@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState, Suspense } from "react";
 import Loading from "@/app/components/loading";
 import AgentChat from "../components/agentchat";
-import { doc, deleteDoc, getDoc, getDocs, collection, Timestamp } from "firebase/firestore";
+import { doc, deleteDoc, getDoc, getDocs, collection, Timestamp, query, where, writeBatch } from "firebase/firestore";
 import dynamic from 'next/dynamic';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from "remark-gfm";
@@ -17,7 +17,7 @@ function Docs() {
 
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
-    const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string | Timestamp }[]>([]);
+    const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string | Timestamp, topic?: string | null }[]>([]);
     const [viewing, setviewing] = useState<typeof fileNames[0] | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [previewLoad, setPreviewLoad] = useState(false);
@@ -26,6 +26,8 @@ function Docs() {
     const [mdText, setMdText] = useState<string | null>(null);
     const [filesLoading, setFilesLoading] = useState(true);
     const searchParams = useSearchParams();
+    const [searchQuery, setSearchQuery] = useState('');
+    const [selectedTopic, setSelectedTopic] = useState<string>('all');
 
     function urlToArray(dataUrl: string): ArrayBuffer {
         const base64 = dataUrl.split(',')[1];
@@ -40,6 +42,20 @@ function Docs() {
     function urlToText(dataUrl: string): string {
         const arrayBuffer = urlToArray(dataUrl);
         return new TextDecoder('utf-8').decode(arrayBuffer);
+    }
+
+    interface VideoDoc {
+        id: string;
+        topic?: string;
+        documentId: string;
+        title?: string;
+        status?: string;
+    }
+
+    async function getTopicsForFile(userId: string, fileId: string): Promise<VideoDoc[]> {
+        const q = query(collection(db, "users", userId, "videos"), where("documentId", "==", fileId));
+        const snap = await getDocs(q);
+        return snap.docs.map(d => ({ id: d.id, ...d.data() } as VideoDoc));
     }
 
     useEffect(() => {
@@ -68,7 +84,13 @@ function Docs() {
                 const dateB = b.date instanceof Timestamp ? b.date.toMillis() : new Date(b.date || 0).getTime();
                 return dateA - dateB;
             });
-            setFileNames(sorted);
+            const filesWithTopics = await Promise.all(
+                sorted.map(async (file) => {
+                    const topics = await getTopicsForFile(user.uid, file.id);
+                    return { ...file, topic: topics[0]?.topic ?? null };
+                })
+            );
+            setFileNames(filesWithTopics);
             setFilesLoading(false);
         }
         load();
@@ -124,12 +146,12 @@ function Docs() {
     }, [viewing]);
 
     useEffect(() => {
-        if(filesLoading || fileNames.length === 0) return;
+        if (filesLoading || fileNames.length === 0) return;
         const target = searchParams.get('docId');
-        if(!target) return;
+        if (!target) return;
 
         const match = fileNames.find(f => f.id === target);
-        if(match){
+        if (match) {
             setviewing(match);
             router.replace('/documents');
         }
@@ -155,10 +177,39 @@ function Docs() {
     }, [user]);
     */}
 
+    const topics = Array.from(
+        new Set(fileNames.map(f => f.topic).filter((t): t is string => !!t))
+    ).sort();
+
+    const filteredFiles = fileNames.filter(file => {
+        const matchesTopic = selectedTopic === 'all' || file.topic === selectedTopic;
+        const query = searchQuery.trim().toLowerCase();
+        const matchesSearch = query === '' || file.name?.toLowerCase().includes(query) || file.topic?.toLowerCase().includes(query);
+        return matchesTopic && matchesSearch;
+    });
+
     const handleDelete = async (id: string) => {
         const entry = fileNames.find(f => f.id === id);
         setFileNames(prev => prev.filter(f => f.id !== id));
 
+        try{
+            const q = query(collection(db, "users", user!.uid, "videos"), where("documentId", "==", id));
+            const linkedVideos = await getDocs(q);
+            if(!linkedVideos.empty){
+                const batch = writeBatch(db);
+                linkedVideos.docs.forEach(videoDoc => {
+                    batch.update(videoDoc.ref, {documentId: null, document: ''});
+                });
+                await batch.commit();
+            }
+            await deleteDoc(doc(db, 'users', user!.uid, 'files', id));
+            if(entry && entry.name != 'N/A'){
+                await deleteDoc(doc(db, 'documentContents', id));
+            }
+        } catch (err){
+            console.error("Failed to delete the contents of the document", err);
+        }
+        {/*
         try {
             await deleteDoc(doc(db, 'users', user!.uid, 'files', id));
             if (entry && entry.name !== 'N/A') {
@@ -167,7 +218,8 @@ function Docs() {
         } catch (err) {
             console.error('Failed to delete the contents of the document in the Firestore: ', err);
         }
-    }
+            */}
+    };
 
     const formatDate = (date: unknown): string => {
         if (!date) return 'Unknown';
@@ -178,7 +230,17 @@ function Docs() {
                 year: 'numeric',
             });
         }
-        if(typeof date === 'string') return date;
+        if (typeof date === 'string') {
+            const parsed = new Date(date);
+            if (!isNaN(parsed.getTime())) {
+                return parsed.toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                });
+            }
+            return date;
+        }
         return 'Unknown';
     };
 
@@ -219,58 +281,82 @@ function Docs() {
                     <h1 className="font-headline text-3xl font-bold text-on-background">My Documents</h1>
                     <p className="mt-3 max-w-3xl text-md text-on-surface-variant font-body leading-relaxed">Here is where your uploaded documents and prompts are stored.</p>
                     <div className="flex flex-row items-start gap-8 mt-8">
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                            {filesLoading ? (
-                                Array.from({ length: 3 }).map((_, i) => (
-                                    <div key={i} className="bg-surface rounded-xl p-6 shadow-neomorph-raised border border-outline-variant/30 h-64 animate-pusle" />
-                                ))
-                            ) : fileNames.length > 0 ? (
-                                fileNames.map((file, index) => (
-                                    <div key={file.id} className="file-card bg-surface rounded-xl p-6 shadow-neomorph-raised border border-outline-variant/30 flex flex-col h-full">
-                                        <div className="flex items-start justify-between mb-6">
-                                            <div className="flex items-center gap-1">
-                                                <span className="material-symbols-outlined text-[20px]">{getIcon(file.name).icon}</span>
-                                                <span className="font-label text-[12px] text-outline bg-surface-container px-2 py-1 rounded">{file.name?.split('.').pop()?.toUpperCase()}</span>
-                                            </div>
-                                            <button onClick={() => handleDelete(file.id)}
-                                                className="text-on-surface-variant hover:text-error rounded-lg transition-all cursor-pointer" title="Delete Document">
-                                                <span className="text-sm material-symbols-outlined">delete</span>
-                                            </button>
-                                        </div>
-                                        <h3 className="font-headline text-lg font-semibold text-on-background mb-2">{file.name}</h3>
-                                        <p className="text-on-surface-variant text-md mb-6 gap-2 overflow-y-auto max-h-50"> <span className="font-bold">Prompt: </span> {file.prompt} </p>
-
-                                        <p className="text-on-surface-variant text-sm mt-6 mb-6 flex items-center gap-2">
-                                            <span className="material-symbols-outlined text-[16px]">calendar_today</span>
-                                            Uploaded: {formatDate(file.date)}
-                                        </p>
-                                        <button onClick={() => setviewing(file)}
-                                            className="bg-secondary-container text-on-secondary-container py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer mb-4">
-                                            <span className="material-symbols-outlined">document_search</span>View Document
-                                        </button>
-                                        <div className="mt-auto pt-4 border-t border-surface-variant flex gap-3">
-                                            <button onClick={() => {
-                                                localStorage.setItem('activeFileId', file.id);
-                                                localStorage.setItem('selectedDocument', file.name);
-                                                localStorage.setItem('selectedPrompt', file.prompt);
-                                                router.push('/generate');
-                                            }}
-                                                className="flex-1 bg-primary-container text-on-primary-container py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer">
-                                                <span className="material-symbols-outlined text-[18px]">movie_edit</span>
-                                                Generate Video
-                                            </button>
-                                        </div>
+                        <div className="flex flex-col flex-1 min-w-0">
+                            {!filesLoading && fileNames.length > 0 && (
+                                <div className="flex flex-col sm:flex-row gap-4 mb-6 w-full">
+                                    <div className="relative flex-1">
+                                        <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-lg">search</span>
+                                        <input type="text" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} placeholder="Search by filename or topic..." className="w-full font-label pl-10 pr-4 py-2 rounded-lg bg-surface-container-lowest shadow-neomorph-raised text-sm text-on-surface placeholder:text-on-surface-variant focus:outline-none" />
                                     </div>
-                                ))
-                            ) : (
-                                <div>
+                                    <select value={selectedTopic} onChange={(e) => setSelectedTopic(e.target.value)} className="px-4 py-2 font-label rounded-lg bg-surface-container-lowest shadow-neomorph-raised text-sm text-on-surface focus:outline-none cursor-pointer">
+                                        <option value="all">All Topics</option>
+                                        {topics.map(topic => (
+                                            <option key={topic} value={topic}>{topic}</option>
+                                        ))}
+                                    </select>
                                 </div>
                             )}
-                            <div onClick={() => router.push('/generate')} className="bg-surface-container-low rounded-xl p-6 shadown-neomorph-sunken border-2 border-dashed border-outline-variant flex flex-col items-center justify-center text-center group cursor-pointer hoer:border-primary transition-colors">
-                                <div className="p-4 bg-surface rounded-full shadow-neomorph-raised mb-4 group-hover:text-primary transition-colors">
-                                    <span className="material-symbols-outlined text-[40px]">upload_file</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                                {filesLoading ? (
+                                    Array.from({ length: 3 }).map((_, i) => (
+                                        <div key={i} className="bg-surface rounded-xl p-6 shadow-neomorph-raised border border-outline-variant/30 h-64 animate-pusle" />
+                                    ))
+                                ) : filteredFiles.length > 0 ? (
+                                    filteredFiles.map((file, index) => (
+                                        <div key={file.id} className="file-card bg-surface rounded-xl p-6 shadow-neomorph-raised border border-outline-variant/30 flex flex-col h-full">
+                                            <div className="flex items-start justify-between mb-6">
+                                                <div className="flex items-center gap-1">
+                                                    <span className="material-symbols-outlined text-[20px]">{getIcon(file.name).icon}</span>
+                                                    <span className="font-label text-[12px] text-outline bg-surface-container px-2 py-1 rounded">{file.name?.split('.').pop()?.toUpperCase()}</span>
+                                                </div>
+                                                <button onClick={() => handleDelete(file.id)}
+                                                    className="text-on-surface-variant hover:text-error rounded-lg transition-all cursor-pointer" title="Delete Document">
+                                                    <span className="text-sm material-symbols-outlined">delete</span>
+                                                </button>
+                                            </div>
+                                            <h3 className="font-headline text-lg font-semibold text-on-background mb-2 line-clamp-2 min-h-[3.5rem]">{file.name}</h3>
+                                            <p className="text-on-surface-variant text-md mb-6 gap-2 overflow-y-auto max-h-50"> <span className="font-bold">Prompt: </span> {file.prompt} </p>
+
+                                            <p className="text-on-surface-variant text-sm mt-6 mb-2 flex items-center gap-2">
+                                                <span className="material-symbols-outlined text-[16px]">calendar_today</span>
+                                                Uploaded: {formatDate(file.date)}
+                                            </p>
+                                            <div className="flex flex-wrap gap-2 font-body text-md text-secondary mb-4">Topics:
+                                                {file.topic && (
+                                                    <span key={index} className="shrink-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label text-xs">
+                                                        {file.topic}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <button onClick={() => setviewing(file)}
+                                                className="mt-auto bg-secondary text-on-secondary py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer mb-4">
+                                                <span className="material-symbols-outlined">document_search</span>View Document
+                                            </button>
+                                            <div className="mt-auto pt-4 border-t border-surface-variant flex gap-3">
+                                                <button onClick={() => {
+                                                    localStorage.setItem('activeFileId', file.id);
+                                                    localStorage.setItem('selectedDocument', file.name);
+                                                    localStorage.setItem('selectedPrompt', file.prompt);
+                                                    router.push('/generate');
+                                                }}
+                                                    className="flex-1 bg-primary-container text-on-primary-container py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer">
+                                                    <span className="material-symbols-outlined text-[18px]">movie_edit</span>
+                                                    Generate Video
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))
+                                ) : fileNames.length > 0 ? (
+                                    <p className="text-on-surface-variant col-span-full">No documents match your search or filter.</p>
+                                ) : (
+                                    <div></div>
+                                )}
+                                <div onClick={() => router.push('/generate')} className="bg-surface-container-low rounded-xl p-6 shadown-neomorph-sunken border-2 border-dashed border-outline-variant flex flex-col items-center justify-center text-center group cursor-pointer hoer:border-primary transition-colors">
+                                    <div className="p-4 bg-surface rounded-full shadow-neomorph-raised mb-4 group-hover:text-primary transition-colors">
+                                        <span className="material-symbols-outlined text-[40px]">upload_file</span>
+                                    </div>
+                                    <p className="font-headline font-semibold text-on-surface group-hover:text-primary transition-colors">Go to Document Uploads</p>
                                 </div>
-                                <p className="font-headline font-semibold text-on-surface group-hover:text-primary transition-colors">Go to Document Uploads</p>
                             </div>
                         </div>
                         <AgentChat />
@@ -350,7 +436,7 @@ function Docs() {
 export default function DocPage() {
     return (
         <Suspense fallback={<Loading />}>
-            <Docs/>
+            <Docs />
         </Suspense>
     )
 }

@@ -302,7 +302,11 @@ export default function Generate() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-2 min-h-0">
-                                <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">Use the box below to upload your notes, powerpoints, coding samples, etc. You can drag and drop or use the browse files button. We take docx, md, and pdf files, however, pdfs are preferred.</p>
+                                <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">
+                                    Below, upload your notes, powerpoints, or coding samples. Once the document and optional prompt have been provided, click the process document button. 
+                                    After processing, you will be able to view the topics the generated video will be focusing on. 
+                                    If you are unhappy with the topics, go back and edit your prompt to be more specific. Once you are satisfied, click the generate button to start the creation of your video.
+                                </p>
                                 <div
                                     onDragOver={handleDragOver}
                                     onDragLeave={handleDragLeave}
@@ -340,18 +344,25 @@ export default function Generate() {
                                     </div>)
                                     }
                                 </div>
-                                <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body leading-relaxed">Topic selection for video.</p>
-                                <div className="flex flex-wrap gap-2 font-body text-md text-secondary"> <span className="font-bold">Topics: </span>
-                                        <span className="shrink-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label text-sm"> Topics
-                                        </span>
-                                </div>
+                                {/*
                                 <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body leading-relaxed">If you would like to have your video be more specific to a certain concept, consider entering a prompt into the box below. If you are unsure how to word your prompt, ask the chat and it will generate a prompt for you to use.</p>
+                                */}
                                 <div className="max-w-3xl shadow-neomorph-sunken bg-surface-container-low my-8 px-4 py-4 rounded-lg flex items-center gap-2">
                                     <span className="material-symbols-outlined text-outline text-[40px]"></span>
                                     <textarea
                                         value={prompt}
                                         onChange={(e) => setPrompt(e.target.value)}
                                         className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Input an additional prompt here" rows={5} />
+                                </div>
+                                {/*on click call doc analysis get topics back then display topics*/}
+                                <div className="flex justify-center">
+                                    <button className="px-4 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-surface shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
+                                        Process Document
+                                    </button>
+                                </div>
+                                <div className="flex flex-wrap gap-2 font-body text-md text-secondary"> <span className="font-bold">Topics: </span>
+                                    <span className="shrink-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label text-sm"> Topics
+                                    </span>
                                 </div>
                                 <div className="max-w-3xl flex items-center gap-4 justify-center mt-4">
                                     <button

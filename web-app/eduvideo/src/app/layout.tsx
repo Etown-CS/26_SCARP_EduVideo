@@ -5,6 +5,8 @@ import Header from "@/app/components/header";
 import { ChatProvider } from "./context/chatContext";
 import { ThemeProvider } from 'next-themes';
 import Image from "next/image";
+import PartyConfetti from "./components/partyMode";
+import SecretToggle from "./components/secretToggle";
 
 const manrope = Manrope({
   variable: "--font-manrope",
@@ -41,8 +43,9 @@ export default function RootLayout({
         <link rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
       </head>
-      <body suppressHydrationWarning className="bg-surface font-body text-on-surface min-h-screen flex flex-col">
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <body suppressHydrationWarning className="bg-surface bg-[image:var(--surface-gradient)] animate-gradient font-body text-on-surface min-h-screen flex flex-col">
+        <ThemeProvider attribute="class" themes={["light", "dark", "party"]} defaultTheme="light" enableSystem={false}>
+          <PartyConfetti/>
           <ChatProvider>
             <Header />
             {children}
@@ -50,7 +53,8 @@ export default function RootLayout({
           <footer className="full-width mt-auto bg-surface-container-low border-t border-outline-variant/10">
             <div className="flex flex-col md:flex-row justify-between items-center w-full px-4 md:px-8 py-6 gap-8">
               <div className="flex flex-col items-center md:items-start gap-1">
-                <span className="font-display text-2xl font-bold text-primary">BluEdu</span>
+                <SecretToggle/>
+                {/*<span className="font-display text-2xl font-bold text-primary">BluEdu</span> */}
                 <p className="font-body text-sm text-on-secondary-container text-center md:text-left">Turning CS Notes into Teaching Videos: An AI-Driven Document-to-Video System​</p>
                 <p className="font-body text-sm text-on-secondary-container text-center md:text-left">Elizabethtown College SCARP 2026</p>
               </div>

@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 @custom-variant dark (&:where(html.dark, html.dark *));
+@custom-variant party (&:where(html.party, html.party *));
 
 :root {
   --background: #ffffff;
@@ -52,6 +53,7 @@
   --tertiary-container: #38485d;
   --on-tertiary: #ffffff;
   --primary-fixed-dim: #b6c4ff;
+  --surface-gradient: none;
   --neomorph-raised: 6px 6px 12px #E2E8F0, -6px -6px 12px #ffffff;
   --neomorph-sunken: inset 4px 4px 8px #e2e8f0, inset -4px -4px 8px #ffffff;
 }
@@ -91,6 +93,7 @@
   --color-inverse-surface: var(--inverse-surface);
   --color-inverse-on-surface: var(--inverse-on-surface);
   --color-inverse-primary: var(--inverse-primary);
+  --color-surface-gradient: var(--surface-gradient);
   --shadow-neomorph-raised: var(--neomorph-raised);
   --shadow-neomorph-sunken: var(--neomorph-sunken);
 }
@@ -140,17 +143,86 @@ html.dark {
   --surface-container-low: #0d1c2d;
   --primary: #60A5FA;
   --on-secondary: #ffffff;
-  --background: #0f172a;
   --inverse-primary: #b6c4ff;
   --error: #f87171;
   --surface-bright: #2c3a4c;
   --surface-tint: #3b82f6;
+  --surface-gradient: none;
   --neomorph-raised: 4px 4px 10px rgba(0, 0, 0, 0.4), -1px -1px 4px rgba(255, 255, 255, 0.03);
   --neomorph-sunken: inset 4px 4px 8px rgba(0, 0, 0, 0.5), inset -1px -1px 4px rgba(255, 255, 255, 0.02);
 }
 
-body {
-  background: var(--color-background);
-  color: var(--color-on-surface);
-  font-family: Arial, Helvetica, sans-serif;
+html.party {
+  --background: #fafafa;
+  --foreground: #f8fafc;
+  --on-tertiary: #ffffff;
+  --on-primary: #ffffff;
+  --primary-fixed-dim: #ddd6fe;
+  --on-secondary-fixed: #2d0016;
+  --surface-dim: #f3f4f6;
+  --on-surface-variant: #4d4d4d;
+  --on-primary-fixed-variant: #5b21b6;
+  --secondary-fixed: #fbcfe8;
+  --on-tertiary-container: #ffffff;
+  --on-tertiary-fixed-variant: #831843;
+  --surface-variant: #fae8ff;
+  --primary-container: #7c3aed;
+  --inverse-surface: #1e1b4b;
+  --surface-container-highest: #f3e8ff;
+  --surface-container-lowest: #ffffff;
+  --on-secondary-fixed-variant: #701a75;
+  --secondary-fixed-dim: #fde68a;
+  --on-surface: #1e1b4b;
+  --secondary-container: #fce7f3;
+  --on-background: #1e1b4b;
+  --primary-fixed: #ede9fe;
+  --on-primary-container: #ffffff;
+  --on-error-container: #4c0519;
+  --inverse-on-surface: #f5f3ff;
+  --tertiary: #ec4899;
+  --outline: #71717a;
+  --tertiary-container: #f472b6;
+  --outline-variant: #e4e4e7;
+  --on-error: #ffffff;
+  --secondary: #db2777;
+  --tertiary-fixed: #fce7f3;
+  --surface: rgba(255, 255, 255, 0.8);
+  --surface-container-high: #f5f3ff;
+  --tertiary-fixed-dim: #fbcfe8;
+  --error-container: #ffe4e6;
+  --on-secondary-container: #831843;
+  --on-primary-fixed: #2e1065;
+  --surface-container: #fdf2f8;
+  --on-tertiary-fixed: #2d0016;
+  --surface-container-low: rgba(255, 255, 255, 0.6);
+  --primary: #8b5cf6;
+  --on-secondary: #ffffff;
+  --inverse-primary: #fbcfe8;
+  --error: #e11d48;
+  --surface-bright: #ffffff;
+  --surface-tint: #db2777;
+  --surface-gradient: linear-gradient(-45deg, #fdf2f8, #f5f3ff, #fff7ed, #f0fdf4);
+  --neomorph-raised: 8px 8px 16px rgba(0, 0, 0, 0.05), -8px -8px 16px rgba(255, 255, 255, 0.8);
+  --neomorph-sunken: inset 2px 2px 5px rgba(0, 0, 0, 0.05), inset -2px -2px 5px rgba(255, 255, 255, 0.8);
+}
+
+@layer utilities {
+  .animate-gradient {
+    background-size: 400% 400%;
+    animation: party-gradient 15s ease infinite;
+  }
+}
+
+@keyframes party-gradient{
+  0% {background-position: 0% 50%;}
+  50% {background-position: 100% 50%;}
+  100% {background-position: 0% 50%;}
+}
+
+@layer base {
+  body {
+    background: var(--color-background);
+    color: var(--color-on-surface);
+    font-family: Arial, Helvetica, sans-serif;
+  }
 }

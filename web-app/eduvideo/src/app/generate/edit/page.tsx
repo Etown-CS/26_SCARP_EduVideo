@@ -97,7 +97,6 @@ export default function Edit() {
         const saved = localStorage.getItem('selectedDocument');
         if (saved) {
             setPreloaded(saved);
-            localStorage.removeItem('selectedDocument');
         }
         const savedPrompt = localStorage.getItem('selectedPrompt');
         if (savedPrompt && savedPrompt !== 'N/A') {
