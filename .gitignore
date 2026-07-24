@@ -3,6 +3,7 @@ video-engine/output_sample
 
 # venv
 /venv
+video-engine/kokoro_env
 
 .claude/
 .vscode/
