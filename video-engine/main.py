@@ -1,16 +1,17 @@
 import argparse
 from pathlib import Path
-from openai import OpenAI
 from dotenv import load_dotenv
-
-load_dotenv()
-client = OpenAI()
+from openai import OpenAI
 
 # Import entrypoint functions from your three agent files
 from doc_analysis import run_doc_analysis
 from pedagogical_structuring import run_pedagogical_structuring
 from script_gen import run_script_gen
 from visual_gen import run_visual_gen
+
+### LLM
+load_dotenv()
+client = OpenAI()
 
 def unique_folder_name(base_name, base_dir="output_sample"):
     target_dir = Path(base_dir) / base_name
