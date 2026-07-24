@@ -1,4 +1,6 @@
 import re
+import os
+from audio_gen import clean_text_for_tts, tts_pipeline, generate_audio, get_audio_duration
 
 ### Setup
 MODEL_NAME = "Wan2.1"     # model to use
@@ -69,7 +71,6 @@ def split_into_clip_chunks(text, target_duration_sec=CLIP_DURATION_SEC):
 
     return chunks
 
-
 ############### Get Frame Count ###############
 def frames_for_duration(duration_sec, model_name=MODEL_NAME):
     """
@@ -87,7 +88,6 @@ def frames_for_duration(duration_sec, model_name=MODEL_NAME):
 
     actual_duration_sec = frame_num / fps
     return frame_num, actual_duration_sec
-
 
 ############### Find Keywords to Render ###############
 def find_new_key_point(chunk_text, key_points, already_shown):
@@ -206,13 +206,15 @@ def gen_visual_prompt_4chunk(
 
 
 ############### Generate all clip prompts for one section ###############
-def gen_visual_prompts_4section(client, section, model_name=MODEL_NAME, key_points=None):
-    """
-    use_keyword: if True, every clip in this section gets the section title rendered as on-screen text. 
-    Intended for testing on one section at a time, not for blanket use across the whole batch yet.
-    """
-    chunks = split_into_clip_chunks(section['transcript'], target_duration_sec=CLIP_DURATION_SEC)
+def gen_clips_with_audio_4section(client, section, pipeline, output_folder, model_name=MODEL_NAME, key_points=None):
+    ### Create folder to store audio files
+    audio_dir = os.path.join(output_folder, "audio")
+    os.makedirs(audio_dir, exist_ok=True)
+
+    ### Split each section's transcript into chunks
+    chunks = split_into_clip_chunks(section['transcript'])
     total_chunks = len(chunks)
+
     key_points = key_points or []
     already_shown = set()
 
@@ -221,7 +223,14 @@ def gen_visual_prompts_4section(client, section, model_name=MODEL_NAME, key_poin
 
     ### Process visual generation chunk by chunk
     for i, (chunk_text, estimated_duration) in enumerate(chunks, start=1):
-        frame_num, actual_duration = frames_for_duration(estimated_duration, model_name) # Determine the number of frames
+        ### Generate audio
+        audio_path = os.path.join(audio_dir, f"section-{section['section']}_clip{i}.wav")
+        chunk_text = clean_text_for_tts(chunk_text)
+        generate_audio(pipeline, chunk_text, audio_path)
+        actual_clip_duration = get_audio_duration(audio_path)
+
+        ### Determine frame_num based on actual audio length
+        frame_num, actual_clip_duration = frames_for_duration(actual_clip_duration, model_name)
         new_key_point = find_new_key_point(chunk_text, key_points, already_shown)              # Check if there is a keyword to display
         if new_key_point:
             already_shown.add(new_key_point)
@@ -233,7 +242,7 @@ def gen_visual_prompts_4section(client, section, model_name=MODEL_NAME, key_poin
             client,
             chunk_sub,
             model_name=model_name,
-            clip_duration_sec=round(actual_duration, 2),
+            clip_duration_sec=round(actual_clip_duration, 2),
             on_screen_key_points=new_key_point,
             section_context=section["transcript"],
             chunk_position=f"clip {i} of {total_chunks}",
@@ -248,8 +257,9 @@ def gen_visual_prompts_4section(client, section, model_name=MODEL_NAME, key_poin
             "on_screen_key_point": new_key_point,
             "estimated_narration_sec": round(estimated_duration, 1),
             "frame_num": frame_num,
-            "actual_clip_duration_sec": round(actual_duration, 2),
+            "actual_clip_duration_sec": round(actual_clip_duration, 2),
             "visual_prompt": prompt,
+            "audio_path": audio_path
         })
 
         previous_prompt = prompt  # feed forward into the next iteration
