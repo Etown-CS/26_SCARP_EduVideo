@@ -154,6 +154,8 @@ def run_pedagogical_structuring(doc_analysis_json, output_folder):
     with open(file, "r") as f:
         data = json.load(f)
 
+    print("✏️🔄 Creating Outline ...") # Status
+
     user_prompt = data.get("user_prompt", "") # empty string by default
 
     # Run all topics and collect their importance & summary of subsegments
@@ -179,12 +181,13 @@ def run_pedagogical_structuring(doc_analysis_json, output_folder):
     ### Build and save output
     output = build_output(data, all_results, outline)
 
-    with open(os.path.join(output_folder, "pedagogical_output.json"), "w") as f:
+    output_json_path = os.path.join(output_folder, "pedagogical_output.json")
+    with open(output_json_path, "w") as f:
         json.dump(output, f, indent=4)
 
     print(f"\n✅ pedagogical_output.json saved to {output_folder}!")
 
-    return output_folder
+    return output_json_path
 
 if __name__ == "__main__":
     fileName = input("Provide a valid folder name: ")

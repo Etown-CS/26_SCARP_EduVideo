@@ -48,7 +48,7 @@ def generate_transcript(section, subseg_lookup, video_title):
 Key points to cover in this section:
 {new_summary}
 
-Write a short, clear transcript paragraph for this section that:
+Write a short, clear transcript paragraph(DO NOT exceed 20 words per sentence) for this section that:
 - Fits naturally as part of a larger video (not a standalone lesson)
 - Flows naturally as spoken educational content
 - Matches the section's role ({section['role']})
@@ -135,6 +135,8 @@ def run_script_gen(pedagogical_json, output_folder):
     with open(file, "r") as f:
         data = json.load(f)
 
+    print("📖🔄 Generating transcript...") # Status
+
     # Build a lookup: subsegment id → subsegment data
     subseg_lookup = {}
     for topic in data["segments"]:
@@ -169,12 +171,13 @@ def run_script_gen(pedagogical_json, output_folder):
     }
 
     output_dir = os.path.dirname(file)
-    with open(os.path.join(output_dir, "script_output.json"), "w") as f:
+    output_json_path = os.path.join(output_dir, "script_output.json")
+    with open(output_json_path, "w") as f:
         json.dump(output, f, indent=4)
 
     print(f"\n✅ Saved to {output_dir}/script_output.json")
 
-    return output_folder
+    return output_json_path
 
 if __name__ == "__main__":
     fileName = input("Provide a valid folder name: ")

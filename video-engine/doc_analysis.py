@@ -395,8 +395,7 @@ def run_doc_analysis(file, user_prompt, output_name):
         print("Error: Upload PDF file.")
         exit()
 
-    ### Generate a folder for output
-    file_dir = os.path.join("output_sample", output_name)
+    print("📄🔄 Analyzing Document ...") # Status
 
     #### PDF -> Markdown
     md = pymupdf4llm.to_markdown(file, write_images=True, image_path=f"output_sample/{output_name}") 
