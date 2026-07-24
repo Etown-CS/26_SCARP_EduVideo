@@ -16,9 +16,9 @@ def run_visual_gen(script_json, output_folder, client):
     file = script_json
     with open(file, "r") as f:
         script_data = json.load(f)
-    print("📑 Loaded JSON file! 📑") # Status
 
-    print("🔨 Processing by sections ... 🔨") # Status
+    print("🌃📚🔄 Creating Visual Prompts ...") # Status
+
     all_clip_prompts = []
     for section in script_data["sections"]:
         key_points = section.get("key_points", []) if ENABLE_ON_SCREEN_KEYWORDS else []
@@ -26,7 +26,6 @@ def run_visual_gen(script_json, output_folder, client):
         all_clip_prompts.extend(section_clips)
 
     ### Save output for the next pipeline stage (video generation) ###
-    print("🔄 Making output JSON file ... 🔄") # Status
     prompt_json_path = os.path.join(output_folder, "visual_prompts.json")
     with open(prompt_json_path, "w") as f:
         json.dump(
@@ -37,9 +36,11 @@ def run_visual_gen(script_json, output_folder, client):
         )
         print(f"✅ Saved! - {len(all_clip_prompts)} clip prompts -> {output_folder}")
 
-    # scp_to_remote(prompt_json_path, f"{REMOTE_WORK_DIR}/visual_prompts.json")
-    # run_remote_command(f"cd {REMOTE_WORK_DIR} && python visual_gen.py")
-    # scp_from_remote(f"{REMOTE_WORK_DIR}/clips/", f"{output_folder}/clips/")
+    scp_to_remote(prompt_json_path, f"{REMOTE_WORK_DIR}/visual_prompts.json")
+    run_remote_command(f"cd {REMOTE_WORK_DIR} && /venv/main/bin/python3 visual_gen.py")
+    scp_from_remote(f"{REMOTE_WORK_DIR}/clips/", f"{output_folder}/clips/")
+    
+    return f"{output_folder}/clips/{script_data.get('topic')}/combined_video.mp4"
 
 if __name__ == "__main__":
     fileName = input("Provide a valid folder name: ")

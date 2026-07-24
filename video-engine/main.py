@@ -1,10 +1,16 @@
 import argparse
 from pathlib import Path
+from openai import OpenAI
+from dotenv import load_dotenv
+
+load_dotenv()
+client = OpenAI()
 
 # Import entrypoint functions from your three agent files
 from doc_analysis import run_doc_analysis
 from pedagogical_structuring import run_pedagogical_structuring
 from script_gen import run_script_gen
+from visual_gen import run_visual_gen
 
 def unique_folder_name(base_name, base_dir="output_sample"):
     target_dir = Path(base_dir) / base_name
@@ -52,7 +58,7 @@ def main():
     user_prompt = args.prompt
     output_folder = str(Path("output_sample/") / args.output_name)
 
-    doc_json_path = run_doc_analysis(pdf_path, user_prompt, output_folder)
+    doc_json_path = run_doc_analysis(pdf_path, user_prompt, args.output_name)
     print(f"Done >>> {doc_json_path}\n")
 
     pedagogical_json_path = run_pedagogical_structuring(doc_json_path, output_folder)
@@ -61,8 +67,10 @@ def main():
     script_json_path = run_script_gen(pedagogical_json_path, output_folder)
     print(f"Done >>> {script_json_path}\n\n")
 
+    final_video_path = run_visual_gen(script_json_path, output_folder, client)
+
     print("✅ Pipeline execution complete!\n")
-    print(f"Final output (For now): {script_json_path}")
+    print(f"🎬 Final video: {final_video_path}")
 
 if __name__ == "__main__":
     main()

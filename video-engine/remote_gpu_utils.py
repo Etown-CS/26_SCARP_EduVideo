@@ -23,7 +23,7 @@ def scp_to_remote(local_path, remote_path):
 ### Send any files on GPU (remote_path) to any destination on local(local_path)
 def scp_from_remote(remote_path, local_path):
     cmd = [
-        "scp", "-P", VAST_PORT, "-i", VAST_SSH_KEY,
+        "scp", "-r", "-P", VAST_PORT, "-i", VAST_SSH_KEY,
         f"{VAST_USER}@{VAST_HOST}:{remote_path}",
         local_path
     ]

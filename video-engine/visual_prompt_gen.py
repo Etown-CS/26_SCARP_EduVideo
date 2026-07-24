@@ -1,13 +1,8 @@
 import re
-from openai import OpenAI
-from dotenv import load_dotenv
-
-load_dotenv()
-client = OpenAI
 
 ### Setup
 MODEL_NAME = "Wan2.1"     # model to use
-CLIP_DURATION_SEC = 3     # target length of clips to generate
+CLIP_DURATION_SEC = 5     # target length of clips to generate
 
 # fps and frame-count constraint for each supported model.
 # Wan2.1: 16fps, frame_num must be of the form 4n + 1
@@ -55,8 +50,8 @@ def split_into_clip_chunks(text, target_duration_sec=CLIP_DURATION_SEC):
     for sentence in sentences:
         word_count = len(sentence.split()) # Check word count in each sentence
         # If adding this sentence would overshoot the target by too much, close out the current chunk first.
-        # 1.3 - 30% overshoot allows room to prefer a clean semantic break over a length limit
-        if current_sentences and (current_word_count + word_count) > target_words * 1.3:
+        # 1.2 - 20% overshoot allows room to prefer a clean semantic break over a length limit
+        if current_sentences and (current_word_count + word_count) > target_words * 1.2:
             chunk_text = " ".join(current_sentences)
             chunks.append((chunk_text, current_word_count / WORDS_PER_SECOND)) # append as a tuple of ("text finalized", estimated time)
 
