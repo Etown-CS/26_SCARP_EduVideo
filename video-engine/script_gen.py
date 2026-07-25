@@ -36,6 +36,13 @@ def generate_transcript(section, subseg_lookup, video_title):
     if not subsegs:
         return None
 
+    ### if its role is intro or conclusion, add additional prompt
+    intro_outro_instruction = ""
+    if section['role'] == "introduction":
+        intro_outro_instruction = 'Since this is the first section of the video, start with a brief welcoming sentence (e.g. "Welcome to this video on...", "Hello! Today we\'ll look at...") before diving into the content.'
+    elif section['role'] == "conclusion":
+        intro_outro_instruction = 'Since this is the last section of the video, end with a brief closing sentence that wraps up the topic and leaves viewers motivated (e.g. "Now you understand how... Keep practicing!", "That\'s how... works. Have a great day!").'
+
     summary, marker_dict = summaries_with_markers(subsegs)
     new_summary = restore_img_path(summary, marker_dict)
 
@@ -52,6 +59,8 @@ Write a short, clear transcript paragraph(DO NOT exceed 20 words per sentence) f
 - Fits naturally as part of a larger video (not a standalone lesson)
 - Flows naturally as spoken educational content
 - Matches the section's role ({section['role']})
+
+{intro_outro_instruction}
 
 Also identify up to 3 key terms or the specific angle/question related to the transcript addresses about it 
 (e.g. "Why it matters", "What makes it powerful", "How it works"). Each term MUST appear
@@ -119,7 +128,6 @@ def summaries_with_markers(subsegments):
 def restore_img_path(summary, marker_dict):
     new_summary = []
     for line in summary:
-        # print(line)
         if "VISUAL_MARKER" in line:
             path = marker_dict.get(line)
             line = line.replace(line, path)
@@ -150,10 +158,6 @@ def run_script_gen(pedagogical_json, output_folder):
     for section in data["video_outline"]["sections"]:
         result = generate_transcript(section, subseg_lookup, video_title)
         if result:
-            print(f"\n\n--- Section {section['section']}: {section['title']} [{section['role']}] ---")
-            print(result["transcript"])
-            print(f"Key points: {result['key_points']}")
-
             sections_output.append({
                 "section": section["section"],
                 "title": section["title"],
