@@ -73,6 +73,32 @@ export default function Edit() {
     };
 
     const handleSubmit = async () => {
+        if(!user) return;
+        const videoDocId = localStorage.getItem('videoDocId');
+        if(!videoDocId){
+            console.error("No videoDocId found - cannont resubmit.");
+            return;
+        }
+
+        await updateDoc(doc(db, 'users', user.uid, 'videos', videoDocId), {
+            status: 'queued',
+            stage: null,
+            prompt,
+            document: preloaded || files[0]?.name || 'N/A',
+        });
+
+        await fetch('/api/jobs/start', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                userId: user.uid,
+                videoDocId,
+                fileId: preloadedId,
+                prompt,
+            }),
+        });
+        router.push('/generate/working');
+        {/*
         const { jobId } = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -80,7 +106,9 @@ export default function Edit() {
         }).then(r => r.json());
         localStorage.setItem('currentJobId', jobId);
         router.push('/generate/working');
+        */}
     }
+        
 
     const handleAbandon = async () => {
         const confirmed = window.confirm(

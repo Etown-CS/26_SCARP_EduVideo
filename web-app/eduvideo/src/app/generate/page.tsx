@@ -51,8 +51,36 @@ export default function Generate() {
     };
 
     //This function calls the generate video API as well as establishing the metadata scheme for the generate video.
-    const handleGenerate = async () => {
+    const handleGenerate = async (activeId: string | null) => {
+        if (!user) return;
+
+        const videoDocRef = await addDoc(collection(db, 'users', user.uid, 'videos'), {
+            title: preloaded || files[0]?.name || 'Untitled',
+            prompt,
+            description: '',
+            status: 'queued',
+            stage: null,
+            videoUrl: '',
+            document: preloaded || files[0]?.name || 'N/A',
+            documentId: activeId || null,
+            tags: [] as string[],
+            createdAt: serverTimestamp(),
+        });
+        localStorage.setItem('videoDocId', videoDocRef.id);
+
+        await fetch('/api/jobs/start', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                userId: user.uid,
+                videoDocId: videoDocRef.id,
+                fileId: activeId,
+                prompt,
+            }),
+        });
+        router.push('/generate/working');
         //At some point this will need to be updated to include the actual document content
+        {/*
         const { jobId } = await fetch('/api/generate', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -62,7 +90,7 @@ export default function Generate() {
         //set create and set initial values for the video metadata
         const metadata = {
             title: preloaded || files[0]?.name || 'Untitled',
-            topic: 'Unknown',
+            topics: [] as string[],
             prompt: prompt,
             description: 'None',
             length: 'Unknown',
@@ -78,6 +106,7 @@ export default function Generate() {
         localStorage.setItem('currentJobId', jobId);
         localStorage.setItem('videoMetadata', JSON.stringify(metadata));
         router.push('/generate/working');
+        */}
     };
 
     //ensures that the user is logged in and the page is not still loading. If the user is not signed in, they will get pushed to the sign in page.
@@ -247,7 +276,7 @@ export default function Generate() {
                 console.error('Failed to fetch existing document contents: ', err);
             }
         }
-        handleGenerate();
+        handleGenerate(activeId);
     };
 
     //handles uploading the document contents to firestore and saving the prompt, document name, etc. It is the same as handleSend, just without the video generation at the end.
@@ -303,8 +332,8 @@ export default function Generate() {
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-2 min-h-0">
                                 <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">
-                                    Below, upload your notes, powerpoints, or coding samples. Once the document and optional prompt have been provided, click the process document button. 
-                                    After processing, you will be able to view the topics the generated video will be focusing on. 
+                                    Below, upload your notes, powerpoints, or coding samples. Once the document and optional prompt have been provided, click the process document button.
+                                    After processing, you will be able to view the topics the generated video will be focusing on.
                                     If you are unhappy with the topics, go back and edit your prompt to be more specific. Once you are satisfied, click the generate button to start the creation of your video.
                                 </p>
                                 <div

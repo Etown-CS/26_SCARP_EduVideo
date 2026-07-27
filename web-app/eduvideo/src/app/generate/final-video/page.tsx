@@ -19,12 +19,14 @@ export default function FinalVideo() {
         }
         return '';
     });
-    const [topic, setTopic] = useState(() => {
+    const [topics, setTopics] = useState<string[]>(() => {
         if (typeof window !== 'undefined') {
-            return localStorage.getItem('topic') || '';
+            const saved = localStorage.getItem('topics');
+            return saved ? JSON.parse(saved) : [];
         }
-        return '';
+        return [];
     });
+    const [newTopic, setNewTopic] = useState('');
     const [prompt] = useState(() => {
         if (typeof window !== 'undefined') {
             return localStorage.getItem('prompt') || localStorage.getItem('selectedPrompt') || '';
@@ -54,7 +56,7 @@ export default function FinalVideo() {
     const [downloading, setDownloading] = useState(false);
     const [videoMetadata, setVideoMetadata] = useState<{
         title: string;
-        topic: string;
+        topics: string[];
         prompt: string;
         description: string;
         length: string;
@@ -70,10 +72,8 @@ export default function FinalVideo() {
     }, []);
 
     useEffect(() => {
-        if (!topic) return;
-
+        if (topics.length === 0) return;
         const controller = new AbortController();
-
         const fetchResources = async () => {
             setResourcesLoading(true);
             setResourcesError(null);
@@ -81,7 +81,7 @@ export default function FinalVideo() {
                 const res = await fetch('/api/resources', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message: topic, prompt }),
+                    body: JSON.stringify({ message: topics.join(', '), prompt }),
                     signal: controller.signal,
                 });
                 if (!res.ok) throw new Error('Failed to fetch additional resources');
@@ -98,13 +98,19 @@ export default function FinalVideo() {
         };
         fetchResources();
         return () => controller.abort();
-    }, [topic, prompt]);
+    }, [topics, prompt]);
 
 
     const handleNewTag = () => {
         if (!newTag.trim()) return;
         setTags(prev => [...prev, newTag.trim()]);
         setNewTag('');
+    };
+
+    const handleNewTopic = () => {
+        if (!newTopic.trim()) return;
+        setTopics(prev => [...prev, newTopic.trim()]);
+        setNewTopic('');
     };
 
     const handleSave = async () => {
@@ -117,7 +123,7 @@ export default function FinalVideo() {
         }
         const metadata = {
             title,
-            topic: topic || 'N/A',
+            topics: topics.length ? topics : ['N/A'],
             prompt: prompt || 'N/A',
             description: desc,
             length: 'Unknown',
@@ -177,7 +183,7 @@ export default function FinalVideo() {
         if (saved) {
             const meta = JSON.parse(saved);
             if (meta.title) setTitle(meta.title?.split('.')[0]);
-            if (meta.topic) setTopic(meta.topic);
+            if (meta.topics) setTopics(meta.topics);
             if (meta.description) setDesc(meta.description);
             if (meta.document) setDocName(meta.document);
             if (meta.videoUrl) setVideoUrl(meta.videoUrl);
@@ -221,6 +227,7 @@ export default function FinalVideo() {
                                         <div className="space-y-6">
                                             <div>
                                                 <label className="text-on-surface-variant uppercase mb-2 font-bold text-md flex items-center gap-1">Title <span className="material-symbols-outlined text-xs">edit</span></label>
+                                                <p className="max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">Edit the title of your video here!</p>
                                                 <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
                                                     <textarea
                                                         value={title}
@@ -230,12 +237,40 @@ export default function FinalVideo() {
                                             </div>
                                             <div>
                                                 <label className="text-on-surface-variant uppercase mb-2 font-bold text-md flex items-center gap-1">Topic <span className="material-symbols-outlined text-xs">edit</span></label>
-                                                <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
-                                                    <textarea value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full p-3 rounded-xl text-sm outline-none focus:ring-1 ring-primary" placeholder="Topic" name="videoTopic" id="videoTopic"></textarea>
+                                                <p className="max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">View the topics used to generate your video! If you feel something is missing, add another topic for your own reference. Topics are also used to find additional resources so editing them will adjust the resource picks.</p>
+                                                <div className="flex flex-wrap gap-2">
+                                                    {topics.map((topic, index) => (
+                                                        <span key={index} className="bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full text-sm font-label flex items-center gap-1">
+                                                            {topic}
+                                                            <button onClick={() => setTopics(prev => prev.filter((_, i) => i !== index))} className="text-on-secondary-container/70 hover:text-error cursor-pointer inline-flex items-center justify-center leading-none p-0 border-0 bg-transparent">
+                                                                <span className="material-symbols-outlined text-[14px] leading-none">close</span>
+                                                            </button>
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                                <div className="flex items-center gap-2 mt-2 mb-2">
+                                                    <input
+                                                        value={newTopic}
+                                                        onChange={(e) => setNewTopic(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                handleNewTopic();
+                                                            }
+                                                        }}
+                                                        className="bg-surface-container-low border border-outline-variant rounded-full px-1 p-1 text-sm outline-none focus:ring-1 ring-primary"
+                                                        placeholder="New topic" name="topics" id="topics"
+                                                    />
+                                                    <button
+                                                        onClick={handleNewTopic}
+                                                        className="bg-primary text-on-primary px-3 py-1 rounded-full text-sm shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95">
+                                                        Add topic
+                                                    </button>
                                                 </div>
                                             </div>
                                             <div>
                                                 <label className="text-on-surface-variant uppercase mb-2 font-bold text-md flex items-center gap-1">Description <span className="material-symbols-outlined text-xs">edit</span></label>
+                                                <p className="max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">Describe your video here.</p>
                                                 <div className="shadow-neomorph-sunken bg-surface-container-low p-4 rounded-xl">
                                                     <textarea
                                                         value={desc}
@@ -244,6 +279,7 @@ export default function FinalVideo() {
                                                     </textarea>
                                                 </div>
                                             </div>
+                                            {/*
                                             <div>
                                                 <label className="text-on-surface-variant uppercase block mb-2 font-bold text-md">Prompt</label>
                                                 <div className="shadow-neomorph-sunken bg-surface-container-low p-3 rounded-xl border border-outline-variant/30">
@@ -256,8 +292,10 @@ export default function FinalVideo() {
                                                     <p className="w-full p-3 text-sm text-on-surface-variant whitespace-pre-wrap">{documentName || 'No document selected'}</p>
                                                 </div>
                                             </div>
+                                            */}
                                             <div>
                                                 <label className="text-md text-on-surface-variant uppercase block mb-2 font-bold">Tags</label>
+                                                <p className="max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">Add any additional descriptors you want, such as class, difficulty level, professor, etc.</p>
                                                 <div className="flex flex-wrap gap-2">
                                                     {tags.map((tag, index) => (
                                                         <span key={index}

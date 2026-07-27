@@ -17,7 +17,7 @@ function Docs() {
 
     const [user, loading] = useAuthState(auth);
     const router = useRouter();
-    const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string | Timestamp, topic?: string | null }[]>([]);
+    const [fileNames, setFileNames] = useState<{ id: string, name: string, prompt: string, date?: string | Timestamp, topics?: string[] }[]>([]);
     const [viewing, setviewing] = useState<typeof fileNames[0] | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [previewLoad, setPreviewLoad] = useState(false);
@@ -46,7 +46,7 @@ function Docs() {
 
     interface VideoDoc {
         id: string;
-        topic?: string;
+        topics?: string[];
         documentId: string;
         title?: string;
         status?: string;
@@ -86,8 +86,9 @@ function Docs() {
             });
             const filesWithTopics = await Promise.all(
                 sorted.map(async (file) => {
-                    const topics = await getTopicsForFile(user.uid, file.id);
-                    return { ...file, topic: topics[0]?.topic ?? null };
+                    const videos = await getTopicsForFile(user.uid, file.id);
+                    const topics = Array.from(new Set(videos.flatMap(v => v.topics ?? [])));
+                    return {...file, topics};
                 })
             );
             setFileNames(filesWithTopics);
@@ -178,13 +179,13 @@ function Docs() {
     */}
 
     const topics = Array.from(
-        new Set(fileNames.map(f => f.topic).filter((t): t is string => !!t))
+        new Set(fileNames.flatMap(f => f.topics ?? []))
     ).sort();
 
     const filteredFiles = fileNames.filter(file => {
-        const matchesTopic = selectedTopic === 'all' || file.topic === selectedTopic;
+        const matchesTopic = selectedTopic === 'all' || file.topics?.includes(selectedTopic);
         const query = searchQuery.trim().toLowerCase();
-        const matchesSearch = query === '' || file.name?.toLowerCase().includes(query) || file.topic?.toLowerCase().includes(query);
+        const matchesSearch = query === '' || file.name?.toLowerCase().includes(query) || file.topics?.some(topic => topic.toLowerCase().includes(query));
         return matchesTopic && matchesSearch;
     });
 
@@ -322,11 +323,11 @@ function Docs() {
                                                 Uploaded: {formatDate(file.date)}
                                             </p>
                                             <div className="flex flex-wrap gap-2 font-body text-md text-secondary mb-4">Topics:
-                                                {file.topic && (
-                                                    <span key={index} className="shrink-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label text-xs">
-                                                        {file.topic}
+                                                {file.topics?.map(topic => (
+                                                    <span key={topic} className="shrink-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label text-xs">
+                                                        {topic}
                                                     </span>
-                                                )}
+                                                ))}
                                             </div>
                                             <button onClick={() => setviewing(file)}
                                                 className="mt-auto bg-secondary text-on-secondary py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer mb-4">
