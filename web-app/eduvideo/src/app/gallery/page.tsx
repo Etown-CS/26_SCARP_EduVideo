@@ -18,7 +18,7 @@ interface videoEvaluation {
 interface videoDoc {
     id: string;
     title?: string;
-    topic?: string;
+    topics?: string[];
     prompt?: string;
     description?: string;
     createdAt?: Timestamp;
@@ -66,6 +66,12 @@ export default function Gallery() {
             console.error('Failed to remove video: ', err);
             setVideos(previous);
         }
+
+        try{
+            await fetch(`/api/videos/${id}`, {method: 'DELETE'});
+        }catch(err){
+            console.error('Failed to remove video file from server: ', err);
+        }
     }
 
     {/*
@@ -111,11 +117,11 @@ export default function Gallery() {
     }, [user]);
 
     const topics = Array.from(
-        new Set(videos.map(v => v.topic).filter((t): t is string => !!t))
+        new Set(videos.flatMap(v => v.topics ?? []))
     ).sort();
 
     const filteredVideos = videos.filter(video => {
-        const matchesTopic = selectedTopic === 'all' || video.topic === selectedTopic;
+        const matchesTopic = selectedTopic === 'all' || video.topics?.includes(selectedTopic);
         const query = searchQuery.trim().toLowerCase();
         const matchesSearch = query === '' || video.title?.toLowerCase().includes(query) || video.tags?.some(tag => tag.toLowerCase().includes(query));
         return matchesTopic && matchesSearch;
@@ -180,8 +186,12 @@ export default function Gallery() {
                                             <div className="flex flex-col gap-4">
                                                 <div className="flex justify-between items-start gap-2">
                                                     <h3 className="font-headline text-lg font-semibold text-on-surface">{video.title || 'Untitled'}</h3>
-                                                    {video.topic && (
-                                                        <span className="shrink-0 bg-secondary text-on-primary px-3 py-1 rounded-full font-label text-xs">{video.topic}</span>
+                                                    {video.topics && video.topics.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 justify-end">
+                                                            {video.topics.map((topic, index) => (
+                                                                <span key={index} className="shrink-0 bg-secondary text-on-primary px-3 py-1 rounded-full font-label text-xs">{topic}</span>
+                                                            ))}
+                                                        </div>
                                                     )}
                                                 </div>
                                                 {video.description && (
@@ -212,8 +222,12 @@ export default function Gallery() {
                         <div className="flex items-center justify-between px-4 py-7 border-b border-outline-variant/30">
                             <div className="flex items-center gap-3">
                                 <h2 className="font-display text-xl font-bold text-on-surface">{viewing.title || 'Unknown'}</h2>
-                                {viewing.topic && (
-                                    <span className="shrink-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label text-xs">{viewing.topic}</span>
+                                {viewing.topics && viewing.topics.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                        {viewing.topics.map((topic, index) => (
+                                            <span key={index} className="shrink-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label text-xs">{topic}</span>
+                                        ))}
+                                    </div>
                                 )}
                             </div>
                             <div className="flex items-center gap-4">
@@ -241,8 +255,12 @@ export default function Gallery() {
                                 {viewing.evaluation?.score != null && (
                                     <p className="font-body text-sm text-secondary"><span className="font-bold">Evaluation Score: </span>{viewing.evaluation.score} / 10</p>
                                 )}
-                                {viewing.topic && (
-                                    <p className="font-body text-sm text-secondary"><span className="font-bold">Topic: </span>{viewing.topic}</p>
+                                {viewing.topics && viewing.topics.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 font-body text-sm text-secondary"> <span className="font-bold">Topics: </span>
+                                        {viewing.topics.map((topic, index) => (
+                                            <span key={index} className="shrink-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label text-xs">{topic}</span>
+                                        ))}
+                                    </div>
                                 )}
                                 {viewing.description && (
                                     <p className="font-body text-sm text-secondary"><span className="font-bold">Description: </span>{viewing.description}</p>
