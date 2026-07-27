@@ -88,7 +88,9 @@ def video_outline_maker(all_subsegments, user_prompt, client):
                 
                 Rules:
                 - Group subsegments into logical sections that flows naturally
+                - Group subsegments into exactly 5-6 sections total (not fewer, not more). If there are many subsegments, combine related ones into broader sections rather than creating additional sections.
                 - Each section should have a clear role: "introduction", "foundation", "main focus", "supporting", "conclusion"
+                - The video MUST always include exactly one "introduction" section and exactly one "conclusion" section. The introduction section should briefly introduce the concept(s) covered in the video. The conclusion section should wrap up with a summary or highlight of the concept(s) covered.
                 - Prioritize subsegments that match the user's request as "main focus"
                 - Keep foundational definitions as "foundation" even if not directly requested
                 - The outline should tell one coherent story, not separate topic summaries
