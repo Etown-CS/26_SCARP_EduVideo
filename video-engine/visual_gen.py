@@ -61,8 +61,9 @@ def combine_audio_video(video_path, audio_path, output_path):
     subprocess.run(cmd, check=True)
 
 ######################################### Main #########################################
-def run_visual_gen(script_json, output_folder, client):
+def run_visual_gen(script_json, client):
     file = script_json
+    output_dir = os.path.dirname(file)
     with open(file, "r") as f:
         script_data = json.load(f)
 
@@ -76,12 +77,12 @@ def run_visual_gen(script_json, output_folder, client):
 
     for section in script_data["sections"]:
         key_points = section.get("key_points", []) if ENABLE_ON_SCREEN_KEYWORDS else []
-        section_clips = gen_clips_with_audio_4section(client, section, pipeline, output_folder, model_name=MODEL_NAME, key_points=key_points)
+        section_clips = gen_clips_with_audio_4section(client, section, pipeline, output_dir, model_name=MODEL_NAME, key_points=key_points)
 
         all_clip_prompts.extend(section_clips)
 
     ### Save output for the next pipeline stage (video generation) ###
-    prompt_json_path = os.path.join(output_folder, "visual_prompts.json")
+    prompt_json_path = os.path.join(output_dir, "visual_prompts.json")
     with open(prompt_json_path, "w") as f:
         json.dump(
             {"topic": script_data.get("topic"), "model": MODEL_NAME, "clips": all_clip_prompts},
@@ -89,22 +90,22 @@ def run_visual_gen(script_json, output_folder, client):
             indent=4,
             ensure_ascii=False,
         )
-        print(f"✅ Saved! - {len(all_clip_prompts)} clip prompts -> {output_folder}")
+        print(f"✅ Saved! - {len(all_clip_prompts)} clip prompts -> {output_dir}")
 
     scp_to_remote(prompt_json_path, f"{REMOTE_WORK_DIR}/visual_prompts.json")
     run_remote_command(f"cd {REMOTE_WORK_DIR} && /venv/main/bin/python3 visual_gen.py")
-    scp_from_remote(f"{REMOTE_WORK_DIR}/clips/", f"{output_folder}/clips/")
+    scp_from_remote(f"{REMOTE_WORK_DIR}/clips/", f"{output_dir}/clips/")
 
     ### Combine audio with each video clip
     for clip in all_clip_prompts:
-        video_path = os.path.join(output_folder, "clips", f"section-{clip['section']}_clip{clip['clip_number']}.mp4")
+        video_path = os.path.join(output_dir, "clips", f"section-{clip['section']}_clip{clip['clip_number']}.mp4")
         audio_path = clip["audio_path"]
-        output_with_audio_path = os.path.join(output_folder, "clips", f"section-{clip['section']}_clip{clip['clip_number']}_with_audio.mp4")
+        output_with_audio_path = os.path.join(output_dir, "clips", f"section-{clip['section']}_clip{clip['clip_number']}_with_audio.mp4")
 
         combine_audio_video(video_path, audio_path, output_with_audio_path)
 
     ### Combine all clips (with audio) into one final video
-    final_clips_dir = os.path.join(output_folder, "clips")
+    final_clips_dir = os.path.join(output_dir, "clips")
     final_output_path = os.path.join(final_clips_dir, "final_combined_video.mp4")
     combine_clips(final_clips_dir, final_output_path)
     

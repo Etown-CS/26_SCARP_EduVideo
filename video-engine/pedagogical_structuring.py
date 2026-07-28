@@ -10,15 +10,6 @@ from pathlib import Path
 load_dotenv()
 client = OpenAI()
 
-############### Process segmentation ###############
-# Takes a core topic and convert its subsegments into text readable for the AI 
-# (AI can't read the raw JSON file)
-def format_topic4prompt(topic):
-    lines = []
-    for sub in topic["subsegments"]:
-        lines.append(f"  id: {sub['id']}, type: {sub['type']}, content: {sub['content']}")
-    return "\n".join(lines)
-
 ############### Reorder ###############
 ### Get ...
 # a new order of core topic for beginner friendly
@@ -26,35 +17,35 @@ def format_topic4prompt(topic):
 # Create a summary by subsegments
 def finetune_reorder_topic(topic, user_prompt):
     # Convert a core topic in md file into plain text
-    formatted = format_topic4prompt(topic)
+    formatted, visual_lookup = format_topic4prompt(topic)
 
     prompt = DIFFICULTY_RUBRIC + f"""You are a Pedagogical Agent helping fine-tune and reorder the segments based on the user prompt for a beginner undergraduate student.
-The user has the following request for this video: "{user_prompt}"
-Here are the subsegments for the topic "{topic['content']}":
+    The user has the following request for this video: "{user_prompt}"
+    Here are the subsegments for the topic "{topic['content']}":
 
-{formatted}
+    {formatted}
 
-Do three things:
-1.Rate each subsegment's importance using exactly one of these labels:
-    - essential: core concept the user is asking about, must be included
-    - supplementary: helps understanding but not directly what the user asked for
-    - advanced: beyond undergrad level, include only if user requests
-    - optional: not necessary, can be skipped
-    When rating importance, prioritize content that directly relates to the user's request above.
-    Foundational definitions needed to understand the user's requested topic should still be rated essential.
-2. Reorder these subsegments into the best teaching sequence for a beginner. 
-3. Write a short, simplified summary of each subsegment for beginner students.
+    Do three things:
+    1.Rate each subsegment's importance using exactly one of these labels:
+        - essential: core concept the user is asking about, must be included
+        - supplementary: helps understanding but not directly what the user asked for
+        - advanced: beyond undergrad level, include only if user requests
+        - optional: not necessary, can be skipped
+        When rating importance, prioritize content that directly relates to the user's request above.
+        Foundational definitions needed to understand the user's requested topic should still be rated essential.
+    2. Reorder these subsegments into the best teaching sequence for a beginner. 
+    3. Write a short, simplified summary of each subsegment for beginner students.
 
-Return ONLY a JSON list like this, no explanation:
-[
-    {{
-        "id": "seg_001_002",
-        "content": "original content here",
-        "summary": "simplified summary here",
-        "importance": "essential",
-        "type": "type here"
-    }}
-]"""
+    Return ONLY a JSON list like this, no explanation:
+    [
+        {{
+            "id": "seg_001_002",
+            "content": "original content here",
+            "summary": "simplified summary here",
+            "importance": "essential",
+            "type": "type here"
+        }}
+    ]"""
 
     response = client.chat.completions.create(
         model="gpt-4o",
@@ -66,7 +57,25 @@ Return ONLY a JSON list like this, no explanation:
     clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     result = json.loads(clean)
 
+    for sub in result:
+        if sub['id'] in visual_lookup:
+            sub['summary'] = visual_lookup[sub['id']]
+
     return result
+
+############### Process segmentation ###############
+# Takes a core topic and convert its subsegments into text readable for the AI 
+# (AI can't read the raw JSON file)
+def format_topic4prompt(topic):
+    lines = []
+    visual_lookup = {}
+    for sub in topic["subsegments"]:
+        line = f"  id: {sub['id']}, type: {sub['type']}, content: {sub['content']}, order: {sub['order']}"
+        if "image_description" in sub:
+            line += f", image_description: {sub['image_description']}" # for visual segments
+            visual_lookup[sub['id']] = sub['image_description']
+        lines.append(line)
+    return "\n".join(lines), visual_lookup
 
 ############### LLM Video Outline Generator ###############
 def video_outline_maker(all_subsegments, user_prompt, client):
@@ -131,7 +140,7 @@ def video_outline_maker(all_subsegments, user_prompt, client):
 
 ############### Rebuild the output JSON file ###############
 # Construct the JSON file with importance label and summary of each subsegment as output
-def build_output(data, results, outline):
+def build_output(data, reordered_topics, outline):
     output = {
         "topic": data["topic"],
         "user_prompt": data["user_prompt"],
@@ -139,18 +148,18 @@ def build_output(data, results, outline):
         "segments": []
     }
 
-    for topic, result in zip(data["segments"], results):
+    for topic, reordered_topic in zip(data["segments"], reordered_topics):
         output["segments"].append({
             "id": topic["id"],
             "content": topic["content"],
-            "ordered_subsegments": result
+            "ordered_subsegments": reordered_topic
         })
 
     return output
 
 
 ###################################### Main ######################################
-def run_pedagogical_structuring(doc_analysis_json, output_folder):
+def run_pedagogical_structuring(doc_analysis_json):
     file = doc_analysis_json
 
     with open(file, "r") as f:
@@ -183,11 +192,12 @@ def run_pedagogical_structuring(doc_analysis_json, output_folder):
     ### Build and save output
     output = build_output(data, all_results, outline)
 
-    output_json_path = os.path.join(output_folder, "pedagogical_output.json")
+    output_dir = os.path.dirname(file)
+    output_json_path = os.path.join(output_dir, "pedagogical_output.json")
     with open(output_json_path, "w") as f:
         json.dump(output, f, indent=4)
 
-    print(f"\n✅ pedagogical_output.json saved to {output_folder}!")
+    print(f"\n✅ pedagogical_output.json saved to {output_dir}!")
 
     return output_json_path
 

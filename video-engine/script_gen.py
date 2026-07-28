@@ -10,27 +10,12 @@ from pathlib import Path
 load_dotenv()
 client = OpenAI()
 
-############### Segment Filter ###############
-# In order to create a transcript per a core topic, remove segments such as...
-# - ones labeled as "optional" or "advanced"
-# - ones with image paths
-def filter_subsegments(segment):
-    filtered = []
-    for sub in segment["ordered_subsegments"]:
-        # Skip optional and advanced
-        if sub["importance"] not in ["essential", "supplementary"]:
-            continue
-        filtered.append(sub)
-    return filtered
-
 ############### Transcript Generation + Key point extraction###############
 def generate_transcript(section, subseg_lookup, video_title):
     subsegs = []
     for sid in section["subsegment_ids"]:
         if sid in subseg_lookup:
             sub = subseg_lookup[sid]
-            if sub["importance"] not in ["essential", "supplementary"]:
-                continue
             subsegs.append(sub)
 
     if not subsegs:
@@ -41,10 +26,9 @@ def generate_transcript(section, subseg_lookup, video_title):
     if section['role'] == "introduction":
         intro_outro_instruction = 'Since this is the first section of the video, start with a brief welcoming sentence (e.g. "Welcome to this video on...", "Hello! Today we\'ll look at...") before diving into the content.'
     elif section['role'] == "conclusion":
-        intro_outro_instruction = 'Since this is the last section of the video, end with a brief closing sentence that wraps up the topic and leaves viewers motivated (e.g. "Now you understand how... Keep practicing!", "That\'s how... works. Have a great day!").'
+        intro_outro_instruction = 'Since this is the last section of the video, end with a brief closing sentence that wraps up the topic and leaves viewers motivated (e.g. "Now you understand how... Keep practicing!", "That\'s how... works. Have a great day!", "Hope this video helps!").'
 
-    summary, marker_dict = summaries_with_markers(subsegs)
-    new_summary = restore_img_path(summary, marker_dict)
+    new_summary = build_summary_list(subsegs)
 
     prompt = DIFFICULTY_RUBRIC + f"""
     You are a Script Generation Agent creating an educational video transcripts for beginner undergraduate students.
@@ -106,38 +90,22 @@ Return ONLY a valid JSON object, no explanation, no markdown formatting:
 
     return {"transcript": transcript, "key_points": verified_key_points}
 
-
-############### Test function ###############
-
-def summaries_with_markers(subsegments):
-    c = 1
+############### Build summary list　###############
+def build_summary_list(subsegments):
+    '''
+    For text segments: use the simplified summary
+    For visual segments:both the image path (so it stays in the transcript at the right position) and its description (so the LLM understands what the image shows).
+    '''
     summary = []
-    marker_dict = {}
-
     for s in subsegments:
         if s["type"] == 'visual':
-            marker = f"VISUAL_MARKER_{c}"
-            marker_dict[marker] = s['content']
-            summary.append(marker)
-            c += 1
+            summary.append(f"{s['content']} ({s['summary']})") # ![...](...) (This image describes...)
         else:
             summary.append(s["summary"])
-    
-    return summary, marker_dict
-
-def restore_img_path(summary, marker_dict):
-    new_summary = []
-    for line in summary:
-        if "VISUAL_MARKER" in line:
-            path = marker_dict.get(line)
-            line = line.replace(line, path)
-        
-        new_summary.append(line)
-
-    return new_summary
+    return summary
 
 ############### Main ###############
-def run_script_gen(pedagogical_json, output_folder):
+def run_script_gen(pedagogical_json):
     file = pedagogical_json
 
     with open(file, "r") as f:
@@ -146,17 +114,16 @@ def run_script_gen(pedagogical_json, output_folder):
     print("📖🔄 Generating transcript...") # Status
 
     # Build a lookup: subsegment id → subsegment data
-    subseg_lookup = {}
+    subseg_lookup_dict = {}
     for topic in data["segments"]:
         for sub in topic["ordered_subsegments"]:
-            subseg_lookup[sub["id"]] = sub
-
+            subseg_lookup_dict[sub["id"]] = sub
 
     ### Build output
     sections_output = []
     video_title = data["video_outline"]["title"]
     for section in data["video_outline"]["sections"]:
-        result = generate_transcript(section, subseg_lookup, video_title)
+        result = generate_transcript(section, subseg_lookup_dict, video_title)
         if result:
             sections_output.append({
                 "section": section["section"],
@@ -192,4 +159,4 @@ if __name__ == "__main__":
         print(f"Folder not found or doc_analysis.py skipped.")
         exit()
         
-    run_script_gen(pedagogical_json_path, output_folder)
+    run_script_gen(pedagogical_json_path)

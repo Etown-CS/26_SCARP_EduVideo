@@ -1,10 +1,9 @@
 # Backend exclude testing output
 video-engine/output_sample
 video-engine/__pycache__
+video-engine/.secret
 
 # venv
-/venv
-video-engine/kokoro_env
 /venv_new
 
 .claude/
