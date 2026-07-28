@@ -7,7 +7,7 @@ import Loading from "@/app/components/loading";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { db } from "@/app/firebase/config";
-import { serverTimestamp, collection, addDoc, getDoc, doc, updateDoc } from "firebase/firestore";
+import { serverTimestamp, collection, addDoc, getDoc, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
 
 {/*
@@ -79,6 +79,7 @@ export default function Review() {
         }
     };
 
+    {/*
     useEffect(() => {
         const url = localStorage.getItem('completedVideoUrl');
         if (url) setVideoUrl(url);
@@ -99,16 +100,6 @@ export default function Review() {
 
                 const fileId = localStorage.getItem('activeFileId');
                 const fileName = localStorage.getItem('selectedDocument');
-
-                {/*
-                let length = 'Unknown';
-                try{
-                    const seconds = await getVideoDuration(videoUrl);
-                    length = formatDuration(seconds);
-                }catch(err){
-                    console.error('Failed to get video duration: ', err);
-                }
-                */}
 
                 const docRef = await addDoc(collection(db, 'users', user.uid, 'videos'), {
                     videoUrl,
@@ -134,6 +125,18 @@ export default function Review() {
         };
         createDraft();
     }, [user, videoUrl]);
+    */}
+
+    useEffect(() => {
+        const videoDocId = localStorage.getItem('videoDocId');
+        if(!videoDocId || !user) return;
+
+        const unsub = onSnapshot(doc(db, 'users', user.uid, 'videos', videoDocId), (snap) => {
+            const data = snap.data();
+            if(data?.videoUrl) setVideoUrl(data.videoUrl);
+        });
+        return () => unsub();
+    }, [user]);
 
     const handleAbandon = async () => {
         const confirmed = window.confirm(

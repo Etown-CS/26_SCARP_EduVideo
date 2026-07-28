@@ -9,8 +9,17 @@ import Aside from "@/app/components/aside";
 import AgentChat from "@/app/components/agentchat";
 import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
 import Image from "next/image";
+import { onSnapshot, doc } from "firebase/firestore";
+import { db } from "@/app/firebase/config";
 
 const CONFETTI_COLORS = ["#8b5cf6", "#db2777", "#f472b6", "#3b82f6", "#a855f7", "#fbbf24", "#10b981"];
+const STAGE_PROGRESS: Record<string, number> = {
+    doc_analysis: 20,
+    pedagogical_structuring: 45,
+    script_gen: 70,
+    visual_gen: 90,
+    done: 100,
+};
 
 function fireConfetti(originX: number, originY: number, count = 60) {
     const container = document.createElement("div");
@@ -38,7 +47,7 @@ function fireConfetti(originX: number, originY: number, count = 60) {
         const growDuration = (80 + Math.random() * 40) * speedFactor;
         const burstDuration = (180 + Math.random() * 80) * speedFactor;
         const fallDuration = (700 + Math.random() * 400) * fallSpeedFactor;
-        const fallStartDelay = growDuration + burstDuration *0.55;
+        const fallStartDelay = growDuration + burstDuration * 0.55;
         piece.style.position = "absolute";
         piece.style.left = `${originX}px`;
         piece.style.top = `${originY}px`;
@@ -75,8 +84,10 @@ export default function WorkingPage() {
     const [progress, setProgress] = useState(0);
     const [status, setStatus] = useState('Starting...');
     const [timeRemaining, setTimeRemaining] = useState<string>('Calculating...');
-    const startTimeRef = useRef<number>(Date.now());
+    //const startTimeRef = useRef<number>(Date.now());
     const loadingCircleRef = useRef<HTMLDivElement>(null);
+    const [stage, setStage] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
 
     const handleAbandon = async () => {
         const confirmed = window.confirm(
@@ -89,6 +100,7 @@ export default function WorkingPage() {
         }
     };
 
+    {/*
     useEffect(() => {
         const jobId = localStorage.getItem('currentJobId');
 
@@ -130,6 +142,31 @@ export default function WorkingPage() {
         }, 2000);
         return () => clearInterval(poll);
     }, []);
+    */}
+
+    useEffect(() => {
+        if (!user && !loading) router.push('/sign-in');
+    }, [user, router, loading]);
+
+    useEffect(() => {
+        const videoDocId = localStorage.getItem('videoDocId');
+        if (!videoDocId || !user) return;
+
+        const unsub = onSnapshot(doc(db, 'users', user.uid, 'videos', videoDocId), (snap) => {
+            const data = snap.data();
+            if (!data) return;
+            setStage(data.stage);
+            setStatus(data.status);
+            setProgress(STAGE_PROGRESS[data.stage] ?? 0);
+
+            if (data.status === 'complete') {
+                router.push('/generate/review');
+            } else if (data.status === 'failed') {
+                setError(data.error);
+            }
+        });
+        return () => unsub();
+    }, [user]);
 
     if (loading) return (
         <Loading />
