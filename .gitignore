@@ -6,6 +6,7 @@ video-engine/.secret
 # venv
 /venv_new
 video-engine/venv/
+venv/
 
 .claude/
 .vscode/

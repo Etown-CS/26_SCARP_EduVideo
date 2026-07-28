@@ -7,7 +7,7 @@ import Loading from "@/app/components/loading";
 import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/app/firebase/config";
-import { doc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc, setDoc, getDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
 
 export default function Edit() {
@@ -73,42 +73,61 @@ export default function Edit() {
     };
 
     const handleSubmit = async () => {
-        if(!user) return;
+        if (!user) return;
         const videoDocId = localStorage.getItem('videoDocId');
-        if(!videoDocId){
-            console.error("No videoDocId found - cannont resubmit.");
+        if (!videoDocId) {
+            console.error("No videoDocId found - cannot resubmit.");
             return;
         }
+
+        let activeId = preloadedId;
+        if (files.length > 0) {
+            try {
+                activeId = await uploadNewFile() ?? preloadedId;
+            } catch (err) {
+                console.error('Failed to upload the new document: ', err);
+                setFileError('Could not upload that file. Please try again.');
+                return;
+            }
+        }
+
+        if (!activeId) {
+            setFileError('No document attached. Please upload a file before submitting.');
+            return;
+        }
+
+        const docName = files[0]?.name || preloaded;
 
         await updateDoc(doc(db, 'users', user.uid, 'videos', videoDocId), {
             status: 'queued',
             stage: null,
+            error: null,
+            traceback: null,
             prompt,
-            document: preloaded || files[0]?.name || 'N/A',
+            documentId: activeId,
+            ...(docName ? { document: docName } : {}),
         });
 
-        await fetch('/api/jobs/start', {
+        const res = await fetch('/api/jobs/start', {
             method: 'POST',
-            headers: {'Content-Type': 'application/json'},
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 userId: user.uid,
                 videoDocId,
-                fileId: preloadedId,
+                fileId: activeId,
                 prompt,
             }),
         });
+
+        if (!res.ok) {
+            console.error('Job start failed:', res.status, await res.text());
+            setFileError('Could not start generation. Please try again.');
+            return;
+        }
+
         router.push('/generate/working');
-        {/*
-        const { jobId } = await fetch('/api/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ document: preloaded || files[0]?.name, prompt }),
-        }).then(r => r.json());
-        localStorage.setItem('currentJobId', jobId);
-        router.push('/generate/working');
-        */}
-    }
-        
+    };
+
 
     const handleAbandon = async () => {
         const confirmed = window.confirm(
@@ -119,6 +138,36 @@ export default function Edit() {
             clearPipelineState();
             router.push("/generate");
         }
+    };
+
+    const uploadNewFile = async (): Promise<string | null> => {
+        if (!user || files.length === 0) return null;
+        const file = files[0];
+
+        const dataUrl = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target?.result as string);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(file);
+        });
+
+        const docRef = await addDoc(collection(db, 'users', user.uid, 'files'), {
+            name: file.name,
+            prompt: prompt || 'N/A',
+            date: serverTimestamp(),
+        });
+
+        await setDoc(doc(db, "documentContents", docRef.id), {
+            userId: user.uid,
+            name: file.name,
+            content: dataUrl,
+            updatedAt: serverTimestamp(),
+        });
+
+        localStorage.setItem('activeFileId', docRef.id);
+        localStorage.setItem('fileCreated', 'true');
+        setPreloadedId(docRef.id);
+        return docRef.id;
     };
 
     useEffect(() => {
@@ -160,6 +209,16 @@ export default function Edit() {
         window.addEventListener('storage', handleStorageChange);
         return () => window.removeEventListener('storage', handleStorageChange);
     }, []);
+
+    useEffect(() => {
+        const videoDocId = localStorage.getItem('videoDocId');
+        if (!videoDocId || !user) return;
+        getDoc(doc(db, 'users', user.uid, 'videos', videoDocId)).then(snap => {
+            const data = snap.data();
+            if (data?.document && data.document !== 'N/A') setPreloaded(data.document);
+            if (data?.documentId) setPreloadedId(data.documentId);
+        }).catch(err => console.error('Failed to load video doc: ', err));
+    }, [user]);
 
 
     if (loading) return (

@@ -49,14 +49,16 @@ npm run dev
 ```
 Once that runs it will tell you the local link where the dev site is hosted. It should be localhost:3000 but sometimes it might be different. Open that link to view the web app. 
 
-For the second terminal, go to the video-engine directory. If you have not already, while in that directory run these commands to install the dependencies needed to connect with the front end:
+For the second terminal start the virtual environment then, go to the video-engine directory. If you have not already, while in that directory run these commands to install the dependencies needed to connect with the front end:
 ```bash
 pip install "fastapi[standard]"
 pip install firebase-admin
 ```
-Once you have those installed, run the command:
+Once you have those installed, set up the backend environment by running either of these commands:
 ```bash
 fastapi dev server.py
+or
+python server.py
 ```
 This will set up the backend environment and actually allow for video generation within the web app. In order for this to work you will need the firebase access keys, access to the virtual GPU, and the keys to the openAi agents. 
 
