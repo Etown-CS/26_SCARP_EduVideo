@@ -2,6 +2,7 @@
 video-engine/output_sample
 video-engine/__pycache__
 video-engine/.secret
+video-engine/test*
 
 # venv
 /venv_new
