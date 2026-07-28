@@ -1,7 +1,7 @@
 # Backend exclude testing output
 video-engine/output_sample
 video-engine/__pycache__
-video-engine/.secret/
+video-engine/.secret
 
 # venv
 /venv_new
