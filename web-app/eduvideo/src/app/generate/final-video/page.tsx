@@ -7,7 +7,7 @@ import Loading from "@/app/components/loading";
 import AgentChat from "@/app/components/agentchat";
 import { useRouter } from "next/navigation";
 import { db } from "@/app/firebase/config";
-import { doc, serverTimestamp, updateDoc } from "firebase/firestore";
+import { doc, serverTimestamp, updateDoc, onSnapshot } from "firebase/firestore";
 import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
 
 export default function FinalVideo() {
@@ -67,9 +67,16 @@ export default function FinalVideo() {
     } | null>(null);
 
     useEffect(() => {
-        const url = localStorage.getItem('completedVideoUrl');
-        if (url) setVideoUrl(url);
-    }, []);
+        const videoDocId = localStorage.getItem('videoDocId');
+        if(!videoDocId || !user) return;
+
+        const unsub = onSnapshot(doc(db, 'users', user.uid, 'videos', videoDocId), (snap) => {
+            const data = snap.data();
+            if(data?.videoUrl) setVideoUrl(data.videoUrl);
+            if(data?.title && !title) setTitle(data.title.split('.')[0]);
+        });
+        return () => unsub();
+    }, [user]);
 
     useEffect(() => {
         if (topics.length === 0) return;

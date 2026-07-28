@@ -14,12 +14,19 @@ import { db } from "@/app/firebase/config";
 
 const CONFETTI_COLORS = ["#8b5cf6", "#db2777", "#f472b6", "#3b82f6", "#a855f7", "#fbbf24", "#10b981"];
 const STAGE_PROGRESS: Record<string, number> = {
-    doc_analysis: 20,
-    pedagogical_structuring: 45,
-    script_gen: 70,
-    visual_gen: 90,
+    doc_analysis: 10,
+    pedagogical_structuring: 20,
+    script_gen: 40,
+    visual_gen: 50,
     done: 100,
 };
+const STAGE_LABELS: Record<string, string> = {
+    doc_analysis: 'Analyzing your document',
+    pedagogical_structuring: 'Structuring the video',
+    script_gen: 'Writing the script',
+    visual_gen: 'Generating the audio and visuals',
+    done: 'Adding the finishing touches',
+}
 
 function fireConfetti(originX: number, originY: number, count = 60) {
     const container = document.createElement("div");
@@ -78,13 +85,20 @@ function fireConfetti(originX: number, originY: number, count = 60) {
     setTimeout(() => container.remove(), 1800 * speedFactor);
 }
 
+function formatTime(seconds: number): string{
+    if(seconds < 60) return `${Math.max(1, Math.round(seconds))} seconds`;
+    const mins = Math.round(seconds/60);
+    return `${mins} minute${mins === 1 ? '' : 's'}`;
+}
+
 export default function WorkingPage() {
     const router = useRouter();
     const [user, loading] = useAuthState(auth);
     const [progress, setProgress] = useState(0);
     const [status, setStatus] = useState('Starting...');
     const [timeRemaining, setTimeRemaining] = useState<string>('Calculating...');
-    //const startTimeRef = useRef<number>(Date.now());
+    const startTimeRef = useRef<number>(Date.now());
+    const hasCompletedRef = useRef(false);
     const loadingCircleRef = useRef<HTMLDivElement>(null);
     const [stage, setStage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -99,54 +113,34 @@ export default function WorkingPage() {
             router.push("/generate");
         }
     };
-
-    {/*
-    useEffect(() => {
-        const jobId = localStorage.getItem('currentJobId');
-
-        if (!jobId) {
-            router.push('/generate');
-            return;
-        }
-
-        const poll = setInterval(async () => {
-            const data = await fetch(`/api/generate?jobId=${jobId}`).then(r => r.json());
-            setProgress(data.progress);
-            setStatus(data.status);
-
-            if (data.progress > 0) {
-                const elapsed = (Date.now() - startTimeRef.current) / 1000;
-                const rate = data.progress / elapsed;
-                const remaining = (100 - data.progress) / rate;
-
-                if (remaining < 60) {
-                    setTimeRemaining(`${Math.round(remaining)} seconds`);
-                } else {
-                    setTimeRemaining(`${Math.round(remaining / 60)} minutes`);
-                }
-            }
-
-            if (data.status === 'complete') {
-                clearInterval(poll);
-                setTimeRemaining('Done!');
-                localStorage.setItem('completedVideoUrl', data.videoUrl);
-                localStorage.removeItem('currentJobId');
-                const rect = loadingCircleRef.current?.getBoundingClientRect();
-                if (rect) {
-                    fireConfetti(rect.left + rect.width / 2, rect.top + rect.height / 2);
-                }
-                setTimeout(() => {
-                    router.push('/generate/review');
-                }, 1200);
-            }
-        }, 2000);
-        return () => clearInterval(poll);
-    }, []);
-    */}
-
+    
     useEffect(() => {
         if (!user && !loading) router.push('/sign-in');
     }, [user, router, loading]);
+
+    useEffect(() => {
+        const saved = localStorage.getItem('jobStartTime');
+        if(saved){
+            startTimeRef.current = parseInt(saved, 10);
+        } else {
+            const now = Date.now();
+            startTimeRef.current = now;
+            localStorage.setItem('jobStartTime', String(now));
+        }
+    }, []);
+
+    useEffect(() => {
+        if(progress <= 0 || progress >= 100) return;
+        const tick = () => {
+            const elapsed = (Date.now() - startTimeRef.current) / 1000;
+            const rate = progress / elapsed;
+            if(!isFinite(rate) || rate <= 0) return;
+            setTimeRemaining(formatTime((100 - progress) / rate));
+        };
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [progress]);
 
     useEffect(() => {
         const videoDocId = localStorage.getItem('videoDocId');
@@ -159,8 +153,16 @@ export default function WorkingPage() {
             setStatus(data.status);
             setProgress(STAGE_PROGRESS[data.stage] ?? 0);
 
-            if (data.status === 'complete') {
-                router.push('/generate/review');
+            if (data.status === 'complete' && !hasCompletedRef.current) {
+                hasCompletedRef.current = true;
+                setProgress(100);
+                setTimeRemaining("Done!");
+                localStorage.removeItem("jobStartTime");
+                const rect = loadingCircleRef.current?.getBoundingClientRect();
+                if(rect){
+                    fireConfetti(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                }
+                setTimeout(() => router.push('/generate/review'), 1500);
             } else if (data.status === 'failed') {
                 setError(data.error);
             }
@@ -187,11 +189,13 @@ export default function WorkingPage() {
                             <div className="col-span-8 flex flex-col gap-4 min-h-0">
                                 <div className="shadow-neomorph-raised bg-surface-container rounded-2xl p-5 border border-outline-variant/30">
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-headline font-bold text-on-surface">Generation Status</h3>
+                                        <h3 className="font-headline font-bold text-on-surface">
+                                            {stage ? STAGE_LABELS[stage] ?? 'Generation Status' : 'Generation Status'}
+                                        </h3>
                                         <span className="font-label text-primary font-bold">{progress}%</span>
                                     </div>
                                     <div className="h-3 w-full bg-surface-container-highest rounded-full overflow-hidden mb-3">
-                                        <div className="h-full bg-primary-container animate-pulse" style={{ width: `${progress}%` }}></div>
+                                        <div className="h-full bg-primary-container animate-pulse transition-[width] duration-1000 ease-out" style={{ width: `${progress}%` }}></div>
                                     </div>
                                     <p className="text-xs text-on-surface-variant leading-relaxed">
                                         Creating your video now. Please be patient as it may take a few minutes. Estimated completion: <span className="font-bold">{timeRemaining}</span>.
