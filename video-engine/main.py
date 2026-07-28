@@ -62,13 +62,13 @@ def main():
     doc_json_path = run_doc_analysis(pdf_path, user_prompt, args.output_name)
     print(f"Done >>> {doc_json_path}\n")
 
-    pedagogical_json_path = run_pedagogical_structuring(doc_json_path, output_folder)
+    pedagogical_json_path = run_pedagogical_structuring(doc_json_path)
     print(f"Done >>> {pedagogical_json_path}\n")
 
-    script_json_path = run_script_gen(pedagogical_json_path, output_folder)
+    script_json_path = run_script_gen(pedagogical_json_path)
     print(f"Done >>> {script_json_path}\n\n")
 
-    final_video_path = run_visual_gen(script_json_path, output_folder, client)
+    final_video_path = run_visual_gen(script_json_path, client)
 
     print("✅ Pipeline execution complete!\n")
     print(f"🎬 Final video: {final_video_path}")

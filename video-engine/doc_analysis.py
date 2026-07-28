@@ -78,10 +78,51 @@ def format_checker(file):
     f_type = Path(file).suffix
     if f_type == '.pdf':
         # Create a subfolder for each input
-        output_name = os.path.splitext(os.path.basename(file))[0]  # gets "topo_lec" from "topo_lec.pdf"
+        output_name = os.path.splitext(os.path.basename(file))[0]  # Gets "cs322_mst.pdf" with os.path.basename(file), and gets "cs322_mst" with os.path.splitext()[0]
         os.makedirs(f"output_sample/{output_name}", exist_ok=True)
         pdf_doc = pymupdf.open(file)
         return pdf_doc
+
+######################## LLM Cleaning + Segmentation #######################
+def llm_segmentation(md, client):
+    ### Replace image tags with placeholders
+    cleaned_md_no_imgTags, imgTag_ph_map, imgContext_map = imageTags_to_placeholders(md)
+
+    ### Give LLM the md file put in a placeholder
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {
+                "role": "system",
+                "content": DIFFICULTY_RUBRIC + SYSTEM_PROMPT
+            },
+            {
+                "role": "user",
+                "content": cleaned_md_no_imgTags
+            }
+        ]
+    )
+    try:
+        ### Get response
+        raw = response.choices[0].message.content
+        clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
+        result = json.loads(clean)
+
+        ### Restore images
+        placeholders_to_imageTags(result, imgTag_ph_map)
+
+        ### Rcover skipped images
+        collect_dropped_imgs(result, imgTag_ph_map, imgContext_map, client)
+
+        ### Add description to images
+        add_image_description(result, client)
+
+        return result
+    
+    except json.JSONDecodeError:
+        print("Error: LLM output is not valid JSON")
+        print(response.choices[0].message.content)
+        return []
 
 ############### Helper functions: Process image place holders ###############
 def imageTags_to_placeholders(md_text):
@@ -124,27 +165,6 @@ def placeholders_to_imageTags(segments, img_placeholder_map):
                 seg['content'] = seg['content'].replace(key, orig_path)
         if "subsegments" in seg:
             placeholders_to_imageTags(seg['subsegments'], img_placeholder_map)
-
-def find_best_matching_seg(context, segments, seg_embedding_map, client, threshold=0.25):
-    '''
-    Compare text surrounding the image with all the segments and returns the best parent segment to bring dropped image back.
-    If no segments found, it can fall back to the visual segment instead of a wrong guess.
-    '''
-
-    best_seg = None
-    best_score = 0.0
-
-    v_context = embedding_text(context, client)
-
-    for seg_id in seg_embedding_map:
-        score, v_context, v_seg = similarity_check(v_context, seg_embedding_map[seg_id])
-        if score > best_score:
-            best_score = score
-            for s in segments:
-                if s["id"] == seg_id:
-                    best_seg = s
-
-    return best_seg if best_score >= threshold else None, best_score
 
 def collect_dropped_imgs(segments, img_placeholder_map, img_context_map, client):
     '''
@@ -314,47 +334,6 @@ def similarity_check(v_context, v_seg):
 
     return similarity, v_context, v_seg
 
-######################## LLM Cleaning + Segmentation #######################
-def llm_segmentation(md, client):
-    ### Replace imahge tags with placeholders
-    cleaned_md_no_imgTags, imgTag_ph_map, imgContext_map = imageTags_to_placeholders(md)
-
-    ### Give LLM the md file put in a placeholder
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {
-                "role": "system",
-                "content": DIFFICULTY_RUBRIC + SYSTEM_PROMPT
-            },
-            {
-                "role": "user",
-                "content": cleaned_md_no_imgTags
-            }
-        ]
-    )
-    try:
-        ### Get response
-        raw = response.choices[0].message.content
-        clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
-        result = json.loads(clean)
-
-        ### Restore images
-        placeholders_to_imageTags(result, imgTag_ph_map)
-
-        ### Rcover skipped images
-        collect_dropped_imgs(result, imgTag_ph_map, imgContext_map, client)
-
-        ### Add description to images
-        add_image_description(result, client)
-
-        return result
-    
-    except json.JSONDecodeError:
-        print("Error: LLM output is not valid JSON")
-        print(response.choices[0].message.content)
-        return []
-
 ############### LLM Topic Filter with User Prompt ###############
 def llm_topic_filter(segments, user_prompt, client):
     # Create a simple list of topic id + name (not the entire content!!)
@@ -385,7 +364,26 @@ def llm_topic_filter(segments, user_prompt, client):
 
     return keep_ids
 
+def find_best_matching_seg(context, segments, seg_embedding_map, client, threshold=0.25):
+    '''
+    Compare text surrounding the image with all the segments and returns the best parent segment to bring dropped image back.
+    If no segments found, it can fall back to the visual segment instead of a wrong guess.
+    '''
 
+    best_seg = None
+    best_score = 0.0
+
+    v_context = embedding_text(context, client)
+
+    for seg_id in seg_embedding_map:
+        score, v_context, v_seg = similarity_check(v_context, seg_embedding_map[seg_id])
+        if score > best_score:
+            best_score = score
+            for s in segments:
+                if s["id"] == seg_id:
+                    best_seg = s
+
+    return best_seg if best_score >= threshold else None, best_score
 ############################################## Main ##############################################
 def run_doc_analysis(file, user_prompt, output_name):
     ### Format Check
@@ -411,18 +409,10 @@ def run_doc_analysis(file, user_prompt, output_name):
             sub["id"] = f"seg_{i+1:03d}_{j+1:03d}"
             sub["order"] = j + 1
 
-    ### JSON output - before filtering
-    result = {
-        "topic": output_name,
-        "segments": segments
-    }
-
-    with open(f"output_sample/{output_name}/doc_analysis_allSegs_output.json", "w") as f:
-        json.dump(result, f, indent=4, ensure_ascii=False)
-
     ### Filter segments based on keep_ids
     keep_ids = llm_topic_filter(segments, user_prompt, client)
 
+    ### Update segments with keep_ids
     segments = [seg for seg in segments if seg["id"] in keep_ids]
 
     ### JSON output - after filtering
