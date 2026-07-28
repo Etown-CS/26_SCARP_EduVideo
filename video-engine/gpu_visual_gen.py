@@ -150,6 +150,30 @@ def _gpu_mem_snapshot() -> str:
         parts.append(f"gpu{i}={gb:.2f}GB")
     return ", ".join(parts)
 
+####################### Display images #######################
+def generate_static_image_clip(image_path, duration_sec, output_path, fps=16, size="832x480"):
+    '''
+        "ffmpeg", "-y",
+        "-loop", "1",      # repeat displaying for the time instructed
+        "-i", image_path,  # input image file
+        "-t", str(duration_sec),  # length of output clip
+        "-vf", f"scale={size.replace('x', ':')}",  # resize
+        "-r", str(fps),  # align framerate to 16 fps
+        "-pix_fmt", "yuv420p",  # adjust color format to make it convertable
+        output_path,
+    '''
+    cmd = [
+        "ffmpeg", "-y",
+        "-loop", "1",
+        "-i", image_path,
+        "-t", str(duration_sec),
+        "-vf", f"scale={size.replace('x', ':')}:force_original_aspect_ratio=decrease,pad={size.replace('x', ':')}:(ow-iw)/2:(oh-ih)/2",
+        "-r", str(fps),
+        "-pix_fmt", "yuv420p",
+        output_path,
+    ]
+    subprocess.run(cmd, check=True)
+
 ####################### Combine clips #######################
 def combine_clips(clips_dir, output_path):
     print(f"[debug] Looking for clips in: {clips_dir}") # for debug
@@ -246,7 +270,6 @@ def main() -> None:
     clips = data["clips"]
     for i, clip in enumerate(clips, start=1):
         ### get info to call generate_wan_clip
-        prompt = clip["visual_prompt"]
         frame_num = clip["frame_num"]
         output_file_name = f"clips/section-{clip['section']}_clip{clip['clip_number']}.mp4"
 
@@ -258,30 +281,36 @@ def main() -> None:
         print(f"Generating clip {i}/{len(clips)}: '{output_file_name}' ({frame_num} frames)")
         t0 = time.time()
 
-        video = wan_t2v.generate(
-            prompt,
-            size=SIZE_CONFIGS[SIZE],
-            frame_num=frame_num,
-            shift=SAMPLE_SHIFT,
-            sample_solver="unipc",
-            sampling_steps=SAMPLE_STEPS,
-            guide_scale=SAMPLE_GUIDE_SCALE,
-            seed=SEED,
-            offload_model=True,
-        )
-        cache_video(
-            tensor=video[None],
-            save_file=output_file_name,
-            fps=cfg.sample_fps,
-            nrow=1,
-            normalize=True,
-            value_range=(-1, 1),
-        )
+        ### Generate a clip? or use an image
+        if clip["visual_type"] == "existing_image":
+            generate_static_image_clip(clip['image_path'], clip['actual_clip_duration_sec'], output_file_name, fps=16, size="832x480")
 
-        key = f"clip_{i}"
-        timings[key] = time.time() - t0
-        print(f"Clip {i} ('{output_file_name}') done in {timings[key]:.1f}s -> {output_file_name}")
-        print(f"Peak VRAM so far: {_gpu_mem_snapshot()}\n")
+        else:
+            prompt = clip["visual_prompt"]
+            video = wan_t2v.generate(
+                prompt,
+                size=SIZE_CONFIGS[SIZE],
+                frame_num=frame_num,
+                shift=SAMPLE_SHIFT,
+                sample_solver="unipc",
+                sampling_steps=SAMPLE_STEPS,
+                guide_scale=SAMPLE_GUIDE_SCALE,
+                seed=SEED,
+                offload_model=True,
+            )
+            cache_video(
+                tensor=video[None],
+                save_file=output_file_name,
+                fps=cfg.sample_fps,
+                nrow=1,
+                normalize=True,
+                value_range=(-1, 1),
+            )
+
+            key = f"clip_{i}"
+            timings[key] = time.time() - t0
+            print(f"Clip {i} ('{output_file_name}') done in {timings[key]:.1f}s -> {output_file_name}")
+            print(f"Peak VRAM so far: {_gpu_mem_snapshot()}\n")
 
     ### Combine all clips into one
     clips_dir = os.path.abspath("clips")

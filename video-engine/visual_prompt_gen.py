@@ -71,6 +71,13 @@ def split_into_clip_chunks(text, target_duration_sec=CLIP_DURATION_SEC):
 
     return chunks
 
+############### Find image path ###############
+def find_image_path_in_chunk(chunk_text):
+    match = re.search(r'!\[\]\(([^)]*)\)', chunk_text)
+    if match:
+        return match.group(1)
+    return None
+
 ############### Get Frame Count ###############
 def frames_for_duration(duration_sec, model_name=MODEL_NAME):
     """
@@ -100,7 +107,6 @@ def find_new_key_point(chunk_text, key_points, already_shown):
         if kp.lower() in lowered and kp not in already_shown:
             return kp
     return None
-
 
 ############### Produce Visual Prompt ###############
 '''
@@ -223,45 +229,63 @@ def gen_clips_with_audio_4section(client, section, pipeline, output_folder, mode
 
     ### Process visual generation chunk by chunk
     for i, (chunk_text, estimated_duration) in enumerate(chunks, start=1):
+        ### Check if this chunk references an image, before the text gets cleaned for TTS
+        image_path = find_image_path_in_chunk(chunk_text)
+
         ### Generate audio
         audio_path = os.path.join(audio_dir, f"section-{section['section']}_clip{i}.wav")
-        chunk_text = clean_text_for_tts(chunk_text)
-        generate_audio(pipeline, chunk_text, audio_path)
+        clean_chunk_text = clean_text_for_tts(chunk_text)
+        print(f"[debug] chunk_text: {repr(chunk_text)}")
+        print(f"[debug] clean_chunk_text: {repr(clean_chunk_text)}")
+        generate_audio(pipeline, clean_chunk_text, audio_path)
         actual_clip_duration = get_audio_duration(audio_path)
 
-        ### Determine frame_num based on actual audio length
         frame_num, actual_clip_duration = frames_for_duration(actual_clip_duration, model_name)
-        new_key_point = find_new_key_point(chunk_text, key_points, already_shown)              # Check if there is a keyword to display
-        if new_key_point:
-            already_shown.add(new_key_point)
-        
-        chunk_sub = {"content": chunk_text, "summary": section.get("title", "")}
 
-        ### Generate prompt
-        prompt = gen_visual_prompt_4chunk(
-            client,
-            chunk_sub,
-            model_name=model_name,
-            clip_duration_sec=round(actual_clip_duration, 2),
-            on_screen_key_points=new_key_point,
-            section_context=section["transcript"],
-            chunk_position=f"clip {i} of {total_chunks}",
-            previous_visual_prompt=previous_prompt,
-        )
+        if image_path:
+            clip_prompts.append({
+                "section": section["section"],
+                "clip_number": i,
+                "text": chunk_text,
+                "on_screen_key_point": None,
+                "estimated_narration_sec": round(estimated_duration, 1),
+                "frame_num": frame_num,
+                "actual_clip_duration_sec": round(actual_clip_duration, 2),
+                "visual_type": "existing_image",
+                "image_path": image_path,
+                "audio_path": audio_path,
+            })
+        else:
+            new_key_point = find_new_key_point(chunk_text, key_points, already_shown)
+            if new_key_point:
+                already_shown.add(new_key_point)
 
-        ### Save prompt
-        clip_prompts.append({
-            "section": section["section"],
-            "clip_number": i,
-            "text": chunk_text,
-            "on_screen_key_point": new_key_point,
-            "estimated_narration_sec": round(estimated_duration, 1),
-            "frame_num": frame_num,
-            "actual_clip_duration_sec": round(actual_clip_duration, 2),
-            "visual_prompt": prompt,
-            "audio_path": audio_path
-        })
+            chunk_sub = {"content": chunk_text, "summary": section.get("title", "")}
 
-        previous_prompt = prompt  # feed forward into the next iteration
+            prompt = gen_visual_prompt_4chunk(
+                client,
+                chunk_sub,
+                model_name=model_name,
+                clip_duration_sec=round(actual_clip_duration, 2),
+                on_screen_key_points=new_key_point,
+                section_context=section["transcript"],
+                chunk_position=f"clip {i} of {total_chunks}",
+                previous_visual_prompt=previous_prompt,
+            )
+
+            clip_prompts.append({
+                "section": section["section"],
+                "clip_number": i,
+                "text": chunk_text,
+                "on_screen_key_point": new_key_point,
+                "estimated_narration_sec": round(estimated_duration, 1),
+                "frame_num": frame_num,
+                "actual_clip_duration_sec": round(actual_clip_duration, 2),
+                "visual_type": "generated",
+                "visual_prompt": prompt,
+                "audio_path": audio_path,
+            })
+
+            previous_prompt = prompt  # feed forward into the next iteration
 
     return clip_prompts

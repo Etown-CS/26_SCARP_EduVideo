@@ -26,9 +26,10 @@ def generate_transcript(section, subseg_lookup, video_title):
     if section['role'] == "introduction":
         intro_outro_instruction = 'Since this is the first section of the video, start with a brief welcoming sentence (e.g. "Welcome to this video on...", "Hello! Today we\'ll look at...") before diving into the content.'
     elif section['role'] == "conclusion":
-        intro_outro_instruction = 'Since this is the last section of the video, end with a brief closing sentence that wraps up the topic and leaves viewers motivated (e.g. "Now you understand how... Keep practicing!", "That\'s how... works. Have a great day!", "Hope this video helps!").'
+        intro_outro_instruction = 'Since this is the last section of the video, end with a brief closing sentence that wraps up the topic and leaves viewers motivated.'
 
-    new_summary = build_summary_list(subsegs)
+    new_summary, img_marker_dict = build_summary_list(subsegs)
+    print(f"[debug] img_marker_dict: {img_marker_dict}")
 
     prompt = DIFFICULTY_RUBRIC + f"""
     You are a Script Generation Agent creating an educational video transcripts for beginner undergraduate students.
@@ -51,10 +52,16 @@ Also identify up to 3 key terms or the specific angle/question related to the tr
 verbatim (word-for-word) in the transcript text you write. Order them by the
 order they first appear.
 
-If you see a sequence of letters starting with "![](", you MUST keep it exactly as it is (do not
-rename, remove, or merge it into surrounding text), and it must stay in
-the same relative position -- between the same sentences that came
-before and after it in the original input.
+Some key points below contain a token like "IMAGE_MARKER_1". If you use
+that key point in your transcript, copy the token exactly as it is
+(e.g. "IMAGE_MARKER_1"), placed naturally in the sentence. Never invent
+a new token like this yourself -- only use the exact ones given to you above.
+
+Never use an IMAGE_MARKER token as the grammatical subject of a sentence
+(e.g. avoid "IMAGE_MARKER_1 shows..."). Instead, place it at the end of
+a sentence, or as a standalone reference (e.g. "This diagram shows how
+Prim's algorithm builds a tree. IMAGE_MARKER_1" or "Prim's algorithm
+builds a tree from a single node, as shown here. IMAGE_MARKER_1").
 
 Return ONLY a valid JSON object, no explanation, no markdown formatting:
 {{
@@ -88,21 +95,35 @@ Return ONLY a valid JSON object, no explanation, no markdown formatting:
         if kp.lower() in transcript_lower
     ]
 
+    transcript = restore_img_path(transcript, img_marker_dict)
+
     return {"transcript": transcript, "key_points": verified_key_points}
 
-############### Build summary list　###############
+############### Build summary list with image markers ###############
 def build_summary_list(subsegments):
     '''
-    For text segments: use the simplified summary
-    For visual segments:both the image path (so it stays in the transcript at the right position) and its description (so the LLM understands what the image shows).
+    This function was created to deal with the LLM's limitation of handling image paths.
+    Before feeding summaries of each subsegments, replace image tags with markers "IMAGE_MARKER_n" in order not to have the LLM to handle,
+    but keep the right position the images are supposed to be.
     '''
     summary = []
+    marker_dict = {}
+    c = 1
     for s in subsegments:
         if s["type"] == 'visual':
-            summary.append(f"{s['content']} ({s['summary']})") # ![...](...) (This image describes...)
+            marker = f"IMAGE_MARKER_{c}"
+            marker_dict[marker] = s['content']  # Save a tag
+            summary.append(f"{marker} ({s['summary']})")  # marker + description
+            c += 1
         else:
             summary.append(s["summary"])
-    return summary
+    return summary, marker_dict
+
+############### Restore image tags ###############
+def restore_img_path(text, marker_dict):
+    for marker, path in marker_dict.items():
+        text = text.replace(marker, path)
+    return text
 
 ############### Main ###############
 def run_script_gen(pedagogical_json):

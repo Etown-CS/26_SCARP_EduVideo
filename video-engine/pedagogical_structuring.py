@@ -40,7 +40,7 @@ def finetune_reorder_topic(topic, user_prompt):
     [
         {{
             "id": "seg_001_002",
-            "content": "original content here",
+            "content": "content here",
             "summary": "simplified summary here",
             "importance": "essential",
             "type": "type here"
@@ -52,28 +52,41 @@ def finetune_reorder_topic(topic, user_prompt):
         messages=[{"role": "user", "content": prompt}]
     )
 
-    # Remove markdown code fences
+    ### Remove markdown code fences
     raw = response.choices[0].message.content
     clean = raw.strip().removeprefix("```json").removeprefix("```").removesuffix("```").strip()
     result = json.loads(clean)
 
+    ### Overwrite to correctly get the image path and image_description
     for sub in result:
         if sub['id'] in visual_lookup:
-            sub['summary'] = visual_lookup[sub['id']]
+            sub['summary'] = visual_lookup[sub['id']]['summary']
+            sub['content'] = visual_lookup[sub['id']]['content']
 
     return result
 
 ############### Process segmentation ###############
-# Takes a core topic and convert its subsegments into text readable for the AI 
+# Takes a core topic and convert its subsegments into text readable for the AI
 # (AI can't read the raw JSON file)
 def format_topic4prompt(topic):
+    '''
+    - Include the image_description generated in the doc_analysis file for the visual segments.
+    - Also hit the stability limitation of the LLM. It sometimes mixes up the image path as ['content']
+    and the image_description as ['summary'] and overwrites both with image_description, especially it is long, 
+    because the longer decriptions make the LLM think it's more important.
+    - Here, in case the confusion happens to LLM, the dict visual_lookup stores both the image path and image_description
+    so that it can be fixed.
+    '''
     lines = []
     visual_lookup = {}
     for sub in topic["subsegments"]:
         line = f"  id: {sub['id']}, type: {sub['type']}, content: {sub['content']}, order: {sub['order']}"
         if "image_description" in sub:
             line += f", image_description: {sub['image_description']}" # for visual segments
-            visual_lookup[sub['id']] = sub['image_description']
+            visual_lookup[sub['id']] = {
+                "content": sub['content'],
+                "summary": sub['image_description'],
+            }
         lines.append(line)
     return "\n".join(lines), visual_lookup
 
@@ -97,7 +110,7 @@ def video_outline_maker(all_subsegments, user_prompt, client):
                 
                 Rules:
                 - Group subsegments into logical sections that flows naturally
-                - Group subsegments into exactly 5-6 sections total (not fewer, not more). If there are many subsegments, combine related ones into broader sections rather than creating additional sections.
+                - Group subsegments 6 sections at maximum in total (not fewer, not more). If there are many subsegments, combine related ones into broader sections rather than creating additional sections.
                 - Each section should have a clear role: "introduction", "foundation", "main focus", "supporting", "conclusion"
                 - The video MUST always include exactly one "introduction" section and exactly one "conclusion" section. The introduction section should briefly introduce the concept(s) covered in the video. The conclusion section should wrap up with a summary or highlight of the concept(s) covered.
                 - Prioritize subsegments that match the user's request as "main focus"
@@ -210,4 +223,4 @@ if __name__ == "__main__":
         print(f"Folder not found or doc_analysis.py skipped.")
         exit()
         
-    run_pedagogical_structuring(doc_analysis_json_path, output_folder)
+    run_pedagogical_structuring(doc_analysis_json_path)

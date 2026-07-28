@@ -1,6 +1,8 @@
 import json
 import os
 import re
+from pathlib import Path
+
 from openai import OpenAI
 from dotenv import load_dotenv
 
@@ -75,11 +77,22 @@ def run_visual_gen(script_json, client):
     ### Build the pipeline
     pipeline = tts_pipeline()
 
+    ### Clip/audio generation
     for section in script_data["sections"]:
         key_points = section.get("key_points", []) if ENABLE_ON_SCREEN_KEYWORDS else []
         section_clips = gen_clips_with_audio_4section(client, section, pipeline, output_dir, model_name=MODEL_NAME, key_points=key_points)
 
         all_clip_prompts.extend(section_clips)
+
+    ### Send any images that are used as existing_image clips
+    run_remote_command(f"mkdir -p {REMOTE_WORK_DIR}/images")
+    for clip in all_clip_prompts:
+        if clip.get("visual_type") == "existing_image":
+            local_image_path = clip["image_path"]
+            image_filename = os.path.basename(local_image_path)
+            remote_image_path = f"{REMOTE_WORK_DIR}/images/{image_filename}"
+            scp_to_remote(local_image_path, remote_image_path)
+            clip["image_path"] = f"images/{image_filename}"  # the relative path on the GPU side
 
     ### Save output for the next pipeline stage (video generation) ###
     prompt_json_path = os.path.join(output_dir, "visual_prompts.json")
@@ -92,8 +105,13 @@ def run_visual_gen(script_json, client):
         )
         print(f"✅ Saved! - {len(all_clip_prompts)} clip prompts -> {output_dir}")
 
+    ### Send the visual prompts to the GPU
     scp_to_remote(prompt_json_path, f"{REMOTE_WORK_DIR}/visual_prompts.json")
+
+    ### Generate clips with Wan2.1
     run_remote_command(f"cd {REMOTE_WORK_DIR} && /venv/main/bin/python3 visual_gen.py")
+
+    ### Send generated clips and audio back
     scp_from_remote(f"{REMOTE_WORK_DIR}/clips/", f"{output_dir}/clips/")
 
     ### Combine audio with each video clip
@@ -110,3 +128,14 @@ def run_visual_gen(script_json, client):
     combine_clips(final_clips_dir, final_output_path)
     
     return final_output_path
+
+if __name__ == "__main__":
+    fileName = input("Provide a valid folder name: ")
+    script_json_path = Path(f"output_sample/{fileName}/script_output.json")
+    output_folder = Path(f"output_sample/{fileName}")
+
+    if output_folder.exists() == False or script_json_path.exists() == False:
+        print(f"Folder not found or doc_analysis.py skipped.")
+        exit()
+        
+    run_visual_gen(script_json_path, client)

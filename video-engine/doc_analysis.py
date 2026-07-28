@@ -75,6 +75,9 @@ SYSTEM_PROMPT = """
 ############### Format Checker ###############
 # if pdf, return pdf
 def format_checker(file):
+    '''
+    This system only takes a PDF file.
+    '''
     f_type = Path(file).suffix
     if f_type == '.pdf':
         # Create a subfolder for each input
@@ -84,7 +87,13 @@ def format_checker(file):
         return pdf_doc
 
 ######################## LLM Cleaning + Segmentation #######################
-def llm_segmentation(md, client):
+def llm_segmentation(md, client, user_prompt):
+    '''
+    This function takes a clean markdown without a course information, a lecture date, page numbers. 
+    - In order to prevent the LLM from mismanaging the images paths, use functions to replace them with placeholders and replace back place holders with image tags.
+    - Collects all the images without randomly skipping them, and reattaches them to the most relevant topics.
+    - Add the descriptions to all the images.
+    '''
     ### Replace image tags with placeholders
     cleaned_md_no_imgTags, imgTag_ph_map, imgContext_map = imageTags_to_placeholders(md)
 
@@ -115,7 +124,7 @@ def llm_segmentation(md, client):
         collect_dropped_imgs(result, imgTag_ph_map, imgContext_map, client)
 
         ### Add description to images
-        add_image_description(result, client)
+        add_image_description(result, client, user_prompt)
 
         return result
     
@@ -124,7 +133,7 @@ def llm_segmentation(md, client):
         print(response.choices[0].message.content)
         return []
 
-############### Helper functions: Process image place holders ###############
+############### Helper functions: Process image placeholders ###############
 def imageTags_to_placeholders(md_text):
     '''
     Purpose: Replace the image tags in the Markdown file with placeholders (IMAGE_PLACEHOLDER_n)
@@ -137,10 +146,18 @@ def imageTags_to_placeholders(md_text):
     counter = 0
 
     def _replacer(match, context_chars = 100):
-        nonlocal counter
+        '''
+        This private function does two things, and returns key ('IMAGE_PLACEHOLDER_n')
+        - Converts the image path that re.sub in the outer function caught into a placeholder
+        - Grab 100 characters of texts right before the image to utilize it for embedding matching to reattch dropped images to the raight place.
+        a chunk of text is stored in the dictionary like {"IMAGE_PLACEHOLDER_n": "a chunk of text}
+
+        '''
+        nonlocal counter # Can reach to the outer scope
         key = f"IMAGE_PLACEHOLDER_{counter}"
         img_placeholder_map[key] = match.group(0)
 
+        ### Get texts before the image - for the embedding part
         # match.start() is the position of img tag in the ORIGINAL md_text
         # *** re.sub scans the original string while substituting, so this position is still valid
         start = match.start()
@@ -151,12 +168,15 @@ def imageTags_to_placeholders(md_text):
         return key
     
     clean_md = re.sub(r"!\[.*?\]\(.*?\)", _replacer, md_text)
+        # 1. Find a image tag that matches "!\[.*?\]\(.*?\)"
+        # 2. Provide the image tag to _replacer as an argument 'match'
+        # 3. _replacer returns a placeholder and replace the image tag in md_text with it
 
     return clean_md, img_placeholder_map, img_context_map
 
 def placeholders_to_imageTags(segments, img_placeholder_map):
-    ''' 
-    What this does?: Recursively replace the placeholders back to the image tags. 
+    '''
+    This function recursively replaces the placeholders back to the image tags. 
     "IMAGE_PLACE..." -> ![](...)
     '''
     for seg in segments:
@@ -166,17 +186,23 @@ def placeholders_to_imageTags(segments, img_placeholder_map):
         if "subsegments" in seg:
             placeholders_to_imageTags(seg['subsegments'], img_placeholder_map)
 
+############### Detects dropped images and reattaches them to the semantically close segments ###############
 def collect_dropped_imgs(segments, img_placeholder_map, img_context_map, client):
     '''
-    What this does?:
-    Detect images the LLM dropped, reattach them to the best segment where their context highly matches with.
-    If no good match found, it falls to a generic segment "Additional Visuals" segment at the end of the segments.
+    This function does things:
+    - Identifies images the LLM dropped
+    - Reattach them to the best segment where their context highly matches with
+        + If no good match found, it falls to a generic segment "Additional Visuals" segment at the end of the segments.
     '''
 
     used_keys = set()
 
-    def _collect(segs):
-        for s in segs:
+    def _collect(segments):
+        '''
+        This private function checks if all images appear in any segmemnts.
+        The image placeholders which appeared are stored in used_key, which will be used to identify which images are missed.
+        '''
+        for s in segments:
             content = s.get("content", "")
             for key, orig_path in img_placeholder_map.items():
                 if orig_path in content or key in content:
@@ -185,6 +211,9 @@ def collect_dropped_imgs(segments, img_placeholder_map, img_context_map, client)
                 _collect(s["subsegments"]) # Recursively call for subsegments
 
     _collect(segments)
+
+    ### Identify which images are missing
+    # img_placeholder_map - used_key = missing_key
     missing_keys = [key for key in img_placeholder_map if key not in used_keys]
 
     if not missing_keys:
@@ -192,7 +221,6 @@ def collect_dropped_imgs(segments, img_placeholder_map, img_context_map, client)
     
     ### When there are missed images, get the embedding of the segments
     seg_embedding_map = get_seg_embedding(segments, client)
-    
     print(f"⚠️ Warning: {len(missing_keys)} image(s) were dropped by the model's output")
     
     left = []
@@ -235,29 +263,52 @@ def collect_dropped_imgs(segments, img_placeholder_map, img_context_map, client)
             ]
         })
 
-############################## Interpret images ##############################
-def add_image_description(segments, client, max_workers=10):
+def find_best_matching_seg(context, segments, seg_embedding_map, client, threshold=0.25):
     '''
-    - Find images from all the segments and call describe_image() in parallel 
+    Compare text surrounding the image with all the segments and returns the best parent segment to bring dropped image back.
+    If no segments found, it can fall back to the visual segment instead of a wrong guess.
+    '''
+
+    best_seg = None
+    best_score = 0.0
+
+    v_context = embedding_text(context, client)
+
+    for seg_id in seg_embedding_map:
+        score, v_context, v_seg = similarity_check(v_context, seg_embedding_map[seg_id])
+        if score > best_score:
+            best_score = score
+            for s in segments:
+                if s["id"] == seg_id:
+                    best_seg = s
+
+    return best_seg if best_score >= threshold else None, best_score
+
+############################## Interpret images ##############################
+def add_image_description(segments, client, user_prompt, max_workers=10):
+    '''
+    This function creates descriptions of the images, by converting it into Base64 encoded image and reading it with the LLM.
+    - Find images from all the segments
+    - Call describe_image() in parallel with ThreadPoolExecutor to spped up
     - max_worker=5: how many requests it sends simulaneously
     - What was changed?: Get a visual seg and call LLM for describe_image() -> Get all visual segments and process them in parallel
         + Less LLM calls, multiple segments are processed at a time
     '''
     ### First, recursively collect all "visual" segments that need a description
     visual_segs = []
-    def _collect(segs):
+    def _collect_visuals(segs):
         for seg in segs:
             if seg["type"] == "visual":
                 visual_segs.append(seg)
             if "subsegments" in seg:
-                _collect(seg["subsegments"]) # Call it again
+                _collect_visuals(seg["subsegments"]) # Call it again
 
-    _collect(segments)
+    _collect_visuals(segments)
 
     def _describe_one(v_seg):
         ''' Process only one image to get a description '''
         image_path = re.search(r"\((.*?)\)", v_seg['content']).group(1) # Remove "![]()" to get an actual path | .group(0) includes parenthesis, .group(1) only takes strings inside ()
-        return v_seg, describe_image(image_path, client) # needs to be tuple because of as_completed(futures) later
+        return v_seg, describe_image(image_path, client, user_prompt) # needs to be tuple because of as_completed(futures) later
 
     ### Parallel executions
     with ThreadPoolExecutor(max_workers=max_workers) as executor: # wrapping with 'with' allows to release resource after the process is done.
@@ -268,8 +319,7 @@ def add_image_description(segments, client, max_workers=10):
             v_seg, description = future.result()
             v_seg["image_description"] = description # Add the new key
 
-def describe_image(image_path, client):
-    ''' Add a description to an image '''
+def describe_image(image_path, client, user_prompt):
     with open(image_path, "rb") as f:
         base64_image = base64.b64encode(f.read()).decode("utf-8")
 
@@ -279,7 +329,16 @@ def describe_image(image_path, client):
             {
                 "role": "user",
                 "content": [
-                    {"type": "text", "text": "Explain what you can tell from this image. Prioritize and extract explanation text as it is if there is some, and focus more on the content itself, not on visuals."},
+                    {
+                        "type": "text",
+                        "text": f"The user is watching an educational video with this focus: \"{user_prompt}\". "
+                        "Describe what this image shows and why it matters, as if briefly explaining it out loud to a student. "
+                        "Prioritize the meaning and purpose of the image over a detailed visual description. "
+                        "If this image is directly relevant to the user's focus above, give a fuller explanation (up to 5-6 sentences) covering the key details a student would need. "
+                        "If it's only loosely related or background context, keep it to 1-2 sentences. "
+                        "Do NOT use bullet points, numbered lists, or mathematical notation like \\( \\alpha \\) -- describe any symbols or labels in plain words instead (e.g. say 'a point labeled alpha' rather than writing the symbol). "
+                        "Speak naturally, like a spoken explanation, not a technical breakdown."
+                    },
                     {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{base64_image}"}}
                 ]
             }
@@ -288,8 +347,8 @@ def describe_image(image_path, client):
     return response.choices[0].message.content.strip()
 
 ############################## Text Embedding ##############################
-''' Convert text into a vector '''
 def embedding_text(text, client, model="text-embedding-3-small"):
+    ''' Convert text into a vector '''
     if not text.strip(): # Remove leading and trailing whitespaces
         text = " "
     response = client.embeddings.create(
@@ -299,6 +358,9 @@ def embedding_text(text, client, model="text-embedding-3-small"):
     return response.data[0].embedding
 
 def get_seg_embedding(segments, client, model="text-embedding-3-small"):
+    '''
+    Convert all segments into vectors to compare with the embedded images for the semantic similarity
+    '''
     seg_ids = []
     combined_texts_all = [] # all segments
 
@@ -324,7 +386,6 @@ def get_seg_embedding(segments, client, model="text-embedding-3-small"):
 
 ############################# Similarity Check (Cosine Similarity) #############################
 def similarity_check(v_context, v_seg):
-
     ### np.linalg.norm & np.dot automatically does np.array, but explicitly converts them into arrays for readability
     v_context = np.array(v_context)
     v_seg = np.array(v_seg)
@@ -336,7 +397,10 @@ def similarity_check(v_context, v_seg):
 
 ############### LLM Topic Filter with User Prompt ###############
 def llm_topic_filter(segments, user_prompt, client):
-    # Create a simple list of topic id + name (not the entire content!!)
+    '''
+    This function filters out segments based on the user_prompt
+    '''
+    ### Create a simple list of topic id + name (not the entire content!!)
     topics = "\n".join([f"{seg["id"]}: {seg["content"]}" for seg in segments])
 
     response = client.chat.completions.create(
@@ -364,26 +428,6 @@ def llm_topic_filter(segments, user_prompt, client):
 
     return keep_ids
 
-def find_best_matching_seg(context, segments, seg_embedding_map, client, threshold=0.25):
-    '''
-    Compare text surrounding the image with all the segments and returns the best parent segment to bring dropped image back.
-    If no segments found, it can fall back to the visual segment instead of a wrong guess.
-    '''
-
-    best_seg = None
-    best_score = 0.0
-
-    v_context = embedding_text(context, client)
-
-    for seg_id in seg_embedding_map:
-        score, v_context, v_seg = similarity_check(v_context, seg_embedding_map[seg_id])
-        if score > best_score:
-            best_score = score
-            for s in segments:
-                if s["id"] == seg_id:
-                    best_seg = s
-
-    return best_seg if best_score >= threshold else None, best_score
 ############################################## Main ##############################################
 def run_doc_analysis(file, user_prompt, output_name):
     ### Format Check
@@ -399,7 +443,7 @@ def run_doc_analysis(file, user_prompt, output_name):
     md = pymupdf4llm.to_markdown(file, write_images=True, image_path=f"output_sample/{output_name}") 
 
     ### LLM Segmentation
-    segments = llm_segmentation(md, client)
+    segments = llm_segmentation(md, client, user_prompt)
 
     ### Add id and order
     for i, seg in enumerate(segments):
