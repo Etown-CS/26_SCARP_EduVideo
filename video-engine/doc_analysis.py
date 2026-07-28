@@ -82,6 +82,7 @@ def format_checker(file):
     if f_type == '.pdf':
         # Create a subfolder for each input
         output_name = os.path.splitext(os.path.basename(file))[0]  # Gets "cs322_mst.pdf" with os.path.basename(file), and gets "cs322_mst" with os.path.splitext()[0]
+        output_name = os.path.splitext(os.path.basename(file))[0]  # Gets "cs322_mst.pdf" with os.path.basename(file), and gets "cs322_mst" with os.path.splitext()[0]
         os.makedirs(f"output_sample/{output_name}", exist_ok=True)
         pdf_doc = pymupdf.open(file)
         return pdf_doc

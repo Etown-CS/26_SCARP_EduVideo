@@ -13,14 +13,27 @@ import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/app/firebase/config";
 
 const CONFETTI_COLORS = ["#8b5cf6", "#db2777", "#f472b6", "#3b82f6", "#a855f7", "#fbbf24", "#10b981"];
-const STAGE_PROGRESS: Record<string, number> = {
-    doc_analysis: 20,
-    pedagogical_structuring: 45,
-    script_gen: 70,
-    visual_gen: 90,
-    done: 100,
+const STAGE_ORDER = ['doc_analysis', 'pedagogical_structuring', 'script_gen', 'visual_gen'];
+const STAGE_SECONDS: Record<string, number> = {
+    doc_analysis: 120,
+    pedagogical_structuring: 60,
+    script_gen: 60,
+    visual_gen: 1200,
 };
+const STAGE_LABELS: Record<string, string> = {
+    doc_analysis: 'Analyzing your document',
+    pedagogical_structuring: 'Structuring the video',
+    script_gen: 'Writing the script',
+    visual_gen: 'Generating the audio and visuals',
+    done: 'Adding the finishing touches',
+}
+const TOTAL_SECONDS = STAGE_ORDER.reduce((sum, s) => sum + STAGE_SECONDS[s], 0);
 
+function secondsBefore(stage: string): number {
+    const idx = STAGE_ORDER.indexOf(stage);
+    if (idx < 0) return 0;
+    return STAGE_ORDER.slice(0, idx).reduce((sum, s) => sum + STAGE_SECONDS[s], 0);
+}
 function fireConfetti(originX: number, originY: number, count = 60) {
     const container = document.createElement("div");
     container.style.position = "fixed";
@@ -78,16 +91,24 @@ function fireConfetti(originX: number, originY: number, count = 60) {
     setTimeout(() => container.remove(), 1800 * speedFactor);
 }
 
+function formatTime(seconds: number): string {
+    if (seconds < 60) return `${Math.max(1, Math.round(seconds))} seconds`;
+    const mins = Math.round(seconds / 60);
+    return `${mins} minute${mins === 1 ? '' : 's'}`;
+}
+
 export default function WorkingPage() {
     const router = useRouter();
     const [user, loading] = useAuthState(auth);
     const [progress, setProgress] = useState(0);
     const [status, setStatus] = useState('Starting...');
     const [timeRemaining, setTimeRemaining] = useState<string>('Calculating...');
-    //const startTimeRef = useRef<number>(Date.now());
+    const startTimeRef = useRef<number>(Date.now());
+    const hasCompletedRef = useRef(false);
     const loadingCircleRef = useRef<HTMLDivElement>(null);
     const [stage, setStage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const stageStartRef = useRef<number>(Date.now());
 
     const handleAbandon = async () => {
         const confirmed = window.confirm(
@@ -100,53 +121,38 @@ export default function WorkingPage() {
         }
     };
 
-    {/*
-    useEffect(() => {
-        const jobId = localStorage.getItem('currentJobId');
-
-        if (!jobId) {
-            router.push('/generate');
-            return;
-        }
-
-        const poll = setInterval(async () => {
-            const data = await fetch(`/api/generate?jobId=${jobId}`).then(r => r.json());
-            setProgress(data.progress);
-            setStatus(data.status);
-
-            if (data.progress > 0) {
-                const elapsed = (Date.now() - startTimeRef.current) / 1000;
-                const rate = data.progress / elapsed;
-                const remaining = (100 - data.progress) / rate;
-
-                if (remaining < 60) {
-                    setTimeRemaining(`${Math.round(remaining)} seconds`);
-                } else {
-                    setTimeRemaining(`${Math.round(remaining / 60)} minutes`);
-                }
-            }
-
-            if (data.status === 'complete') {
-                clearInterval(poll);
-                setTimeRemaining('Done!');
-                localStorage.setItem('completedVideoUrl', data.videoUrl);
-                localStorage.removeItem('currentJobId');
-                const rect = loadingCircleRef.current?.getBoundingClientRect();
-                if (rect) {
-                    fireConfetti(rect.left + rect.width / 2, rect.top + rect.height / 2);
-                }
-                setTimeout(() => {
-                    router.push('/generate/review');
-                }, 1200);
-            }
-        }, 2000);
-        return () => clearInterval(poll);
-    }, []);
-    */}
-
     useEffect(() => {
         if (!user && !loading) router.push('/sign-in');
     }, [user, router, loading]);
+
+    useEffect(() => {
+        if (!stage) return;
+        const key = `stageStart:${stage}`;
+        const saved = localStorage.getItem(key);
+        if (saved) {
+            stageStartRef.current = parseInt(saved, 10);
+        } else {
+            const now = Date.now();
+            stageStartRef.current = now;
+            localStorage.setItem(key, String(now));
+        }
+    }, [stage]);
+
+    useEffect(() => {
+        if (!stage || stage === 'done' || error) return;
+        const tick = () => {
+            const budget = STAGE_SECONDS[stage] ?? 0;
+            const elapsedInStage = (Date.now() - stageStartRef.current) / 1000;
+            const capped = Math.min(elapsedInStage, budget * 0.95);
+            const done = secondsBefore(stage) + capped;
+
+            setProgress(Math.min(99, (done / TOTAL_SECONDS) * 100));
+            setTimeRemaining(formatTime(Math.max(TOTAL_SECONDS - done, 5)));
+        };
+        tick();
+        const id = setInterval(tick, 1000);
+        return () => clearInterval(id);
+    }, [stage, error]);
 
     useEffect(() => {
         const videoDocId = localStorage.getItem('videoDocId');
@@ -157,12 +163,20 @@ export default function WorkingPage() {
             if (!data) return;
             setStage(data.stage);
             setStatus(data.status);
-            setProgress(STAGE_PROGRESS[data.stage] ?? 0);
 
-            if (data.status === 'complete') {
-                router.push('/generate/review');
+            if (data.status === 'complete' && !hasCompletedRef.current) {
+                hasCompletedRef.current = true;
+                setProgress(100);
+                setTimeRemaining("Done!");
+                STAGE_ORDER.forEach(s => localStorage.removeItem(`stageStart:${s}`));
+                const rect = loadingCircleRef.current?.getBoundingClientRect();
+                if (rect) {
+                    fireConfetti(rect.left + rect.width / 2, rect.top + rect.height / 2);
+                }
+                setTimeout(() => router.push('/generate/review'), 1500);
             } else if (data.status === 'failed') {
-                setError(data.error);
+                setError(data.error || "An unknown error occured during generation.");
+                STAGE_ORDER.forEach(s => localStorage.removeItem(`stageStart:${s}`));
             }
         });
         return () => unsub();
@@ -185,29 +199,71 @@ export default function WorkingPage() {
                         </div>
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-4 min-h-0">
-                                <div className="shadow-neomorph-raised bg-surface-container rounded-2xl p-5 border border-outline-variant/30">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="font-headline font-bold text-on-surface">Generation Status</h3>
-                                        <span className="font-label text-primary font-bold">{progress}%</span>
+                                {error ? (
+                                    <div className="shadow-neomorph-raised bg-surface-container rounded-2xl p-5 border border-error/30">
+                                        <div className="flex items-center gap-2 mb-3">
+                                            <span className="material-symbols-outlined text-error">error</span>
+                                            <h3 className="font-headline font-bold text-error">Generation failed</h3>
+                                        </div>
+                                        <p className="text-sm text-on-surface-variant leading-relaxed mb-4">
+                                            Something went wrong while creating your video. Your progress
+                                            can't be recovered, so you'll need to start over. If this keeps
+                                            happening, try a different document or a simpler prompt.
+                                        </p>
+                                        <details className="mb-4">
+                                            <summary className="text-xs text-on-surface-variant cursor-pointer hover:text-on-surface">
+                                                Technical details
+                                            </summary>
+                                            <p className="text-xs text-on-surface-variant mt-2 font-mono break-words bg-surface-container-low p-3 rounded-lg">
+                                                {error}
+                                            </p>
+                                        </details>
+                                        <div className="flex gap-3">
+                                            <button
+                                                onClick={handleAbandon}
+                                                className="shadow-neomorph-raised bg-primary text-on-primary px-4 py-2 rounded-lg font-medium hover:brightness-110 transition-all cursor-pointer">
+                                                Start Over
+                                            </button>
+                                            
+                                            <button
+                                                onClick={() => router.push('/generate/edit')}
+                                                className="shadow-neomorph-raised bg-surface-container-low px-4 py-2 rounded-lg text-on-surface-variant font-medium hover:translate-y-[-1px] transition-all cursor-pointer">
+                                                Edit and Retry
+                                            </button>
+                                            
+                                        </div>
                                     </div>
-                                    <div className="h-3 w-full bg-surface-container-highest rounded-full overflow-hidden mb-3">
-                                        <div className="h-full bg-primary-container animate-pulse" style={{ width: `${progress}%` }}></div>
-                                    </div>
-                                    <p className="text-xs text-on-surface-variant leading-relaxed">
-                                        Creating your video now. Please be patient as it may take a few minutes. Estimated completion: <span className="font-bold">{timeRemaining}</span>.
-                                    </p>
-                                </div>
-                                <div className="flex justify-center">
-                                    <div ref={loadingCircleRef} className="w-28 h-28">
-                                        <Image src='/blue-pop-up-removebg-preview.png' alt="Blue Pop Up" width={100} height={100} className={`w-28 h-28 ${status !== 'complete' ? 'animate-spin' : ''} border-6 border-primary border-t-transparent rounded-full`} loading="eager"></Image>
-                                    </div>
-                                </div>
-                                <div>
-                                    <button onClick={handleAbandon} className="shadow-neomorph-raised bg-surface-container-low px-4 py-2 rounded-lg flex items-center gap-2 text-on-surface-variant font-md hover:translate-y-[-1px] transition-all cursor-pointer">
-                                        <span className="material-symbols-outlined">delete_forever</span>
-                                        Start Over
-                                    </button>
-                                </div>
+                                ) : (
+                                    <>
+                                        <div className="shadow-neomorph-raised bg-surface-container rounded-2xl p-5 border border-outline-variant/30">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h3 className="font-headline font-bold text-on-surface">
+                                                    {stage ? STAGE_LABELS[stage] ?? 'Generation Status' : 'Generation Status'}
+                                                </h3>
+                                                <span className="font-label text-primary font-bold">{Math.round(progress)}%</span>
+                                            </div>
+                                            <div className="h-3 w-full bg-surface-container-highest rounded-full overflow-hidden mb-3">
+                                                <div className="h-full bg-primary-container animate-pulse transition-[width] duration-1000 ease-out" style={{ width: `${progress}%` }}></div>
+                                            </div>
+                                            <p className="text-xs text-on-surface-variant leading-relaxed">
+                                                Creating your video now. Please be patient as it may take a few minutes. Estimated completion: <span className="font-bold">{timeRemaining}</span>.
+                                            </p>
+                                        </div>
+                                        {!error && (
+                                            <div className="flex justify-center">
+                                                <div ref={loadingCircleRef} className="w-28 h-28">
+                                                    <Image src='/blue-pop-up-removebg-preview.png' alt="Blue Pop Up" width={100} height={100} className={`w-28 h-28 ${status !== 'complete' ? 'animate-spin' : ''} border-6 border-primary border-t-transparent rounded-full`} loading="eager"></Image>
+                                                </div>
+                                            </div>
+                                        )}
+                                        <div>
+                                            <button onClick={handleAbandon} className="shadow-neomorph-raised bg-surface-container-low px-4 py-2 rounded-lg flex items-center gap-2 text-on-surface-variant font-md hover:translate-y-[-1px] transition-all cursor-pointer">
+                                                <span className="material-symbols-outlined">delete_forever</span>
+                                                Start Over
+                                            </button>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                             <div className="col-span-4 flex flex-col gap-6 min-h-0">
                                 <AgentChat />

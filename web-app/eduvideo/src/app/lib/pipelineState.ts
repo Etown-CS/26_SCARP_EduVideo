@@ -1,6 +1,7 @@
 import { db } from "@/app/firebase/config";
 import { doc, deleteDoc } from "firebase/firestore";
 import type { User } from "firebase/auth";
+import { use } from "react";
 
 export const midPipelinePages = ["/generate/edit", "/generate/review", "/generate/final-video", "/generate/working"];
 const PIPELINE_KEYS = [
@@ -17,6 +18,11 @@ const PIPELINE_KEYS = [
     'desc',
     'url',
     'fileCreated',
+    'jobStartTime',
+    'stageStart:doc_analysis',
+    'stageStart:pedagogical_structuring',
+    'stageStart:script_gen',
+    'stageStart:visual_gen',
 ];
 
 export function clearPipelineState(){
@@ -29,6 +35,18 @@ export async function cleanupAbandoned(user: User | null | undefined){
     const videoDocId = localStorage.getItem('videoDocId');
     const activeFileId = localStorage.getItem('activeFileId');
     const fileCreated = localStorage.getItem('fileCreated') === 'true';
+
+    if(videoDocId){
+        try{
+            await fetch('/api/jobs/cancel', {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({userId: user.uid, videoDocId}),
+            });
+        } catch(err){
+            console.error('Failed to cancel the running job: ', err);
+        }
+    }
 
     const deletions: Promise<void>[] = [];
 

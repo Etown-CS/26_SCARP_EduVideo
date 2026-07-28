@@ -18,13 +18,27 @@ client = OpenAI()
 def finetune_reorder_topic(topic, user_prompt):
     # Convert a core topic in md file into plain text
     formatted, visual_lookup = format_topic4prompt(topic)
+    formatted, visual_lookup = format_topic4prompt(topic)
 
     prompt = DIFFICULTY_RUBRIC + f"""You are a Pedagogical Agent helping fine-tune and reorder the segments based on the user prompt for a beginner undergraduate student.
     The user has the following request for this video: "{user_prompt}"
     Here are the subsegments for the topic "{topic['content']}":
+    The user has the following request for this video: "{user_prompt}"
+    Here are the subsegments for the topic "{topic['content']}":
 
     {formatted}
+    {formatted}
 
+    Do three things:
+    1.Rate each subsegment's importance using exactly one of these labels:
+        - essential: core concept the user is asking about, must be included
+        - supplementary: helps understanding but not directly what the user asked for
+        - advanced: beyond undergrad level, include only if user requests
+        - optional: not necessary, can be skipped
+        When rating importance, prioritize content that directly relates to the user's request above.
+        Foundational definitions needed to understand the user's requested topic should still be rated essential.
+    2. Reorder these subsegments into the best teaching sequence for a beginner. 
+    3. Write a short, simplified summary of each subsegment for beginner students.
     Do three things:
     1.Rate each subsegment's importance using exactly one of these labels:
         - essential: core concept the user is asking about, must be included

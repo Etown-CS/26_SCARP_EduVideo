@@ -66,6 +66,7 @@ def combine_audio_video(video_path, audio_path, output_path):
 def run_visual_gen(script_json, client):
     file = script_json
     output_dir = os.path.dirname(file)
+    output_dir = os.path.dirname(file)
     with open(file, "r") as f:
         script_data = json.load(f)
 
@@ -103,6 +104,7 @@ def run_visual_gen(script_json, client):
             indent=4,
             ensure_ascii=False,
         )
+        print(f"✅ Saved! - {len(all_clip_prompts)} clip prompts -> {output_dir}")
         print(f"✅ Saved! - {len(all_clip_prompts)} clip prompts -> {output_dir}")
 
     ### Send the visual prompts to the GPU

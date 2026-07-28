@@ -20,8 +20,8 @@ export default function Generate() {
     const [prompt, setPrompt] = useState('');
     const [preloaded, setPreloaded] = useState<string | null>(null);
     const [preloadedId, setPreloadedId] = useState<string | null>(null);
-    const allowedTypes = ['.pdf', '.docx', '.md'];
-    const allowedMimeTypes = ['application/pdf', 'text/markdown', 'text/x-markdown', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',];
+    const allowedTypes = ['.pdf'];
+    const allowedMimeTypes = ['application/pdf'];
     const [fileError, setFileError] = useState<string | null>(null);
 
     //check if file is allowed
@@ -47,7 +47,6 @@ export default function Generate() {
         }
         const selectedFile = valid[0];
         setFiles([selectedFile]);
-        //possibly add API call here for getting out topics. But if topic selection available, why would we need a prompt? Also would letting the user select topics alter how that agent works, effectively causing more problems and adding more work to do before the end of the project?
     };
 
     //This function calls the generate video API as well as establishing the metadata scheme for the generate video.
@@ -79,34 +78,6 @@ export default function Generate() {
             }),
         });
         router.push('/generate/working');
-        //At some point this will need to be updated to include the actual document content
-        {/*
-        const { jobId } = await fetch('/api/generate', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ document: preloaded || files[0]?.name, prompt }),
-        }).then(r => r.json());
-
-        //set create and set initial values for the video metadata
-        const metadata = {
-            title: preloaded || files[0]?.name || 'Untitled',
-            topics: [] as string[],
-            prompt: prompt,
-            description: 'None',
-            length: 'Unknown',
-            videoUrl: 'None',
-            date: new Date().toISOString(),
-            document: preloaded || files[0]?.name || 'N/A',
-            documentId: 'None',
-            tags: [] as string[]
-        };
-
-        //add everything to localStorage so it can be accessed across different pages.
-        localStorage.setItem('selectedDocument', preloaded || files[0]?.name || '');
-        localStorage.setItem('currentJobId', jobId);
-        localStorage.setItem('videoMetadata', JSON.stringify(metadata));
-        router.push('/generate/working');
-        */}
     };
 
     //ensures that the user is logged in and the page is not still loading. If the user is not signed in, they will get pushed to the sign in page.
@@ -332,9 +303,8 @@ export default function Generate() {
                         <div className="flex-1 grid grid-cols-12 gap-6 min-h-0">
                             <div className="col-span-8 flex flex-col gap-2 min-h-0">
                                 <p className="mt-6 max-w-3xl text-sm text-on-surface-variant font-body mb-8 leading-relaxed">
-                                    Below, upload your notes, powerpoints, or coding samples. Once the document and optional prompt have been provided, click the process document button.
-                                    After processing, you will be able to view the topics the generated video will be focusing on.
-                                    If you are unhappy with the topics, go back and edit your prompt to be more specific. Once you are satisfied, click the generate button to start the creation of your video.
+                                    Below, upload your notes, powerpoints, or coding samples. Make sure you are uploading them in a .pdf format and they are smaller than 1 MB, otherwise, errors will occur. Once the document and optional prompt have been provided, click the generate button to start the creation of your video.
+                                    Generating the video will take roughly 30 minutes, but you do not need to wait actively on the page. Just keep this tab open on the working page and the video will generate.
                                 </p>
                                 <div
                                     onDragOver={handleDragOver}
@@ -352,7 +322,7 @@ export default function Generate() {
                                             className="mt-4 px-8 py-3 bg-surface border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">
                                             Browse Files
                                         </button>
-                                        <input ref={inputRef} type="file" accept=".pdf,.docx,.md" className="hidden" onChange={handleBrowse} />
+                                        <input ref={inputRef} type="file" accept=".pdf" className="hidden" onChange={handleBrowse} />
                                         {fileError && (
                                             <p className="text-sm text-error mt-2">{fileError}</p>
                                         )}
@@ -382,16 +352,6 @@ export default function Generate() {
                                         value={prompt}
                                         onChange={(e) => setPrompt(e.target.value)}
                                         className="bg-transparent border-none text-sm font-label outline-none placeholder:text-outline w-full resize-none" placeholder="Input an additional prompt here" rows={5} />
-                                </div>
-                                {/*on click call doc analysis get topics back then display topics*/}
-                                <div className="flex justify-center">
-                                    <button className="px-4 py-3 bg-primary border border-outline-variant rounded-lg font-semibold text-surface shadow-neomorph-raised hover:brightness-110 transition-all active:scale-95 justify-center cursor-pointer">
-                                        Process Document
-                                    </button>
-                                </div>
-                                <div className="flex flex-wrap gap-2 font-body text-md text-secondary"> <span className="font-bold">Topics: </span>
-                                    <span className="shrink-0 bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full font-label text-sm"> Topics
-                                    </span>
                                 </div>
                                 <div className="max-w-3xl flex items-center gap-4 justify-center mt-4">
                                     <button

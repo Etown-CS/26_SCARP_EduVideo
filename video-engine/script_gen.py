@@ -29,7 +29,6 @@ def generate_transcript(section, subseg_lookup, video_title):
         intro_outro_instruction = 'Since this is the last section of the video, end with a brief closing sentence that wraps up the topic and leaves viewers motivated.'
 
     new_summary, img_marker_dict = build_summary_list(subsegs)
-    print(f"[debug] img_marker_dict: {img_marker_dict}")
 
     prompt = DIFFICULTY_RUBRIC + f"""
     You are a Script Generation Agent creating an educational video transcripts for beginner undergraduate students.
