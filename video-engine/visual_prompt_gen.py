@@ -2,6 +2,16 @@ import re
 import os
 from audio_gen import clean_text_for_tts, tts_pipeline, generate_audio, get_audio_duration
 
+'''
+### Functions in this file
+- split_into_clip_chunks
+- find_image_path_in_chunk
+- frames_for_duration
+- find_new_key_point
+- gen_visual_prompt_4chunk
+- gen_clips_with_audio_4section
+'''
+
 ### Setup
 MODEL_NAME = "Wan2.1"     # model to use
 CLIP_DURATION_SEC = 5     # target length of clips to generate
@@ -125,23 +135,32 @@ def gen_visual_prompt_4chunk(
     chunk_position=None,                    # order in section
     previous_visual_prompt=None,            # for the continuity
 ):
-    # if clip is short, focus on a single state or moment, not motion
-    if clip_duration_sec <= 2:
-        motion_guidance = (
-            f"This clip is very short ({clip_duration_sec} seconds), so describe a single "
-            "state or moment rather than an evolving sequence of events. Keep the camera "
-            "static, and limit motion to one clear, simple behavior of the objects "
-            "themselves (can have multiple objects, but one kind of movement)"
-            "-- there isn't enough time for anything more elaborate."
-        )
-    else:
-        motion_guidance = (
-            f"This clip is {clip_duration_sec} seconds long. Keep the camera static "
-            "(no zooms, pans, or reveals) and instead describe how the objects/shapes "
-            "themselves move, change, or interact over the full duration -- e.g. pulsing, "
-            "rotating, glowing, morphing, connecting, or reconfiguring to visualize the concept explained."
-            "The motion should come from the subject, not the camera."
-        )
+    motion_guidance = (
+        f"This clip is {clip_duration_sec} seconds long. Keep the camera static "
+        "(no zooms, pans, or reveals) and instead describe how the objects/shapes "
+        "themselves move, change, or interact over the full duration -- e.g. pulsing, "
+        "rotating, glowing, morphing, connecting, or reconfiguring to visualize the concept explained."
+        "The motion should come from the subject, not the camera."
+    )
+
+    concept_motion_hints = """
+        When the content includes positions, let the shapes and their positions reflect:
+        - "front" -> always implies a shape at the leftmost, by assuming all the shapes lined up horizontally
+        - "back" -> always implies a shape  at the rightmost, by assuming all the shapes lined up horizontally
+        - "top" -> always implies a shape at the top, by assuming all the shapes placed vertically
+        - "bottom" -> always implies a shape at the bottom, by assuming all the shapes placed vertically
+        Also, when the content involves common CS operations, let the motion reflect their meaning:
+        - "add" / "insert" → a new shape smoothly added into the existing sequence of shapes
+        - "delete" / "remove" / "take out" → a shape shrinks and fades out from a sequence of shapes
+        - "connect" / "link" → a line or an arrow forms between two shapes
+        - "disconnect" / "remove edge" → an existing line fades or breaks apart after flickering
+        - "next" / "forward" / "traverse" →  make shapes grow red brightly from left to right or
+        - "previous" / "backward" → make shapes grow blue brightly in the opposite direction
+        - "compare" → two shapes tilt back and forth like a seesaw, first one rising as the other lowers, then reversing
+        - "swap" / "exchange" → two shapes smoothly exchange positions
+        - "search" / "find" → brighten shapes one by one, then make a single shape brighten and pop while others stay dim
+        Use these as inspiration when relevant, but keep the camera static and the overall scene abstract/minimal as described above.
+    """
 
     instruction = f"""Write a short video description for a {clip_duration_sec}-second video clip
     that represents the content explained by using a visual metaphor or abstract scene.
@@ -198,6 +217,8 @@ def gen_visual_prompt_4chunk(
 
     {motion_guidance}
 
+    {concept_motion_hints}
+
     Keep the camera static throughout. Lead with what the objects/shapes in the scene
     are doing (e.g. "circles pulsing outward", "lines slowly connecting") before
     describing the rest of the scene.
@@ -224,7 +245,7 @@ def gen_clips_with_audio_4section(client, section, pipeline, output_folder, mode
     key_points = key_points or []
     already_shown = set()
 
-    clip_prompts = []
+    clip_prompts_4section = []
     previous_prompt = None
 
     ### Process visual generation chunk by chunk
@@ -235,15 +256,14 @@ def gen_clips_with_audio_4section(client, section, pipeline, output_folder, mode
         ### Generate audio
         audio_path = os.path.join(audio_dir, f"section-{section['section']}_clip{i}.wav")
         clean_chunk_text = clean_text_for_tts(chunk_text)
-        print(f"[debug] chunk_text: {repr(chunk_text)}")
-        print(f"[debug] clean_chunk_text: {repr(clean_chunk_text)}")
+
         generate_audio(pipeline, clean_chunk_text, audio_path)
         actual_clip_duration = get_audio_duration(audio_path)
 
         frame_num, actual_clip_duration = frames_for_duration(actual_clip_duration, model_name)
 
         if image_path:
-            clip_prompts.append({
+            clip_prompts_4section.append({
                 "section": section["section"],
                 "clip_number": i,
                 "text": chunk_text,
@@ -256,6 +276,7 @@ def gen_clips_with_audio_4section(client, section, pipeline, output_folder, mode
                 "audio_path": audio_path,
             })
         else:
+            # this part was for text rendering, ended up failing
             new_key_point = find_new_key_point(chunk_text, key_points, already_shown)
             if new_key_point:
                 already_shown.add(new_key_point)
@@ -273,7 +294,7 @@ def gen_clips_with_audio_4section(client, section, pipeline, output_folder, mode
                 previous_visual_prompt=previous_prompt,
             )
 
-            clip_prompts.append({
+            clip_prompts_4section.append({
                 "section": section["section"],
                 "clip_number": i,
                 "text": chunk_text,
@@ -286,6 +307,6 @@ def gen_clips_with_audio_4section(client, section, pipeline, output_folder, mode
                 "audio_path": audio_path,
             })
 
-            previous_prompt = prompt  # feed forward into the next iteration
+            previous_prompt = prompt  # feed forward into the next iteration, to keep the format
 
-    return clip_prompts
+    return clip_prompts_4section

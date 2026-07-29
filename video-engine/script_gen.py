@@ -30,6 +30,21 @@ def generate_transcript(section, subseg_lookup, video_title):
 
     new_summary, img_marker_dict = build_summary_list(subsegs)
 
+    marker_instruction = ""
+    if img_marker_dict:
+        marker_instruction = """
+    Some key points below contain a token like "IMAGE_MARKER_1". If you use
+    that key point in your transcript, copy the token exactly as it is
+    (e.g. "IMAGE_MARKER_1"), placed naturally in the sentence. Never invent
+    a new token like this yourself -- only use the exact ones given to you above.
+
+    Never use an IMAGE_MARKER token as the grammatical subject of a sentence
+    (e.g. avoid "IMAGE_MARKER_1 shows..."). Instead, place it at the end of
+    a sentence, or as a standalone reference (e.g. "This diagram shows how
+    Prim's algorithm builds a tree. IMAGE_MARKER_1" or "Prim's algorithm
+    builds a tree from a single node, as shown here. IMAGE_MARKER_1").
+    """
+
     prompt = DIFFICULTY_RUBRIC + f"""
     You are a Script Generation Agent creating an educational video transcripts for beginner undergraduate students.
 
@@ -51,16 +66,7 @@ Also identify up to 3 key terms or the specific angle/question related to the tr
 verbatim (word-for-word) in the transcript text you write. Order them by the
 order they first appear.
 
-Some key points below contain a token like "IMAGE_MARKER_1". If you use
-that key point in your transcript, copy the token exactly as it is
-(e.g. "IMAGE_MARKER_1"), placed naturally in the sentence. Never invent
-a new token like this yourself -- only use the exact ones given to you above.
-
-Never use an IMAGE_MARKER token as the grammatical subject of a sentence
-(e.g. avoid "IMAGE_MARKER_1 shows..."). Instead, place it at the end of
-a sentence, or as a standalone reference (e.g. "This diagram shows how
-Prim's algorithm builds a tree. IMAGE_MARKER_1" or "Prim's algorithm
-builds a tree from a single node, as shown here. IMAGE_MARKER_1").
+{marker_instruction}
 
 Return ONLY a valid JSON object, no explanation, no markdown formatting:
 {{
@@ -85,7 +91,7 @@ Return ONLY a valid JSON object, no explanation, no markdown formatting:
         return None
 
     transcript = result.get("transcript", "").strip()
-    key_points = result.get("key_points", [])
+    key_points = result.get("key_points", []) # This is for text rendering with the Wan2.1 model, which ended up failing.
 
     # Safety check: verify each term actually appears verbatim.
     transcript_lower = transcript.lower()
