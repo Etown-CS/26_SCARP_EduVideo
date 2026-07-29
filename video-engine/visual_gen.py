@@ -2,6 +2,7 @@ import json
 import os
 import re
 from pathlib import Path
+import textwrap
 
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -10,16 +11,24 @@ import subprocess
 
 from remote_gpu_utils import scp_to_remote, scp_from_remote, run_remote_command, REMOTE_WORK_DIR
 from visual_prompt_gen import gen_clips_with_audio_4section, ENABLE_ON_SCREEN_KEYWORDS, MODEL_NAME
-from audio_gen import tts_pipeline
+from audio_gen import tts_pipeline, clean_text_for_tts
 
 load_dotenv()
 client = OpenAI()
 
+'''
+## Functions in this file
+- combine_clips
+- combine_audio_video
+- escape_for_ffmpeg
+- add_title_overlay
+- add_subtitle_overlay
+-run_visual_gen
+
+'''
+
 ####################### Combine clips #######################
 def combine_clips(clips_dir, output_path):
-    print(f"[debug] Looking for clips in: {clips_dir}") # for debug
-    print(f"[debug] Files found: {os.listdir(clips_dir)}") # for debug
-
     ### Make a tuple like "section-1_clip1.mp4" -> (1, 1), to properly compare them as number
     def sort_key(filename):
         match = re.match(r"section-(\d+)_clip(\d+)_with_audio\.mp4", filename)  # No need of (/d) if you just wanna know T/F
@@ -61,6 +70,43 @@ def combine_audio_video(video_path, audio_path, output_path):
         output_path,
     ]
     subprocess.run(cmd, check=True)
+
+def escape_for_ffmpeg(text):
+    text = text.replace("'", "'\\\\\\''")
+    text = text.replace(":", "\\:")
+    return text
+
+################################## Display the section title ##################################
+def add_title_overlay(video_path, title, output_path):
+    title = escape_for_ffmpeg(title)
+    temp_output = output_path + ".temp.mp4"
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", video_path,
+        "-vf", f"drawtext=text='{title}':x=20:y=10:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.3:boxborderw=10",
+        "-c:a", "copy",
+        temp_output,
+    ]
+    subprocess.run(cmd, check=True)
+
+    os.replace(temp_output, output_path)
+
+################################## Display the subtitle ##################################
+def add_subtitle_overlay(video_path, subtitle_text, output_path, fontsize=16, width=60):
+    wrapped = textwrap.fill(subtitle_text, width=width)
+    wrapped = escape_for_ffmpeg(wrapped)
+    temp_output = output_path + ".temp.mp4"
+
+    cmd = [
+        "ffmpeg", "-y",
+        "-i", video_path,
+        "-vf", f"drawtext=text='{wrapped}':x=(w-tw)/2:y=h-th-14:fontsize={fontsize}:fontcolor=white:box=1:boxcolor=black@0.5:boxborderw=10",
+        "-c:a", "copy",
+        temp_output,
+    ]
+    subprocess.run(cmd, check=True)
+    os.replace(temp_output, output_path)
 
 ######################################### Main #########################################
 def run_visual_gen(script_json, client):
@@ -116,6 +162,10 @@ def run_visual_gen(script_json, client):
     ### Send generated clips and audio back
     scp_from_remote(f"{REMOTE_WORK_DIR}/clips/", f"{output_dir}/clips/")
 
+    secNum_title = {}
+    for sec in script_data["sections"]:
+        secNum_title[sec['section']] = sec['title']
+
     ### Combine audio with each video clip
     for clip in all_clip_prompts:
         video_path = os.path.join(output_dir, "clips", f"section-{clip['section']}_clip{clip['clip_number']}.mp4")
@@ -123,7 +173,12 @@ def run_visual_gen(script_json, client):
         output_with_audio_path = os.path.join(output_dir, "clips", f"section-{clip['section']}_clip{clip['clip_number']}_with_audio.mp4")
 
         combine_audio_video(video_path, audio_path, output_with_audio_path)
+        add_title_overlay(output_with_audio_path, secNum_title[clip['section']], output_with_audio_path)
+        subtitle_text = clean_text_for_tts(clip["text"])
+        add_subtitle_overlay(output_with_audio_path, subtitle_text, output_with_audio_path)
 
+        os.remove(video_path)
+        
     ### Combine all clips (with audio) into one final video
     final_clips_dir = os.path.join(output_dir, "clips")
     final_output_path = os.path.join(final_clips_dir, "final_combined_video.mp4")
