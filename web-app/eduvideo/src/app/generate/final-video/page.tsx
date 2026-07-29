@@ -10,6 +10,34 @@ import { db } from "@/app/firebase/config";
 import { doc, serverTimestamp, updateDoc, onSnapshot } from "firebase/firestore";
 import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
 
+function getVideoDuration(url: string): Promise<number> {
+    return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        const timer = setTimeout(() => reject(new Error('Timed out reading video metadata')), 15000);
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+            clearTimeout(timer);
+            if (!isFinite(video.duration)) {
+                reject(new Error('Video duration unavailable'));
+            } else {
+                resolve(video.duration);
+            }
+        };
+        video.onerror = () => {
+            clearTimeout(timer);
+            reject(new Error('Failed to load video metadata'));
+        }
+        video.src = url;
+    });
+}
+
+function formatDuration(seconds: number): string {
+    const total = Math.round(seconds);
+    const mins = Math.floor(total / 60);
+    const secs = total % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
 export default function FinalVideo() {
 
     const [user, loading] = useAuthState(auth);
@@ -53,6 +81,7 @@ export default function FinalVideo() {
     const [newTag, setNewTag] = useState('');
     const [tags, setTags] = useState<string[]>([]);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
+    const [length, setLength] = useState('Unknown');
     const [downloading, setDownloading] = useState(false);
     const [videoMetadata, setVideoMetadata] = useState<{
         title: string;
@@ -68,12 +97,12 @@ export default function FinalVideo() {
 
     useEffect(() => {
         const videoDocId = localStorage.getItem('videoDocId');
-        if(!videoDocId || !user) return;
+        if (!videoDocId || !user) return;
 
         const unsub = onSnapshot(doc(db, 'users', user.uid, 'videos', videoDocId), (snap) => {
             const data = snap.data();
-            if(data?.videoUrl) setVideoUrl(data.videoUrl);
-            if(data?.title && !title) setTitle(data.title.split('.')[0]);
+            if (data?.videoUrl) setVideoUrl(data.videoUrl);
+            if (data?.title && !title) setTitle(data.title.split('.')[0]);
         });
         return () => unsub();
     }, [user]);
@@ -107,6 +136,17 @@ export default function FinalVideo() {
         return () => controller.abort();
     }, [topics, prompt]);
 
+    useEffect(() => {
+        if (!videoUrl) return;
+        let cancelled = false;
+        getVideoDuration(videoUrl)
+            .then(secs => {
+                if (!cancelled) setLength(formatDuration(secs));
+            })
+            .catch(err => console.error('Could not read video duration: ', err));
+        return () => {cancelled = true; };
+    }, [videoUrl]);
+
 
     const handleNewTag = () => {
         if (!newTag.trim()) return;
@@ -133,7 +173,7 @@ export default function FinalVideo() {
             topics: topics.length ? topics : ['N/A'],
             prompt: prompt || 'N/A',
             description: desc,
-            length: 'Unknown',
+            length,
             videoUrl: videoUrl || '',
             date: new Date().toISOString(),
             document: documentName || 'N/A',

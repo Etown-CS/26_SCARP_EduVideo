@@ -18,7 +18,7 @@ const STAGE_SECONDS: Record<string, number> = {
     doc_analysis: 120,
     pedagogical_structuring: 60,
     script_gen: 60,
-    visual_gen: 1200,
+    visual_gen: 1800,
 };
 const STAGE_LABELS: Record<string, string> = {
     doc_analysis: 'Analyzing your document',

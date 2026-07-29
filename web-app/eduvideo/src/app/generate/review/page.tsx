@@ -7,26 +7,8 @@ import Loading from "@/app/components/loading";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { db } from "@/app/firebase/config";
-import { serverTimestamp, collection, addDoc, getDoc, doc, updateDoc, onSnapshot } from "firebase/firestore";
+import { serverTimestamp, doc, updateDoc, onSnapshot } from "firebase/firestore";
 import { cleanupAbandoned, clearPipelineState } from "@/app/lib/pipelineState";
-
-{/*
-function getVideoDuration(url: string): Promise<number> {
-    return new Promise((resolve, reject) => {
-        const video = document.createElement('video');
-        video.preload = 'metadata';
-        video.onloadedmetadata = () => resolve(video.duration);
-        video.onerror = () => reject(new Error('Failed to load video metadata'));
-        video.src = url;
-    });
-}
-
-function formatDuration(seconds: number): string {
-    const mins = Math.floor(seconds/60);
-    const secs = Math.round(seconds%60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-}
-*/}
 
 export default function Review() {
 
@@ -78,54 +60,6 @@ export default function Review() {
             setSubmitting(false);
         }
     };
-
-    {/*
-    useEffect(() => {
-        const url = localStorage.getItem('completedVideoUrl');
-        if (url) setVideoUrl(url);
-    }, []);
-
-    useEffect(() => {
-        if (!user || !videoUrl) return;
-
-        const createDraft = async () => {
-            try {
-                const existingId = localStorage.getItem('videoDocId');
-
-                if (existingId) {
-                    const existingSnap = await getDoc(doc(db, 'users', user.uid, 'videos', existingId));
-                    if (existingSnap.exists()) return;
-                    localStorage.removeItem('videoDocId');
-                }
-
-                const fileId = localStorage.getItem('activeFileId');
-                const fileName = localStorage.getItem('selectedDocument');
-
-                const docRef = await addDoc(collection(db, 'users', user.uid, 'videos'), {
-                    videoUrl,
-                    status: 'draft',
-                    title: '',
-                    topic: '',
-                    description: '',
-                    tags: [],
-                    document: fileName || '',
-                    documentId: fileId || null,
-                    length: 'Unknown',
-                    createdAt: serverTimestamp(),
-                    evaluation: {
-                        score: null,
-                        notes: '',
-                        submittedAt: null,
-                    }
-                });
-                localStorage.setItem('videoDocId', docRef.id);
-            } catch (err) {
-                console.error('Failed to create draft: ', err);
-            }
-        };
-        createDraft();
-    }, [user, videoUrl]);
-    */}
 
     useEffect(() => {
         const videoDocId = localStorage.getItem('videoDocId');

@@ -88,6 +88,13 @@ def find_image_path_in_chunk(chunk_text):
         return match.group(1)
     return None
 
+############### Find image path ###############
+def find_image_path_in_chunk(chunk_text):
+    match = re.search(r'!\[\]\(([^)]*)\)', chunk_text)
+    if match:
+        return match.group(1)
+    return None
+
 ############### Get Frame Count ###############
 def frames_for_duration(duration_sec, model_name=MODEL_NAME):
     """
@@ -250,6 +257,9 @@ def gen_clips_with_audio_4section(client, section, pipeline, output_folder, mode
 
     ### Process visual generation chunk by chunk
     for i, (chunk_text, estimated_duration) in enumerate(chunks, start=1):
+        ### Check if this chunk references an image, before the text gets cleaned for TTS
+        image_path = find_image_path_in_chunk(chunk_text)
+
         ### Check if this chunk references an image, before the text gets cleaned for TTS
         image_path = find_image_path_in_chunk(chunk_text)
 

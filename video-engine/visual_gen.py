@@ -112,6 +112,7 @@ def add_subtitle_overlay(video_path, subtitle_text, output_path, fontsize=16, wi
 def run_visual_gen(script_json, client):
     file = script_json
     output_dir = os.path.dirname(file)
+    output_dir = os.path.dirname(file)
     with open(file, "r") as f:
         script_data = json.load(f)
 
@@ -150,7 +151,7 @@ def run_visual_gen(script_json, client):
             ensure_ascii=False,
         )
         print(f"✅ Saved! - {len(all_clip_prompts)} clip prompts -> {output_dir}")
-
+        print(f"✅ Saved! - {len(all_clip_prompts)} clip prompts -> {output_dir}")
 
     ### Send the visual prompts to the GPU
     scp_to_remote(prompt_json_path, f"{REMOTE_WORK_DIR}/visual_prompts.json")

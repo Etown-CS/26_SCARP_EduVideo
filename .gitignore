@@ -1,4 +1,5 @@
-# Backend exclude testing output
+# Backend exclude testing input/output
+video-engine/cs*
 video-engine/output_sample
 video-engine/__pycache__
 video-engine/.secret
