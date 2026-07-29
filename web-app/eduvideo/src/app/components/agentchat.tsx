@@ -162,7 +162,7 @@ export default function AgentChat() {
                                 ))}
                                 {isLoading && (
                                     <div className="p-3 rounded-xl border border-outline-variant/30 bg-surface-container-highest/50 mr-6">
-                                        <span className="text-xs font-bold text-on-surface">Video Agent</span>
+                                        <span className="text-xs font-bold text-on-surface">Blue</span>
                                         <div className="flex gap-1 mt-4">
                                             <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:0ms]" />
                                             <span className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:150ms]" />
