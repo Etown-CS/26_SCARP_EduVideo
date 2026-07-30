@@ -82,7 +82,6 @@ export default function FinalVideo() {
     const [tags, setTags] = useState<string[]>([]);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [length, setLength] = useState('Unknown');
-    const [downloading, setDownloading] = useState(false);
     const [videoMetadata, setVideoMetadata] = useState<{
         title: string;
         topics: string[];
@@ -203,27 +202,6 @@ export default function FinalVideo() {
             router.push('/documents');
         }
     };
-
-    const handleDownload = async () => {
-        if (!videoUrl) return;
-        setDownloading(true);
-        try {
-            const res = await fetch(videoUrl);
-            if (!res.ok) throw new Error("Failed to fetch video.");
-            const blob = await res.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = blobUrl;
-            a.download = `${title || "video"}.mp4`;
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(blobUrl);
-        } catch (err) {
-            console.error("Failed to download video: ", err);
-        } finally {
-            setDownloading(false);
-        }
-    }
 
     useEffect(() => {
         const saved = localStorage.getItem('videoMetadata');
@@ -380,14 +358,6 @@ export default function FinalVideo() {
                                         <div className="pt-6 flex items-center gap-40 justify-center">
                                             <button onClick={handleSave} className="w-50 bg-primary text-on-primary py-3 px-5 rounded-lg font-bold text-md flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer mb-4">Save</button>
                                         </div>
-                                        {/*
-                                        <div className="flex justify-center">
-                                            //Doesn't actually download anything yet because there is nothing to download
-                                            <button className="w-50 bg-secondary text-on-secondary py-3 px-5 rounded-lg font-bold text-md flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer mb-4">
-                                                <span className="material-symbols-outlined text-md">download</span>Download Video
-                                            </button>
-                                        </div>
-                                        */}
                                     </div>
                                 </div>
                             </div>
