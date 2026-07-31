@@ -11,34 +11,24 @@ load_dotenv()
 client = OpenAI()
 
 ############### Reorder ###############
-### Get ...
-# a new order of core topic for beginner friendly
-# Label importance
-# Create a summary by subsegments
-def finetune_reorder_topic(topic, user_prompt):
+def reorder_summarize_label_topic(topic, user_prompt):
+    '''
+    Given one core topic and the user's prompt, ask the LLM to:
+    - Rate each subsegment's importance (essential/supplementary/advanced/optional)
+    - Reorder subsegments into the best teaching sequence for a beginner
+    - Write a simplified summary of each subsegment
+    Returns a list of subsegments with these fields added.
+    '''
+
     # Convert a core topic in md file into plain text
-    formatted, visual_lookup = format_topic4prompt(topic)
     formatted, visual_lookup = format_topic4prompt(topic)
 
     prompt = DIFFICULTY_RUBRIC + f"""You are a Pedagogical Agent helping fine-tune and reorder the segments based on the user prompt for a beginner undergraduate student.
     The user has the following request for this video: "{user_prompt}"
     Here are the subsegments for the topic "{topic['content']}":
-    The user has the following request for this video: "{user_prompt}"
-    Here are the subsegments for the topic "{topic['content']}":
 
     {formatted}
-    {formatted}
 
-    Do three things:
-    1.Rate each subsegment's importance using exactly one of these labels:
-        - essential: core concept the user is asking about, must be included
-        - supplementary: helps understanding but not directly what the user asked for
-        - advanced: beyond undergrad level, include only if user requests
-        - optional: not necessary, can be skipped
-        When rating importance, prioritize content that directly relates to the user's request above.
-        Foundational definitions needed to understand the user's requested topic should still be rated essential.
-    2. Reorder these subsegments into the best teaching sequence for a beginner. 
-    3. Write a short, simplified summary of each subsegment for beginner students.
     Do three things:
     1.Rate each subsegment's importance using exactly one of these labels:
         - essential: core concept the user is asking about, must be included
@@ -75,7 +65,6 @@ def finetune_reorder_topic(topic, user_prompt):
     for sub in result:
         if sub['id'] in visual_lookup:
             sub['summary'] = visual_lookup[sub['id']]['summary']
-            sub['content'] = visual_lookup[sub['id']]['content']
 
     return result
 
@@ -106,6 +95,14 @@ def format_topic4prompt(topic):
 
 ############### LLM Video Outline Generator ###############
 def video_outline_maker(all_subsegments, user_prompt, client):
+    '''
+    Given the flattened list of all subsegments (across all topics) and the user's
+    prompt, ask the LLM to group them into a coherent video outline: 6 sections max,
+    each with a role (introduction/foundation/main focus/supporting/conclusion),
+    always including exactly one introduction and one conclusion section.
+    Returns the outline as a dict with "title" and "sections".
+    '''
+
     # Format the flat list to put in LLM
     formatted = "\n".join([
         f"{sub['id']} [{sub['importance']}] ({sub['topic']}): {sub['content'][:100]}"
@@ -168,6 +165,11 @@ def video_outline_maker(all_subsegments, user_prompt, client):
 ############### Rebuild the output JSON file ###############
 # Construct the JSON file with importance label and summary of each subsegment as output
 def build_output(data, reordered_topics, outline):
+    '''
+    Assemble the final pedagogical_output.json structure: the video outline,
+    plus each topic's reordered/labeled subsegments under "segments".
+    '''
+
     output = {
         "topic": data["topic"],
         "user_prompt": data["user_prompt"],
@@ -187,6 +189,15 @@ def build_output(data, reordered_topics, outline):
 
 ###################################### Main ######################################
 def run_pedagogical_structuring(doc_analysis_json):
+    '''
+    Main entry point for the Pedagogical Structuring Agent.
+    - Reads doc_analysis_output.json
+    - For each topic, reorders/labels its subsegments via finetune_reorder_topic
+    - Flattens all subsegments and builds a video outline via video_outline_maker
+    - Saves the combined result as pedagogical_output.json
+    Returns the path to the saved file.
+    '''
+
     file = doc_analysis_json
 
     with open(file, "r") as f:
@@ -199,7 +210,7 @@ def run_pedagogical_structuring(doc_analysis_json):
     # Run all topics and collect their importance & summary of subsegments
     all_results = []
     for topic in data["segments"]:
-        result = finetune_reorder_topic(topic, user_prompt)
+        result = reorder_summarize_label_topic(topic, user_prompt)
         all_results.append(result)
 
     # Flatten all subsegments across all topics
