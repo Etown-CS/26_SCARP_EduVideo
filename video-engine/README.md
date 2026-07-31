@@ -8,14 +8,11 @@ Takes structured educational content (derived from lecture slides, notes, handou
 
 # BluEdu — Backend (Multi Agent Pipeline)
 
-Backend for **BluEdu**: an agentic AI pipeline that turns a lecture PDF + a short user
-prompt into a short, narrated educational video. A professor uploads notes through the
+Backend for **BluEdu**: a multi-agent pipeline that turns a lecture PDF + a short user
+prompt into a short, narrated educational video. A student uploads notes through the
 frontend; this backend runs four LLM-driven agents in sequence to analyze, structure,
 script, and visually generate the resulting video.
 
-> This README documents the pipeline as implemented at the time of writing. If a module
-> or function listed here has since changed, treat this as the most recent known-good
-> reference and update it alongside the code.
 
 ---
 
@@ -54,7 +51,7 @@ variables in `.env`.
 | **VRAM** | 24GB+ | Wan2.1 (T2V-1.3B) + MagCache + reused pipeline fits comfortably here; smaller GPUs risk OOM |
 | **Rental type** | On-demand, not interruptible | Interruptible instances can be outbid mid-job, killing the SSH connection and losing progress |
  
-**Instance actually used in production:** on-demand RTX 4090, 24GB VRAM, US region,
+**Instance actually used in production:** on-demand RTX 4090, 24GB VRAM, France,
 ~$0.354/hr.
  
 **Setup on the GPU instance:**
