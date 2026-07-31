@@ -37,7 +37,7 @@ export default function Generate() {
         if (incoming.length === 0) return;
         const valid = incoming.filter(isAllowed);
         if (valid.length === 0) {
-            setFileError('Only PDF, DOCX, and MD files can be uploaded at this time. Please try uploading a document in that format');
+            setFileError('Only PDF documents can be uploaded at this time. Please try uploading a document in that format');
             return;
         }
         if (incoming.length > 1) {
@@ -316,7 +316,7 @@ export default function Generate() {
                                             <span className="material-symbols-outlined text-primary text-4xl">cloud_upload</span>
                                         </div>
                                         <h3 className="font-headline text-xl font-bold text-on-surface">Upload your files here</h3>
-                                        <p className="text-on-surface-variant font-body">Support for docx, pdf, and md</p>
+                                        <p className="text-on-surface-variant font-body">Support for pdf</p>
                                         <button type="button"
                                             onClick={() => inputRef.current?.click()}
                                             className="mt-4 px-8 py-3 bg-surface border border-outline-variant rounded-lg font-semibold text-primary shadow-neomorph-raised hover:bg-surface-container transition-all active:scale-95 cursor-pointer">

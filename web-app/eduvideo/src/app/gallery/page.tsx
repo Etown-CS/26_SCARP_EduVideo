@@ -40,7 +40,6 @@ export default function Gallery() {
     const [videos, setVideos] = useState<videoDoc[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedTopic, setSelectedTopic] = useState<string>('all');
-    //const [downloading, setDownloading] = useState(false);
 
     const formatDate = (timestamp?: Timestamp) => {
         if (!timestamp) return '';
@@ -73,29 +72,6 @@ export default function Gallery() {
             console.error('Failed to remove video file from server: ', err);
         }
     }
-
-    {/*
-    const handleDownload = async () => {
-        if(!videoUrl) return;
-        setDownloading(true);
-        try{
-            const res = await fetch(videoUrl);
-            if(!res.ok) throw new Error("Failed to fetch video");
-            const blob = await res.blob();
-            const blobUrl = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = blobUrl;
-            a.download = `${title || "video"}.mp4`;
-            a.click();
-            a.remove();
-            URL.revokeObjectURL(blobUrl);
-        }catch (err){
-            console.error("Failed to download video: ", err);
-        }finally{
-            setDownloading(false);
-        }
-    };
-    */}
 
     useEffect(() => {
         if (!user) return;
@@ -288,14 +264,6 @@ export default function Gallery() {
                                         )}
                                     </div>
                                 )}
-                                {/*
-                                <div className="flex justify-center">
-                                    <button
-                                        className="w-50 bg-primary text-on-primary py-3 px-5 rounded-lg font-bold text-md flex items-center justify-center gap-2 active:scale-95 transition-all cursor-pointer mb-4">
-                                        <span className="material-symbols-outlined text-md">download</span>Download Video
-                                    </button>
-                                </div>
-                                */}
                             </div>
                         </div>
                     </div>
