@@ -21,7 +21,7 @@ script, and visually generate the resulting video.
 
 ## Architecture
 
-![Backend Pipeline Overview]("docs/system_design_overview.png")
+![Backend Pipeline Overview](../docs/system_design_overview.png)
 
 1. **Document Analysis** — extracts and filters raw PDF content into clean topics.
 2. **Pedagogical Structuring** — rates importance, reorders, and summarizes each topic.
