@@ -65,7 +65,7 @@ def split_into_clip_chunks(text, target_duration_sec=CLIP_DURATION_SEC):
         # 1.2 - 20% overshoot allows room to prefer a clean semantic break over a length limit
         if current_sentences and (current_word_count + word_count) > target_words * 1.2:
             chunk_text = " ".join(current_sentences)
-            chunks.append((chunk_text, current_word_count / WORDS_PER_SECOND)) # append as a tuple of ("text finalized", estimated time)
+            chunks.append((chunk_text, current_word_count / WORDS_PER_SECOND)) # append as a tuple of ("chunk text finalized", estimated time)
 
             # Reset variables
             current_sentences = []
@@ -83,13 +83,9 @@ def split_into_clip_chunks(text, target_duration_sec=CLIP_DURATION_SEC):
 
 ############### Find image path ###############
 def find_image_path_in_chunk(chunk_text):
-    match = re.search(r'!\[\]\(([^)]*)\)', chunk_text)
-    if match:
-        return match.group(1)
-    return None
-
-############### Find image path ###############
-def find_image_path_in_chunk(chunk_text):
+    '''
+    This function takes the images path out from the chunk not to get the path narrated.
+    '''
     match = re.search(r'!\[\]\(([^)]*)\)', chunk_text)
     if match:
         return match.group(1)
@@ -142,6 +138,13 @@ def gen_visual_prompt_4chunk(
     chunk_position=None,                    # order in section
     previous_visual_prompt=None,            # for the continuity
 ):
+    '''
+    Generate a Wan2.1 text-to-video prompt for one narration chunk.
+    Combines motion guidance, CS-concept motion hints, render style, and
+    surrounding context (previous clip's prompt + section text) to keep
+    the abstract visual metaphor consistent across a section.
+    '''
+
     motion_guidance = (
         f"This clip is {clip_duration_sec} seconds long. Keep the camera static "
         "(no zooms, pans, or reveals) and instead describe how the objects/shapes "
@@ -150,7 +153,8 @@ def gen_visual_prompt_4chunk(
         "The motion should come from the subject, not the camera."
     )
 
-    concept_motion_hints = """
+    ### Detailed instruction for better visuals showing CS concepts
+    cs_concept_motion_hints = """
         When the content includes positions, let the shapes and their positions reflect:
         - "front" -> always implies a shape at the leftmost, by assuming all the shapes lined up horizontally
         - "back" -> always implies a shape  at the rightmost, by assuming all the shapes lined up horizontally
@@ -178,7 +182,7 @@ def gen_visual_prompt_4chunk(
 
     render_instruction = RENDER_STYLES.get(render_style, "") # minimal by default
 
-    # Text Rendering - Wan2.1 is slightly better at rendeering texts
+    # Text Rendering - Wan2.1 is slightly better at rendering texts
     # Trial code
     # NOTE: tested 2026-07-15, text came out illegible/garbled on real generated
     # clips (see ENABLE_ON_SCREEN_KEYWORDS note above) -- gated off by default,
@@ -192,7 +196,7 @@ def gen_visual_prompt_4chunk(
             "still follow the visual metaphor described above."
         )
 
-    # Give the model the surrounding context in order to minimize visual gaps due to being given just a chunk.
+    ### Give the model the surrounding context in order to minimize visual gaps due to being given just a chunk.
     context_block = ""
     if section_context:
         context_block += f"""
@@ -224,7 +228,7 @@ def gen_visual_prompt_4chunk(
 
     {motion_guidance}
 
-    {concept_motion_hints}
+    {cs_concept_motion_hints}
 
     Keep the camera static throughout. Lead with what the objects/shapes in the scene
     are doing (e.g. "circles pulsing outward", "lines slowly connecting") before
@@ -241,6 +245,14 @@ def gen_visual_prompt_4chunk(
 
 ############### Generate all clip prompts for one section ###############
 def gen_clips_with_audio_4section(client, section, pipeline, output_folder, model_name=MODEL_NAME, key_points=None):
+    '''
+    For one video-outline section: split the transcript into clip-sized
+    chunks, generate audio for each chunk (measuring its real duration),
+    and either reference an existing PDF image or generate a Wan2.1
+    prompt for it, depending on whether the chunk contains an image tag.
+    Returns a list of per-clip dicts ready to be sent to the GPU.
+    '''
+
     ### Create folder to store audio files
     audio_dir = os.path.join(output_folder, "audio")
     os.makedirs(audio_dir, exist_ok=True)
@@ -257,9 +269,6 @@ def gen_clips_with_audio_4section(client, section, pipeline, output_folder, mode
 
     ### Process visual generation chunk by chunk
     for i, (chunk_text, estimated_duration) in enumerate(chunks, start=1):
-        ### Check if this chunk references an image, before the text gets cleaned for TTS
-        image_path = find_image_path_in_chunk(chunk_text)
-
         ### Check if this chunk references an image, before the text gets cleaned for TTS
         image_path = find_image_path_in_chunk(chunk_text)
 
@@ -286,7 +295,9 @@ def gen_clips_with_audio_4section(client, section, pipeline, output_folder, mode
                 "audio_path": audio_path,
             })
         else:
-            # this part was for text rendering, ended up failing
+            # NOTE: new_key_point / on_screen_key_points is for optional on-screen
+            # text rendering, which was tested and found unreliable (see
+            # ENABLE_ON_SCREEN_KEYWORDS note above) -- currently gated off.
             new_key_point = find_new_key_point(chunk_text, key_points, already_shown)
             if new_key_point:
                 already_shown.add(new_key_point)

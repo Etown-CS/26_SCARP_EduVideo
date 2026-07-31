@@ -23,12 +23,17 @@ client = OpenAI()
 - escape_for_ffmpeg
 - add_title_overlay
 - add_subtitle_overlay
--run_visual_gen
+- run_visual_gen
 
 '''
 
 ####################### Combine clips #######################
 def combine_clips(clips_dir, output_path):
+    '''
+    Concatenate all "..._with_audio.mp4" clips in clips_dir, in section/clip
+    order, into a single output video (via ffmpeg's concat demuxer).
+    '''
+
     ### Make a tuple like "section-1_clip1.mp4" -> (1, 1), to properly compare them as number
     def sort_key(filename):
         match = re.match(r"section-(\d+)_clip(\d+)_with_audio\.mp4", filename)  # No need of (/d) if you just wanna know T/F
@@ -60,6 +65,11 @@ def combine_clips(clips_dir, output_path):
 
 ################################## Combine audio to full video ##################################
 def combine_audio_video(video_path, audio_path, output_path):
+    '''
+    Mux a silent video clip with its narration audio into a single mp4,
+    trimming to whichever of the two is shorter.
+    '''
+
     cmd = [
         "ffmpeg", "-y",    # enable to overwrite
         "-i", video_path,
@@ -71,20 +81,33 @@ def combine_audio_video(video_path, audio_path, output_path):
     ]
     subprocess.run(cmd, check=True)
 
+################# Escape characters that cause ffmpeg's syntax error #################
 def escape_for_ffmpeg(text):
+    '''
+    Escape characters that would otherwise break ffmpeg's drawtext filter
+    syntax: apostrophes (which collide with drawtext's quoting) and colons
+    (which drawtext treats as an option separator).
+    '''
+
     text = text.replace("'", "'\\\\\\''")
     text = text.replace(":", "\\:")
     return text
 
 ################################## Display the section title ##################################
 def add_title_overlay(video_path, title, output_path):
+    '''
+    Burn the section title into the top-left corner of the clip (white text
+    on a semi-transparent black background). Writes to a temp file first,
+    since ffmpeg can't edit a file in-place.
+    '''
+
     title = escape_for_ffmpeg(title)
     temp_output = output_path + ".temp.mp4"
 
     cmd = [
         "ffmpeg", "-y",
         "-i", video_path,
-        "-vf", f"drawtext=text='{title}':x=20:y=10:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.3:boxborderw=10",
+        "-vf", f"drawtext=text='{title}':x=20:y=10:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.5:boxborderw=10",
         "-c:a", "copy",
         temp_output,
     ]
@@ -94,6 +117,11 @@ def add_title_overlay(video_path, title, output_path):
 
 ################################## Display the subtitle ##################################
 def add_subtitle_overlay(video_path, subtitle_text, output_path, fontsize=16, width=60):
+    '''
+    Burn the narration text into the bottom of the clip as a subtitle,
+    wrapped to fit the screen width. Same temp-file pattern as add_title_overlay.
+    '''
+
     wrapped = textwrap.fill(subtitle_text, width=width)
     wrapped = escape_for_ffmpeg(wrapped)
     temp_output = output_path + ".temp.mp4"
@@ -110,6 +138,17 @@ def add_subtitle_overlay(video_path, subtitle_text, output_path, fontsize=16, wi
 
 ######################################### Main #########################################
 def run_visual_gen(script_json, client):
+    '''
+    Main entry point for the Visual Generation Agent.
+    - Reads script_output.json and builds a TTS pipeline
+    - Generates audio + a visual prompt (or existing-image reference) per clip
+    - Sends any referenced images and the full clip prompt list to the GPU
+    - Triggers Wan2.1 generation on the GPU, pulls the clips back
+    - Muxes audio, section title, and subtitle into each clip
+    - Combines all clips into the final video
+    Returns the path to the final combined video.
+    '''
+    
     file = script_json
     output_dir = os.path.dirname(file)
     output_dir = os.path.dirname(file)

@@ -153,15 +153,12 @@ def _gpu_mem_snapshot() -> str:
 ####################### Display images #######################
 def generate_static_image_clip(image_path, duration_sec, output_path, fps=16, size="832x480"):
     '''
-        "ffmpeg", "-y",
-        "-loop", "1",      # repeat displaying for the time instructed
-        "-i", image_path,  # input image file
-        "-t", str(duration_sec),  # length of output clip
-        "-vf", f"scale={size.replace('x', ':')}",  # resize
-        "-r", str(fps),  # align framerate to 16 fps
-        "-pix_fmt", "yuv420p",  # adjust color format to make it convertable
-        output_path,
+    Convert a static image into a silent video clip of the given duration,
+    matching Wan2.1's output format (fps, pixel format). Preserves the
+    image's aspect ratio via scale+pad instead of stretching, so the whole
+    image fits within the frame with black bars on whichever side is short.
     '''
+
     cmd = [
         "ffmpeg", "-y",
         "-loop", "1",
@@ -174,40 +171,6 @@ def generate_static_image_clip(image_path, duration_sec, output_path, fps=16, si
     ]
     subprocess.run(cmd, check=True)
 
-####################### Combine clips #######################
-def combine_clips(clips_dir, output_path):
-    print(f"[debug] Looking for clips in: {clips_dir}") # for debug
-    print(f"[debug] Files found: {os.listdir(clips_dir)}") # for debug
-
-    ### Make a tuple like "section-1_clip1.mp4" -> (1, 1), to properly compare them as number
-    def sort_key(filename):
-        match = re.match(r"section-(\d+)_clip(\d+)\.mp4", filename)
-        return (int(match.group(1)), int(match.group(2)))
-
-    clip_files = sorted(
-        (f for f in os.listdir(clips_dir) 
-        if f.endswith(".mp4") and re.match(r"section-\d+_clip\d+\.mp4", f)),
-        key=sort_key
-    )
-
-    concat_list_path = os.path.join(clips_dir, "concat_list.txt")
-    with open(concat_list_path, "w") as f:
-        for clip_file in clip_files:
-            f.write(f"file '{clip_file}'\n")
-
-        ### Force to write to the disk at OS level
-        f.flush()
-        os.fsync(f.fileno())
-
-    cmd = [
-        "ffmpeg", "-y",
-        "-f", "concat", "-safe", "0",
-        "-i", "concat_list.txt",
-        "-c", "copy",
-        os.path.basename(output_path),
-    ]
-    subprocess.run(cmd, check=True, cwd=clips_dir)
-
 ####################### Main #######################
 ### Load the script JSON file
 with open("visual_prompts.json", "r") as f: # run_remote_command is executed after doing "cd REMOTE_WORK_DIR"
@@ -216,6 +179,13 @@ with open("visual_prompts.json", "r") as f: # run_remote_command is executed aft
 ### Building Wan2.1 pipeline + MagCache batch
 @torch.inference_mode()
 def main() -> None:
+    '''
+    GPU-side entry point. Builds the WanT2V pipeline once (patched with
+    MagCache), then loops through visual_prompts.json: for each clip,
+    either renders a static image clip or generates one from scratch via
+    Wan2.1, depending on visual_type.
+    '''
+    
     ### Empty clips folder every time
     if os.path.exists("clips"):
         shutil.rmtree("clips")
@@ -312,11 +282,6 @@ def main() -> None:
             print(f"Clip {i} ('{output_file_name}') done in {timings[key]:.1f}s -> {output_file_name}")
             print(f"Peak VRAM so far: {_gpu_mem_snapshot()}\n")
 
-    ### Combine all clips into one
-    clips_dir = os.path.abspath("clips")
-    combined_output = os.path.join(clips_dir, "combined_video.mp4")
-    combine_clips(clips_dir, combined_output)
-    print(f"Combined video saved to {combined_output}")
 
 if __name__ == "__main__":
     main()

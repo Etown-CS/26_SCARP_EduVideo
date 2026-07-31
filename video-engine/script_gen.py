@@ -12,6 +12,15 @@ client = OpenAI()
 
 ############### Transcript Generation + Key point extraction###############
 def generate_transcript(section, subseg_lookup, video_title):
+    '''
+    Given one section of the video outline, ask the LLM to write a short,
+    natural-sounding transcript paragraph and extract up to 3 key terms.
+    - Adds a welcoming/closing instruction if the section is the intro or conclusion
+    - Hides image paths behind IMAGE_MARKER tokens before prompting (via build_summary_list), then restores them after the LLM responds
+    - Verifies each key term actually appears verbatim in the transcript
+    Returns {"transcript": ..., "key_points": [...]}, or None if parsing fails.
+    '''
+
     subsegs = []
     for sid in section["subsegment_ids"]:
         if sid in subseg_lookup:
@@ -91,8 +100,11 @@ Return ONLY a valid JSON object, no explanation, no markdown formatting:
         return None
 
     transcript = result.get("transcript", "").strip()
-    key_points = result.get("key_points", []) # This is for text rendering with the Wan2.1 model, which ended up failing.
 
+    # Used for optional on-screen keyword rendering (see visual_prompt_gen.py); 
+    # Wan2.1's own text rendering was tested and found unreliable, 
+    # so this is currently gated off (ENABLE_ON_SCREEN_KEYWORDS=False).
+    key_points = result.get("key_points", [])
     # Safety check: verify each term actually appears verbatim.
     transcript_lower = transcript.lower()
     verified_key_points = [
@@ -126,12 +138,27 @@ def build_summary_list(subsegments):
 
 ############### Restore image tags ###############
 def restore_img_path(text, marker_dict):
+    '''
+    Replace each IMAGE_MARKER_n token in the text with its real image path,
+    using the marker_dict built by build_summary_list. Called after the LLM
+    response is received, so the LLM never sees the real path.
+    '''
+        
     for marker, path in marker_dict.items():
         text = text.replace(marker, path)
     return text
 
 ############### Main ###############
 def run_script_gen(pedagogical_json):
+    '''
+    Main entry point for the Script Generation Agent.
+    - Reads pedagogical_output.json
+    - Builds a subsegment id → subsegment lookup dict
+    - Generates a transcript + key points for each section via generate_transcript
+    - Saves the combined result as script_output.json
+    Returns the path to the saved file.
+    '''
+
     file = pedagogical_json
 
     with open(file, "r") as f:
